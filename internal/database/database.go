@@ -10,7 +10,6 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/joho/godotenv/autoload"
 )
 
 // Service represents a service that interacts with a database.
@@ -43,14 +42,17 @@ func New() Service {
 	if dbInstance != nil {
 		return dbInstance
 	}
+	assertEnvVars()
+
+	fmt.Printf("Connecting to database: %s on port: %s .....\n", database, port)
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable&search_path=%s", username, password, host, port, database, schema)
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
-	dbInstance = &service{
-		db: db,
-	}
+	fmt.Printf("Connected to database: %s on port: %s\n", database, port)
+
+	dbInstance = &service{db: db}
 	return dbInstance
 }
 
@@ -112,4 +114,25 @@ func (s *service) Health() map[string]string {
 func (s *service) Close() error {
 	log.Printf("Disconnected from database: %s", database)
 	return s.db.Close()
+}
+
+func assertEnvVars() {
+	if database == "" {
+		log.Fatal("database env var is empty")
+	}
+	if password == "" {
+		log.Fatal("password env var is empty")
+	}
+	if username == "" {
+		log.Fatal("username env var is empty")
+	}
+	if port == "" {
+		log.Fatal("port env var is empty")
+	}
+	if host == "" {
+		log.Fatal("host env var is empty")
+	}
+	if schema == "" {
+		log.Fatal("schema env var is empty")
+	}
 }

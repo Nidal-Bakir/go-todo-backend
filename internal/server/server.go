@@ -7,14 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	_ "github.com/joho/godotenv/autoload"
-
-	"todo/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 )
 
 type Server struct {
 	port int
-
 	db database.Service
 }
 
@@ -22,7 +19,6 @@ func NewServer() *http.Server {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	NewServer := &Server{
 		port: port,
-
 		db: database.New(),
 	}
 
