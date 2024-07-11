@@ -14,16 +14,16 @@ var (
 )
 
 func init() {
-	file, err := os.OpenFile(".env", os.O_RDONLY, os.ModeAppend)
+	file, err := os.Open(".env")
 	if err != nil {
 		log.Fatal("can not read .env file")
 	}
 	defer file.Close()
 
-	v := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(file)
 
-	for v.Scan() {
-		key, val, ok := strings.Cut(v.Text(), "=")
+	for scanner.Scan() {
+		key, val, ok := strings.Cut(scanner.Text(), "=")
 		if !ok {
 			continue
 		}
