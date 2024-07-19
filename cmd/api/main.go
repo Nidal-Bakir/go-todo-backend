@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func main() {
-	server := server.NewServer()
+	server := server.NewServer(context.Background())
 
 	fmt.Println("Staring the server on port: ", os.Getenv("PORT"))
 	err := server.ListenAndServe()

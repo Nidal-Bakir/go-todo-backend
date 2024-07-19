@@ -12,7 +12,7 @@ import (
 )
 
 type Service struct {
-	ConPool *pgxpool.Pool
+	ConnPool *pgxpool.Pool
 	Queries Querier
 }
 
@@ -26,7 +26,10 @@ var (
 	dbInstance   *Service
 )
 
-func NewConnection() *Service {
+func NewConnection(ctx context.Context) *Service {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
 	// Reuse Connection
 	if dbInstance != nil {
 		return dbInstance
@@ -34,8 +37,6 @@ func NewConnection() *Service {
 	assertEnvVars()
 
 	fmt.Printf("Connecting to database: %s on port: %s .....\n", database, port)
-	ctx := context.Background()
-
 	conStr := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s  sslmode=disable pool_max_conns=%s", username, password, host, port, database, poolMaxConns)
 	connectionPool, err := pgxpool.New(ctx, conStr)
 	if err != nil {
@@ -46,9 +47,9 @@ func NewConnection() *Service {
 		log.Fatal(err)
 	}
 	fmt.Printf("Connected to database: %s on port: %s\n", database, port)
- 
+
 	dbInstance = &Service{
-		ConPool: connectionPool,
+		ConnPool: connectionPool,
 		Queries: New(connectionPool),
 	}
 	return dbInstance
@@ -56,13 +57,13 @@ func NewConnection() *Service {
 
 // Health checks the health of the database connection by pinging the database.
 // It returns a map with keys indicating various health statistics.
-func (s *Service) Health() map[string]string {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+func (s *Service) Health(ctx context.Context) map[string]string {
+	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
 	stats := make(map[string]string)
 
-	err := s.ConPool.Ping(ctx)
+	err := s.ConnPool.Ping(ctx)
 	if err != nil {
 		stats["status"] = "down"
 		stats["error"] = fmt.Sprintf("db down: %v", err)
@@ -74,7 +75,7 @@ func (s *Service) Health() map[string]string {
 	stats["status"] = "up"
 	stats["message"] = "It's healthy"
 
-	dbStats := s.ConPool.Stat()
+	dbStats := s.ConnPool.Stat()
 	stats["acquired_connections"] = strconv.Itoa(int(dbStats.AcquiredConns()))
 	stats["cumulative_acquire_connections"] = strconv.Itoa(int(dbStats.AcquireCount()))
 	stats["idle_connections"] = strconv.Itoa(int(dbStats.IdleConns()))
@@ -91,7 +92,7 @@ func (s *Service) Health() map[string]string {
 // It logs a message indicating the disconnection from the specific database.
 func (s *Service) Close() {
 	log.Printf("Disconnected from database: %s", database)
-	s.ConPool.Close()
+	s.ConnPool.Close()
 }
 
 func assertEnvVars() {
@@ -109,5 +110,8 @@ func assertEnvVars() {
 	}
 	if host == "" {
 		log.Fatal("host env var is empty")
+	}
+	if poolMaxConns == "" {
+		log.Fatal("poolMaxConns env var is empty")
 	}
 }

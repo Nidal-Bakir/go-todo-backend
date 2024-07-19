@@ -11,7 +11,7 @@ import (
 type Querier interface {
 	//GetUserById
 	//
-	//  SELECT id, username, email, pass_salt, pass, firstname, lastname FROM users WHERE id = $1 LIMIT 1
+	//  SELECT id, created_at, updated_at, username, email, pass_salt, pass, first_name, last_name, verified_at FROM users WHERE id = $1 LIMIT 1
 	GetUserById(ctx context.Context, id int32) (User, error)
 }
 
