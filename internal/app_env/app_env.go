@@ -8,10 +8,24 @@ import (
 )
 
 var (
-	IsProd  = false
-	IsStag  = false
-	IsLocal = false
+	isProd  = false
+	isStag  = false
+	isLocal = false
 )
+
+func IsProd() bool {
+	return isProd
+}
+func IsStag() bool {
+	return isStag
+}
+func IsLocal() bool {
+	return isLocal
+}
+
+func IsStagOrLocal() bool {
+	return IsStag() || IsLocal()
+}
 
 func init() {
 	file, err := os.Open(".env")
@@ -39,11 +53,11 @@ func init() {
 	appEnv := os.Getenv("APP_ENV")
 	switch appEnv {
 	case "local":
-		IsLocal = true
+		isLocal = true
 	case "stag":
-		IsStag = true
+		isStag = true
 	case "prod":
-		IsProd = true
+		isProd = true
 	default:
 		log.Fatal("The value for APP_ENV in the .env file not determined, aborting...")
 	}

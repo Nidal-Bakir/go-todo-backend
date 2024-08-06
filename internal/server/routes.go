@@ -18,10 +18,11 @@ func (s *Server) RegisterRoutes() http.Handler {
 
 func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
 
-	WriteJson(w, 500, ErrorRes{
-		Error:  fmt.Errorf("some error"),
-		Errors: []error{fmt.Errorf("error1"), fmt.Errorf("error2")},
-	})
+	WriteError(w,
+		500,
+		fmt.Errorf("some error"),
+		fmt.Errorf("error1"), fmt.Errorf("error2"),
+	)
 }
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {

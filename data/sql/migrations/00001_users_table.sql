@@ -1,15 +1,14 @@
 -- +goose Up
 CREATE TABLE users (
     id SERIAL PRIMARY KEY NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL,
     username VARCHAR(25) UNIQUE NOT NULL,
-    email VARCHAR(25) NULL,
-    pass_salt VARCHAR(25) NOT NULL,
-    pass VARCHAR(120) NOT NULL,
+    profile_image TEXT,
     first_name VARCHAR(120) NOT NULL,
     last_name VARCHAR(120) NOT NULL,
-    verified_at TIMESTAMP WITH TIME ZONE NULL
+    deleted_at TIMESTAMPTZ,
+    blocked_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
 -- +goose Down
