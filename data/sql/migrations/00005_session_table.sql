@@ -5,10 +5,12 @@ CREATE TABLE session (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-    originated_from INTEGER REFERENCES user_login_option(id),
-    installation_id INTEGER REFERENCES installation(id),
-    
+    deleted_at TIMESTAMPTZ,
+    originated_from INTEGER REFERENCES login_option(id),
+    installation_id INTEGER REFERENCES installation(id)
 );
+
+CREATE INDEX session_token_index ON session(token);
 
 -- +goose Down
 DROP TABLE session;

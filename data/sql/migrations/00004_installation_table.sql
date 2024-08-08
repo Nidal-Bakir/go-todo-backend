@@ -9,8 +9,10 @@ CREATE TABLE installation (
     device_os_version TEXT,
     app_version TEXT,
     created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+    updated_at TIMESTAMPTZ NOT NULL,
+    deleted_at TIMESTAMPTZ
 );
+
 
 -- +goose Down
 DROP TABLE installation;
