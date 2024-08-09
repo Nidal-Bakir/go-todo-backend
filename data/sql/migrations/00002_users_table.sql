@@ -12,5 +12,7 @@ CREATE TABLE users (
     role_id INTEGER REFERENCES role(id)
 );
 
+CREATE INDEX users_username_index ON users(username);
+
 -- +goose Down
 DROP TABLE users;
