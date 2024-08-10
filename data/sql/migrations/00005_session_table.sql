@@ -1,12 +1,12 @@
 -- +goose Up
 CREATE TABLE session (
     id SERIAL PRIMARY KEY NOT NULL,
-    token TEXT UNIQUE NOT NULL,
+    token TEXT UNIQUE NOT NULL CHECK (length(token) >= 50),
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     deleted_at TIMESTAMPTZ,
-    originated_from INTEGER REFERENCES login_option(id),
+    originated_from INTEGER NOT NULL REFERENCES login_option(id),
     installation_id INTEGER REFERENCES installation(id)
 );
 
