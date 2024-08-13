@@ -37,8 +37,9 @@ func init() {
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-		key, val, ok := strings.Cut(scanner.Text(), "=")
-		if !ok {
+		line := strings.TrimSpace(scanner.Text())
+		key, val, ok := strings.Cut(line, "=")
+		if !ok || line[0] == '#' {
 			continue
 		}
 

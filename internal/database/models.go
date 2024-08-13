@@ -8,15 +8,99 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Installation struct {
+	ID                 int32
+	InstallationID     pgtype.UUID
+	NotificationToken  pgtype.Text
+	Locale             string
+	DeviceManufacturer string
+	DeviceOs           string
+	DeviceOsVersion    string
+	AppVersion         string
+	CreatedAt          pgtype.Timestamptz
+	UpdatedAt          pgtype.Timestamptz
+	DeletedAt          pgtype.Timestamptz
+}
+
+type LoginOption struct {
+	ID          int32
+	LoginMethod string
+	AccessKey   string
+	Pass        pgtype.Text
+	PassSalt    pgtype.Text
+	VerifiedAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	DeletedAt   pgtype.Timestamptz
+	UserID      int32
+}
+
+type Permission struct {
+	ID        int32
+	Name      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+}
+
+type Role struct {
+	ID        int32
+	Name      string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+}
+
+type RolePermission struct {
+	RoleID       int32
+	PermissionID int32
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type Session struct {
+	ID             int32
+	Token          string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	OriginatedFrom int32
+	InstallationID pgtype.Int4
+}
+
+type Todo struct {
+	ID        int32
+	Title     string
+	Body      pgtype.Text
+	Status    string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+	UserID    int32
+}
+
 type User struct {
-	ID         int32
-	CreatedAt  pgtype.Timestamptz
-	UpdatedAt  pgtype.Timestamptz
-	Username   string
-	Email      pgtype.Text
-	PassSalt   string
-	Pass       string
-	FirstName  string
-	LastName   string
-	VerifiedAt pgtype.Timestamptz
+	ID           int32
+	Username     string
+	ProfileImage pgtype.Text
+	FirstName    string
+	LastName     pgtype.Text
+	BlockedAt    pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	RoleID       pgtype.Int4
+}
+
+type Verification struct {
+	ID             int32
+	Code           string
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	DeletedAt      pgtype.Timestamptz
+	Intent         string
+	Verifying      int32
+	UsingSessionID pgtype.Int4
 }
