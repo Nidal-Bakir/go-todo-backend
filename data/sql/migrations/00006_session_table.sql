@@ -10,8 +10,6 @@ CREATE TABLE session (
     installation_id INTEGER REFERENCES installation(id)
 );
 
-CREATE INDEX session_token_index ON session(token);
-
 CREATE TRIGGER update_session_updated_at_column BEFORE
 UPDATE ON session FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column();
 

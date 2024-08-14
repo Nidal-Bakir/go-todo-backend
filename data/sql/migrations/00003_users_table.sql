@@ -12,8 +12,6 @@ CREATE TABLE users (
     role_id INTEGER REFERENCES role(id)
 );
 
-CREATE INDEX users_username_index ON users(username);
-
 CREATE TRIGGER update_users_updated_at_column BEFORE
 UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column();
 

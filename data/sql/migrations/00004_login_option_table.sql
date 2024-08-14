@@ -8,12 +8,10 @@ CREATE TABLE login_option (
     pass_salt VARCHAR(25),
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     deleted_at TIMESTAMPTZ,
     user_id INTEGER NOT NULL REFERENCES users(id)
 );
-
-CREATE INDEX login_option_access_key_index ON login_option(access_key);
 
 CREATE TRIGGER update_login_option_updated_at_column BEFORE
 UPDATE ON login_option FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column();
