@@ -13,7 +13,7 @@ import (
 
 type Service struct {
 	ConnPool *pgxpool.Pool
-	Queries Querier
+	Queries  *Queries
 }
 
 var (
@@ -50,8 +50,9 @@ func NewConnection(ctx context.Context) *Service {
 
 	dbInstance = &Service{
 		ConnPool: connectionPool,
-		Queries: New(connectionPool),
+		Queries:  New(connectionPool),
 	}
+
 	return dbInstance
 }
 

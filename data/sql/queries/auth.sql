@@ -14,8 +14,21 @@ WHERE s.token = $1
     AND s.expires_at > NOW()
 LIMIT 1;
 
+-- name: IsUsernameUsed :one
+SELECT COUNT(*)
+FROM users
+WHERE username = $1;
+
 -- name: CreateUser :one
-INSERT INTO users
-VALUES( created_at, updated_at, name)
-VALUES ($1, $2, $3, $4)
+INSERT INTO users (
+        username,
+        profile_image,
+        first_name,
+        last_name,
+        role_id
+    )
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
+
+
+

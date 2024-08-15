@@ -8,6 +8,5 @@ sql:
         package: "database"
         out: "internal/database"
         sql_package: "pgx/v5"
-        emit_interface: true # output a Querier interface in the generated package
         emit_empty_slices: true # slices returned by :many queries will be empty instead of nil
         emit_sql_as_comment: true # emits the SQL statement as a code-block comment above the generated function, appending to any existing comments

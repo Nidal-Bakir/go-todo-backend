@@ -27,12 +27,12 @@ type Actions interface {
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
 }
 
-func NewActions(db database.Querier) Actions {
+func NewActions(db *database.Service) Actions {
 	return actionsImpl{db: db}
 }
 
 type actionsImpl struct {
-	db database.Querier
+	db *database.Service
 }
 
 func (a actionsImpl) GetUserById(ctx context.Context, id int) (database.User, error) {
@@ -41,7 +41,7 @@ func (a actionsImpl) GetUserById(ctx context.Context, id int) (database.User, er
 		return database.User{}, err
 	}
 
-	user, err := a.db.GetUserById(ctx, userId)
+	user, err := a.db.Queries.GetUserById(ctx, userId)
 	if err != nil {
 		return database.User{}, err
 	}

@@ -18,7 +18,7 @@ func (s *Server) Auth(h http.Handler) http.Handler {
 			return
 		}
 
-		userActions := user.NewActions(s.db.Queries)
+		userActions := user.NewActions(s.db)
 		userModel, err := userActions.GetUserBySessionToken(r.Context(), token)
 		if err != nil {
 			if AppEnv.IsStagOrLocal() {
