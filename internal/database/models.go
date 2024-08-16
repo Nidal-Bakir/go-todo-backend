@@ -5,102 +5,106 @@
 package database
 
 import (
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Installation struct {
-	ID                 int32
-	InstallationID     pgtype.UUID
-	NotificationToken  pgtype.Text
-	Locale             string
-	DeviceManufacturer string
-	DeviceOs           string
-	DeviceOsVersion    string
-	AppVersion         string
-	CreatedAt          pgtype.Timestamptz
-	UpdatedAt          pgtype.Timestamptz
-	DeletedAt          pgtype.Timestamptz
+	ID                      int32              `json:"id"`
+	InstallationID          uuid.UUID          `json:"installation_id"`
+	InstallationId2         pgtype.UUID        `json:"installation_id2"`
+	NotificationToken       pgtype.Text        `json:"notification_token"`
+	Locale                  string             `json:"locale"`
+	TimezoneOffsetInMinutes int32              `json:"timezone_offset_in_minutes"`
+	DeviceManufacturer      string             `json:"device_manufacturer"`
+	DeviceOs                string             `json:"device_os"`
+	DeviceOsVersion         string             `json:"device_os_version"`
+	AppVersion              string             `json:"app_version"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt               pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type LoginOption struct {
-	ID          int32
-	LoginMethod string
-	AccessKey   string
-	Pass        pgtype.Text
-	PassSalt    pgtype.Text
-	VerifiedAt  pgtype.Timestamptz
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-	DeletedAt   pgtype.Timestamptz
-	UserID      int32
+	ID          int32              `json:"id"`
+	LoginMethod string             `json:"login_method"`
+	AccessKey   string             `json:"access_key"`
+	HashedPass  pgtype.Text        `json:"hashed_pass"`
+	PassSalt    pgtype.Text        `json:"pass_salt"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	UserID      int32              `json:"user_id"`
 }
 
 type Permission struct {
-	ID        int32
-	Name      string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID        int32              `json:"id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Role struct {
-	ID        int32
-	Name      string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
+	ID        int32              `json:"id"`
+	Name      string             `json:"name"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type RolePermission struct {
-	RoleID       int32
-	PermissionID int32
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	RoleID       int32              `json:"role_id"`
+	PermissionID int32              `json:"permission_id"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Session struct {
-	ID             int32
-	Token          string
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	ExpiresAt      pgtype.Timestamptz
-	DeletedAt      pgtype.Timestamptz
-	OriginatedFrom int32
-	InstallationID pgtype.Int4
+	ID             int32              `json:"id"`
+	Token          string             `json:"token"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	OriginatedFrom int32              `json:"originated_from"`
+	InstallationID pgtype.Int4        `json:"installation_id"`
 }
 
 type Todo struct {
-	ID        int32
-	Title     string
-	Body      pgtype.Text
-	Status    string
-	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
-	DeletedAt pgtype.Timestamptz
-	UserID    int32
+	ID        int32              `json:"id"`
+	Title     string             `json:"title"`
+	Body      pgtype.Text        `json:"body"`
+	Status    string             `json:"status"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	UserID    int32              `json:"user_id"`
 }
 
 type User struct {
-	ID           int32
-	Username     string
-	ProfileImage pgtype.Text
-	FirstName    string
-	LastName     pgtype.Text
-	BlockedAt    pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	RoleID       pgtype.Int4
+	ID           int32              `json:"id"`
+	Username     string             `json:"username"`
+	ProfileImage pgtype.Text        `json:"profile_image"`
+	FirstName    string             `json:"first_name"`
+	MiddleName   pgtype.Text        `json:"middle_name"`
+	LastName     pgtype.Text        `json:"last_name"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
+	RoleID       pgtype.Int4        `json:"role_id"`
 }
 
 type Verification struct {
-	ID             int32
-	Code           string
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	ExpiresAt      pgtype.Timestamptz
-	DeletedAt      pgtype.Timestamptz
-	Intent         string
-	Verifying      int32
-	UsingSessionID pgtype.Int4
+	ID             int32              `json:"id"`
+	Code           string             `json:"code"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	Intent         string             `json:"intent"`
+	Verifying      int32              `json:"verifying"`
+	UsingSessionID pgtype.Int4        `json:"using_session_id"`
 }

@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE permission (
     id SERIAL PRIMARY KEY NOT NULL,
-    name TEXT UNIQUE NOT NULL CHECK (length(name) >= 1),
+    name VARCHAR(100) UNIQUE NOT NULL CHECK (length(name) >= 1),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     deleted_at TIMESTAMPTZ
@@ -9,7 +9,7 @@ CREATE TABLE permission (
 
 CREATE TABLE role (
     id SERIAL PRIMARY KEY NOT NULL,
-    name TEXT UNIQUE NOT NULL CHECK (length(name) >= 1),
+    name VARCHAR(100) UNIQUE NOT NULL CHECK (length(name) >= 1),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     deleted_at TIMESTAMPTZ

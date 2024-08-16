@@ -3,10 +3,18 @@ sql:
   - engine: "postgresql"
     schema: "data/sql/migrations/"
     queries: "data/sql/queries/"
+    database:
+      uri: "postgres://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_DATABASE}"
     gen:
       go:
         package: "database"
         out: "internal/database"
         sql_package: "pgx/v5"
+        emit_json_tags: true
         emit_empty_slices: true # slices returned by :many queries will be empty instead of nil
         emit_sql_as_comment: true # emits the SQL statement as a code-block comment above the generated function, appending to any existing comments
+        overrides:
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"

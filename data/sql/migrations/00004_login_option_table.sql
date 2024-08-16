@@ -1,10 +1,10 @@
 -- +goose Up
 CREATE TABLE login_option (
     id SERIAL PRIMARY KEY NOT NULL,
-    -- email, phone, Oauth, etc ...
-    login_method TEXT NOT NULL,
-    access_key TEXT UNIQUE NOT NULL CHECK (length(access_key) >= 5),
-    pass VARCHAR(120),
+    -- email, phone, guest,Oauth, etc ...
+    login_method VARCHAR(25) NOT NULL,
+    access_key VARCHAR(200) UNIQUE NOT NULL CHECK (length(access_key) >= 5),
+    hashed_pass VARCHAR(200),
     pass_salt VARCHAR(25),
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
