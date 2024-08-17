@@ -12,7 +12,6 @@ import (
 type Installation struct {
 	ID                      int32              `json:"id"`
 	InstallationID          uuid.UUID          `json:"installation_id"`
-	InstallationId2         pgtype.UUID        `json:"installation_id2"`
 	NotificationToken       pgtype.Text        `json:"notification_token"`
 	Locale                  string             `json:"locale"`
 	TimezoneOffsetInMinutes int32              `json:"timezone_offset_in_minutes"`
@@ -36,6 +35,19 @@ type LoginOption struct {
 	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
 	UserID      int32              `json:"user_id"`
+}
+
+type Otp struct {
+	ID             int32              `json:"id"`
+	Code           string             `json:"code"`
+	HitCount       int16              `json:"hit_count"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	Intent         string             `json:"intent"`
+	OtpFor         int32              `json:"otp_for"`
+	UsingSessionID int32              `json:"using_session_id"`
 }
 
 type Permission struct {
@@ -95,16 +107,4 @@ type User struct {
 	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 	RoleID       pgtype.Int4        `json:"role_id"`
-}
-
-type Verification struct {
-	ID             int32              `json:"id"`
-	Code           string             `json:"code"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
-	Intent         string             `json:"intent"`
-	Verifying      int32              `json:"verifying"`
-	UsingSessionID pgtype.Int4        `json:"using_session_id"`
 }

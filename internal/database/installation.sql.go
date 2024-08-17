@@ -23,7 +23,7 @@ INSERT INTO installation (
         app_version
     )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, installation_id, installation_id2, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at
+RETURNING id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at
 `
 
 type CreateNewInstallationParams struct {
@@ -48,7 +48,7 @@ type CreateNewInstallationParams struct {
 //	        app_version
 //	    )
 //	VALUES ($1, $2, $3, $4, $5, $6, $7)
-//	RETURNING id, installation_id, installation_id2, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at
+//	RETURNING id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at
 func (q *Queries) CreateNewInstallation(ctx context.Context, arg CreateNewInstallationParams) (Installation, error) {
 	row := q.db.QueryRow(ctx, createNewInstallation,
 		arg.InstallationID,
@@ -63,7 +63,6 @@ func (q *Queries) CreateNewInstallation(ctx context.Context, arg CreateNewInstal
 	err := row.Scan(
 		&i.ID,
 		&i.InstallationID,
-		&i.InstallationId2,
 		&i.NotificationToken,
 		&i.Locale,
 		&i.TimezoneOffsetInMinutes,

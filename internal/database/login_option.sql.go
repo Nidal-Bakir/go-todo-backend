@@ -66,6 +66,129 @@ func (q *Queries) CreateNewLoginOption(ctx context.Context, arg CreateNewLoginOp
 	return i, err
 }
 
+const getActiveLoginOption = `-- name: GetActiveLoginOption :one
+SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+FROM login_option
+WHERE login_method = $1
+    AND access_key = $2
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL
+LIMIT 1
+`
+
+type GetActiveLoginOptionParams struct {
+	LoginMethod string `json:"login_method"`
+	AccessKey   string `json:"access_key"`
+}
+
+// GetActiveLoginOption
+//
+//	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+//	FROM login_option
+//	WHERE login_method = $1
+//	    AND access_key = $2
+//	    AND verified_at IS NOT NULL
+//	    AND deleted_at IS NULL
+//	LIMIT 1
+func (q *Queries) GetActiveLoginOption(ctx context.Context, arg GetActiveLoginOptionParams) (LoginOption, error) {
+	row := q.db.QueryRow(ctx, getActiveLoginOption, arg.LoginMethod, arg.AccessKey)
+	var i LoginOption
+	err := row.Scan(
+		&i.ID,
+		&i.LoginMethod,
+		&i.AccessKey,
+		&i.HashedPass,
+		&i.PassSalt,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const getActiveLoginOptionWithUser = `-- name: GetActiveLoginOptionWithUser :one
+SELECT lo.id, login_method, access_key, hashed_pass, pass_salt, verified_at, lo.created_at, lo.updated_at, lo.deleted_at, user_id, u.id, username, profile_image, first_name, middle_name, last_name, u.created_at, u.updated_at, blocked_at, u.deleted_at, role_id
+FROM login_option AS lo
+    JOIN users AS u ON lo.user_id = u.id
+WHERE lo.login_method = $1
+    AND lo.access_key = $2
+    AND lo.verified_at IS NOT NULL
+    AND lo.deleted_at IS NULL
+    AND u.deleted_at IS NULL
+LIMIT 1
+`
+
+type GetActiveLoginOptionWithUserParams struct {
+	LoginMethod string `json:"login_method"`
+	AccessKey   string `json:"access_key"`
+}
+
+type GetActiveLoginOptionWithUserRow struct {
+	ID           int32              `json:"id"`
+	LoginMethod  string             `json:"login_method"`
+	AccessKey    string             `json:"access_key"`
+	HashedPass   pgtype.Text        `json:"hashed_pass"`
+	PassSalt     pgtype.Text        `json:"pass_salt"`
+	VerifiedAt   pgtype.Timestamptz `json:"verified_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
+	UserID       int32              `json:"user_id"`
+	ID_2         int32              `json:"id_2"`
+	Username     string             `json:"username"`
+	ProfileImage pgtype.Text        `json:"profile_image"`
+	FirstName    string             `json:"first_name"`
+	MiddleName   pgtype.Text        `json:"middle_name"`
+	LastName     pgtype.Text        `json:"last_name"`
+	CreatedAt_2  pgtype.Timestamptz `json:"created_at_2"`
+	UpdatedAt_2  pgtype.Timestamptz `json:"updated_at_2"`
+	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
+	DeletedAt_2  pgtype.Timestamptz `json:"deleted_at_2"`
+	RoleID       pgtype.Int4        `json:"role_id"`
+}
+
+// GetActiveLoginOptionWithUser
+//
+//	SELECT lo.id, login_method, access_key, hashed_pass, pass_salt, verified_at, lo.created_at, lo.updated_at, lo.deleted_at, user_id, u.id, username, profile_image, first_name, middle_name, last_name, u.created_at, u.updated_at, blocked_at, u.deleted_at, role_id
+//	FROM login_option AS lo
+//	    JOIN users AS u ON lo.user_id = u.id
+//	WHERE lo.login_method = $1
+//	    AND lo.access_key = $2
+//	    AND lo.verified_at IS NOT NULL
+//	    AND lo.deleted_at IS NULL
+//	    AND u.deleted_at IS NULL
+//	LIMIT 1
+func (q *Queries) GetActiveLoginOptionWithUser(ctx context.Context, arg GetActiveLoginOptionWithUserParams) (GetActiveLoginOptionWithUserRow, error) {
+	row := q.db.QueryRow(ctx, getActiveLoginOptionWithUser, arg.LoginMethod, arg.AccessKey)
+	var i GetActiveLoginOptionWithUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.LoginMethod,
+		&i.AccessKey,
+		&i.HashedPass,
+		&i.PassSalt,
+		&i.VerifiedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+		&i.ID_2,
+		&i.Username,
+		&i.ProfileImage,
+		&i.FirstName,
+		&i.MiddleName,
+		&i.LastName,
+		&i.CreatedAt_2,
+		&i.UpdatedAt_2,
+		&i.BlockedAt,
+		&i.DeletedAt_2,
+		&i.RoleID,
+	)
+	return i, err
+}
+
 const markUserLoginOptionAsVerified = `-- name: MarkUserLoginOptionAsVerified :exec
 UPDATE login_option
 SET verified_at = NOW()
