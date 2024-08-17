@@ -19,7 +19,26 @@ WHERE login_method = $1
 LIMIT 1;
 
 -- name: GetActiveLoginOptionWithUser :one
-SELECT *
+SELECT lo.id as login_option_id,
+    lo.login_method as login_option_login_method,
+    lo.access_key as login_option_access_key,
+    lo.hashed_pass as login_option_hashed_pass,
+    lo.pass_salt as login_option_pass_salt,
+    lo.verified_at as login_option_verified_at,
+    lo.created_at as login_option_created_at,
+    lo.updated_at as login_option_updated_at,
+    lo.deleted_at as login_option_deleted_at,
+    u.id as user_id,
+    u.username as user_username,
+    u.profile_image as user_profile_image,
+    u.first_name as user_first_name,
+    u.middle_name as user_middle_name,
+    u.last_name as user_last_name,
+    u.created_at as user_created_at,
+    u.updated_at as user_updated_at,
+    u.blocked_at as user_blocked_at,
+    u.deleted_at as user_deleted_at,
+    u.role_id as user_role_id
 FROM login_option AS lo
     JOIN users AS u ON lo.user_id = u.id
 WHERE lo.login_method = $1

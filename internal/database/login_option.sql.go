@@ -109,7 +109,26 @@ func (q *Queries) GetActiveLoginOption(ctx context.Context, arg GetActiveLoginOp
 }
 
 const getActiveLoginOptionWithUser = `-- name: GetActiveLoginOptionWithUser :one
-SELECT lo.id, login_method, access_key, hashed_pass, pass_salt, verified_at, lo.created_at, lo.updated_at, lo.deleted_at, user_id, u.id, username, profile_image, first_name, middle_name, last_name, u.created_at, u.updated_at, blocked_at, u.deleted_at, role_id
+SELECT lo.id as login_option_id,
+    lo.login_method as login_option_login_method,
+    lo.access_key as login_option_access_key,
+    lo.hashed_pass as login_option_hashed_pass,
+    lo.pass_salt as login_option_pass_salt,
+    lo.verified_at as login_option_verified_at,
+    lo.created_at as login_option_created_at,
+    lo.updated_at as login_option_updated_at,
+    lo.deleted_at as login_option_deleted_at,
+    u.id as user_id,
+    u.username as user_username,
+    u.profile_image as user_profile_image,
+    u.first_name as user_first_name,
+    u.middle_name as user_middle_name,
+    u.last_name as user_last_name,
+    u.created_at as user_created_at,
+    u.updated_at as user_updated_at,
+    u.blocked_at as user_blocked_at,
+    u.deleted_at as user_deleted_at,
+    u.role_id as user_role_id
 FROM login_option AS lo
     JOIN users AS u ON lo.user_id = u.id
 WHERE lo.login_method = $1
@@ -126,32 +145,50 @@ type GetActiveLoginOptionWithUserParams struct {
 }
 
 type GetActiveLoginOptionWithUserRow struct {
-	ID           int32              `json:"id"`
-	LoginMethod  string             `json:"login_method"`
-	AccessKey    string             `json:"access_key"`
-	HashedPass   pgtype.Text        `json:"hashed_pass"`
-	PassSalt     pgtype.Text        `json:"pass_salt"`
-	VerifiedAt   pgtype.Timestamptz `json:"verified_at"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	UserID       int32              `json:"user_id"`
-	ID_2         int32              `json:"id_2"`
-	Username     string             `json:"username"`
-	ProfileImage pgtype.Text        `json:"profile_image"`
-	FirstName    string             `json:"first_name"`
-	MiddleName   pgtype.Text        `json:"middle_name"`
-	LastName     pgtype.Text        `json:"last_name"`
-	CreatedAt_2  pgtype.Timestamptz `json:"created_at_2"`
-	UpdatedAt_2  pgtype.Timestamptz `json:"updated_at_2"`
-	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
-	DeletedAt_2  pgtype.Timestamptz `json:"deleted_at_2"`
-	RoleID       pgtype.Int4        `json:"role_id"`
+	LoginOptionID          int32              `json:"login_option_id"`
+	LoginOptionLoginMethod string             `json:"login_option_login_method"`
+	LoginOptionAccessKey   string             `json:"login_option_access_key"`
+	LoginOptionHashedPass  pgtype.Text        `json:"login_option_hashed_pass"`
+	LoginOptionPassSalt    pgtype.Text        `json:"login_option_pass_salt"`
+	LoginOptionVerifiedAt  pgtype.Timestamptz `json:"login_option_verified_at"`
+	LoginOptionCreatedAt   pgtype.Timestamptz `json:"login_option_created_at"`
+	LoginOptionUpdatedAt   pgtype.Timestamptz `json:"login_option_updated_at"`
+	LoginOptionDeletedAt   pgtype.Timestamptz `json:"login_option_deleted_at"`
+	UserID                 int32              `json:"user_id"`
+	UserUsername           string             `json:"user_username"`
+	UserProfileImage       pgtype.Text        `json:"user_profile_image"`
+	UserFirstName          string             `json:"user_first_name"`
+	UserMiddleName         pgtype.Text        `json:"user_middle_name"`
+	UserLastName           pgtype.Text        `json:"user_last_name"`
+	UserCreatedAt          pgtype.Timestamptz `json:"user_created_at"`
+	UserUpdatedAt          pgtype.Timestamptz `json:"user_updated_at"`
+	UserBlockedAt          pgtype.Timestamptz `json:"user_blocked_at"`
+	UserDeletedAt          pgtype.Timestamptz `json:"user_deleted_at"`
+	UserRoleID             pgtype.Int4        `json:"user_role_id"`
 }
 
 // GetActiveLoginOptionWithUser
 //
-//	SELECT lo.id, login_method, access_key, hashed_pass, pass_salt, verified_at, lo.created_at, lo.updated_at, lo.deleted_at, user_id, u.id, username, profile_image, first_name, middle_name, last_name, u.created_at, u.updated_at, blocked_at, u.deleted_at, role_id
+//	SELECT lo.id as login_option_id,
+//	    lo.login_method as login_option_login_method,
+//	    lo.access_key as login_option_access_key,
+//	    lo.hashed_pass as login_option_hashed_pass,
+//	    lo.pass_salt as login_option_pass_salt,
+//	    lo.verified_at as login_option_verified_at,
+//	    lo.created_at as login_option_created_at,
+//	    lo.updated_at as login_option_updated_at,
+//	    lo.deleted_at as login_option_deleted_at,
+//	    u.id as user_id,
+//	    u.username as user_username,
+//	    u.profile_image as user_profile_image,
+//	    u.first_name as user_first_name,
+//	    u.middle_name as user_middle_name,
+//	    u.last_name as user_last_name,
+//	    u.created_at as user_created_at,
+//	    u.updated_at as user_updated_at,
+//	    u.blocked_at as user_blocked_at,
+//	    u.deleted_at as user_deleted_at,
+//	    u.role_id as user_role_id
 //	FROM login_option AS lo
 //	    JOIN users AS u ON lo.user_id = u.id
 //	WHERE lo.login_method = $1
@@ -164,27 +201,26 @@ func (q *Queries) GetActiveLoginOptionWithUser(ctx context.Context, arg GetActiv
 	row := q.db.QueryRow(ctx, getActiveLoginOptionWithUser, arg.LoginMethod, arg.AccessKey)
 	var i GetActiveLoginOptionWithUserRow
 	err := row.Scan(
-		&i.ID,
-		&i.LoginMethod,
-		&i.AccessKey,
-		&i.HashedPass,
-		&i.PassSalt,
-		&i.VerifiedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
+		&i.LoginOptionID,
+		&i.LoginOptionLoginMethod,
+		&i.LoginOptionAccessKey,
+		&i.LoginOptionHashedPass,
+		&i.LoginOptionPassSalt,
+		&i.LoginOptionVerifiedAt,
+		&i.LoginOptionCreatedAt,
+		&i.LoginOptionUpdatedAt,
+		&i.LoginOptionDeletedAt,
 		&i.UserID,
-		&i.ID_2,
-		&i.Username,
-		&i.ProfileImage,
-		&i.FirstName,
-		&i.MiddleName,
-		&i.LastName,
-		&i.CreatedAt_2,
-		&i.UpdatedAt_2,
-		&i.BlockedAt,
-		&i.DeletedAt_2,
-		&i.RoleID,
+		&i.UserUsername,
+		&i.UserProfileImage,
+		&i.UserFirstName,
+		&i.UserMiddleName,
+		&i.UserLastName,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.UserBlockedAt,
+		&i.UserDeletedAt,
+		&i.UserRoleID,
 	)
 	return i, err
 }
