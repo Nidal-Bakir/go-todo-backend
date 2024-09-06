@@ -8,12 +8,16 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/logger"
+	"github.com/rs/zerolog"
 )
 
 type Server struct {
 	port int
 	db   *database.Service
+	log  zerolog.Logger
 }
 
 func NewServer(ctx context.Context) *http.Server {
@@ -21,6 +25,7 @@ func NewServer(ctx context.Context) *http.Server {
 	NewServer := &Server{
 		port: port,
 		db:   database.NewConnection(ctx),
+		log:  logger.NewLogger(AppEnv.IsLocal()),
 	}
 
 	// Declare Server config

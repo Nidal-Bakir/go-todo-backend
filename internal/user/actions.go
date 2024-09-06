@@ -5,6 +5,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+ 
 )
 
 type userCtxKeysType int
@@ -43,13 +44,18 @@ func (a actionsImpl) GetUserById(ctx context.Context, id int) (database.User, er
 
 	user, err := a.db.Queries.GetUserById(ctx, userId)
 	if err != nil {
-		return database.User{}, err
+		return user, err
 	}
 
 	return user, nil
 }
 
 func (a actionsImpl) GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error) {
-	// TODO: implement getting user using session token
-	return database.User{}, nil
+	user, err := a.db.Queries.GetUserBySessionToken(ctx, sessionToken)
+
+	if err != nil {
+		return user, err
+	}
+
+	return user, err
 }

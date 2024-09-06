@@ -1,36 +1,25 @@
 package server
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
+
+	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
-
 	mux := http.NewServeMux()
-	mux.HandleFunc("/{$}", s.HelloWorldHandler)
-	mux.HandleFunc("/health", s.healthHandler)
-
-	return mux
+	mux.Handle("/api/v1", http.StripPrefix("/api/v1", v1Router(s)))
+	return s.LoggerInjector(mux)
 }
 
-func (s *Server) HelloWorldHandler(w http.ResponseWriter, r *http.Request) {
+func v1Router(s *Server) http.Handler {
+	mux := http.NewServeMux()
 
-	WriteError(w,
-		500,
-		fmt.Errorf("some error"),
-		fmt.Errorf("error1"), fmt.Errorf("error2"),
-	)
-}
+	mux.Handle("/auth", http.StripPrefix("/auth", authRouter(s)))
 
-func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
-	jsonResp, err := json.Marshal(s.db.Health(r.Context()))
-
-	if err != nil {
-		log.Fatalf("error handling JSON marshal. Err: %v", err)
+	if AppEnv.IsStagOrLocal() {
+		mux.Handle("/dev-tools", http.StripPrefix("/dev-tools", devToolsRouter(s)))
 	}
 
-	w.Write(jsonResp)
+	return mux
 }

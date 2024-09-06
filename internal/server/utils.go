@@ -1,11 +1,12 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/app_env"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 )
 
 type errorRes struct {
@@ -29,7 +30,7 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func WriteError(w http.ResponseWriter, code int, errs ...error) {
+func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
 	var err errorRes
 	if len(errs) == 0 {
 		if AppEnv.IsStagOrLocal() {
@@ -39,10 +40,10 @@ func WriteError(w http.ResponseWriter, code int, errs ...error) {
 	} else {
 		err = errorRes{Error: fmt.Errorf("empty errs array")}
 	}
-	WriteJson(w, code, err)
+	WriteJson(ctx, w, code, err)
 }
 
-func WriteJson(w http.ResponseWriter, code int, payload any) {
+func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
 	w.Header().Add("Content-Type", "application/json")
 
 	bytes, err := json.Marshal(payload)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	_ "github.com/Nidal-Bakir/go-todo-backend/internal/app_env" // autoload .env with init function. Do not remove this line
+	_ "github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv" // autoload .env with init function. Do not remove this line
 	"github.com/Nidal-Bakir/go-todo-backend/internal/server"
 )
 
