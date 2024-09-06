@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ func NewLogger(shouldOutputToConcole bool) zerolog.Logger {
 			0664,
 		)
 		if err != nil {
-			os.Stderr.Write([]byte(""))
+			os.Stderr.Write([]byte(fmt.Sprintf("Error opening the log file for write, Error: %v", err)))
 			os.Exit(1)
 		}
 		output = file

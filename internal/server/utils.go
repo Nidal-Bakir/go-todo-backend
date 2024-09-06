@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/rs/zerolog"
 )
 
 type errorRes struct {
@@ -31,23 +32,29 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 }
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
+	log := zerolog.Ctx(ctx)
+
 	var err errorRes
 	if len(errs) == 0 {
 		if AppEnv.IsStagOrLocal() {
-			panic("empty errs array")
+			log.Fatal().Msg("WriteError: empty errs array")
 		}
 		err = errorRes{Error: errs[0], Errors: errs[1:]}
 	} else {
 		err = errorRes{Error: fmt.Errorf("empty errs array")}
 	}
+
 	WriteJson(ctx, w, code, err)
 }
 
 func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
+	log := *zerolog.Ctx(ctx)
+
 	w.Header().Add("Content-Type", "application/json")
 
 	bytes, err := json.Marshal(payload)
-	if err == nil {
+	if err != nil {
+		log.Error().Err(err).Any("payload", payload).Int("code", code).Msg("can not marshal payload in WriteJson")
 		w.WriteHeader(code)
 		w.Write(bytes)
 		return
@@ -55,22 +62,31 @@ func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any
 
 	w.WriteHeader(http.StatusInternalServerError)
 
+	log = log.With().Int("code", http.StatusInternalServerError).Logger()
+
 	bytes, err = json.Marshal(errorRes{Error: err})
-	if err == nil {
+	if err != nil {
+		log.Error().Err(err).Any("bytes", bytes).Msg("Internal error in writeJson func")
+	} else {
 		goto write
 	}
 
 	bytes, err = json.Marshal(errorRes{Error: err})
-	if err == nil {
+	if err != nil {
+		log.Error().Err(err).Any("bytes", bytes).Msg("Internal error in writeJson func")
+	} else {
 		goto write
 	}
 
 	bytes, err = json.Marshal(errorRes{Error: fmt.Errorf("unknown Error while marshaling error struct in write json func")})
-	if err == nil {
+	if err != nil {
+		log.Error().Err(err).Any("bytes", bytes).Msg("Internal error in writeJson func")
+	} else {
 		goto write
 	}
 
 	bytes = []byte("We should not rich this line something really bad is happening!!")
+	log.Error().Err(err).Any("bytes", bytes).Msg("We should not rich this line something really bad is happening!!")
 
 write:
 	w.Write(bytes)
