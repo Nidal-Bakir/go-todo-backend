@@ -4,7 +4,7 @@ import "net/http"
 
 func authRouter(s *Server) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /create-account", s.createAccount)
+	mux.HandleFunc("GET /create-account", s.createAccount)
 	return mux
 }
 
