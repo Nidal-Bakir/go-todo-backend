@@ -3,12 +3,13 @@ package database
 import (
 	"context"
 	"fmt"
-	"log"
+
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/rs/zerolog"
 )
 
 type Service struct {
@@ -26,7 +27,7 @@ var (
 	dbInstance   *Service
 )
 
-func NewConnection(ctx context.Context) *Service {
+func NewConnection(ctx context.Context, log zerolog.Logger) *Service {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -34,19 +35,22 @@ func NewConnection(ctx context.Context) *Service {
 	if dbInstance != nil {
 		return dbInstance
 	}
-	assertEnvVars()
+	assertEnvVars(log)
 
-	fmt.Printf("Connecting to database: %s on port: %s .....\n", database, port)
+	log.Info().Msg(fmt.Sprintf("Connecting to database: %s on port: %s .....", database, port))
+
 	conStr := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s  sslmode=disable pool_max_conns=%s", username, password, host, port, database, poolMaxConns)
 	connectionPool, err := pgxpool.New(ctx, conStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Can not create new connection to the database")
 	}
+
 	err = connectionPool.Ping(ctx)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("Connection created but can not ping the database")
 	}
-	fmt.Printf("Connected to database: %s on port: %s\n", database, port)
+
+	log.Info().Msg(fmt.Sprintf("Connected to database: %s on port: %s\n", database, port))
 
 	dbInstance = &Service{
 		ConnPool: connectionPool,
@@ -67,8 +71,7 @@ func (s *Service) Health(ctx context.Context) map[string]string {
 	err := s.ConnPool.Ping(ctx)
 	if err != nil {
 		stats["status"] = "down"
-		stats["error"] = fmt.Sprintf("db down: %v", err)
-		log.Fatalf(fmt.Sprintf("db down: %v", err))
+		stats["error"] = fmt.Sprintf("DB is Down: %v", err)
 		return stats
 	}
 
@@ -92,27 +95,27 @@ func (s *Service) Health(ctx context.Context) map[string]string {
 // Close closes the database connection.
 // It logs a message indicating the disconnection from the specific database.
 func (s *Service) Close() {
-	log.Printf("Disconnected from database: %s", database)
+	fmt.Printf("Disconnected from database: %s", database)
 	s.ConnPool.Close()
 }
 
-func assertEnvVars() {
+func assertEnvVars(log zerolog.Logger) {
 	if database == "" {
-		log.Fatal("database env var is empty")
+		log.Fatal().Msg("database env var is empty")
 	}
 	if password == "" {
-		log.Fatal("password env var is empty")
+		log.Fatal().Msg("password env var is empty")
 	}
 	if username == "" {
-		log.Fatal("username env var is empty")
+		log.Fatal().Msg("username env var is empty")
 	}
 	if port == "" {
-		log.Fatal("port env var is empty")
+		log.Fatal().Msg("port env var is empty")
 	}
 	if host == "" {
-		log.Fatal("host env var is empty")
+		log.Fatal().Msg("host env var is empty")
 	}
 	if poolMaxConns == "" {
-		log.Fatal("poolMaxConns env var is empty")
+		log.Fatal().Msg("poolMaxConns env var is empty")
 	}
 }

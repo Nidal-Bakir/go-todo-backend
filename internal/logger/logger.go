@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -29,6 +30,7 @@ func NewLogger(shouldOutputToConcole bool) zerolog.Logger {
 		output = file
 	}
 
+	zerolog.DurationFieldUnit = time.Millisecond
 	zerolog.DefaultContextLogger = nil
 	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
 		return filepath.Base(file) + ":" + strconv.Itoa(line)
