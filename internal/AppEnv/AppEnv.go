@@ -13,20 +13,6 @@ var (
 	isLocal = false
 )
 
-func IsProd() bool {
-	return isProd
-}
-func IsStag() bool {
-	return isStag
-}
-func IsLocal() bool {
-	return isLocal
-}
-
-func IsStagOrLocal() bool {
-	return IsStag() || IsLocal()
-}
-
 func init() {
 	file, err := os.Open(".env")
 	if err != nil {
@@ -62,4 +48,18 @@ func init() {
 	default:
 		log.Fatal("The value for APP_ENV in the .env file not determined, aborting...")
 	}
+}
+
+func IsProd() bool {
+	return isProd
+}
+func IsStag() bool {
+	return isStag
+}
+func IsLocal() bool {
+	return isLocal
+}
+
+func IsStagOrLocal() bool {
+	return IsStag() || IsLocal()
 }

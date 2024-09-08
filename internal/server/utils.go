@@ -37,11 +37,12 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 	var err errorRes
 	if len(errs) == 0 {
 		if AppEnv.IsStagOrLocal() {
-			log.Fatal().Msg("WriteError: empty errs array")
+			panic("WriteError: empty errs array")
 		}
-		err = errorRes{Error: errs[0], Errors: errs[1:]}
+		log.Warn().Msg("WriteError: empty errs array")
+		err = errorRes{Error: fmt.Errorf("empty errs array"), Errors: []error{}}
 	} else {
-		err = errorRes{Error: fmt.Errorf("empty errs array")}
+		err = errorRes{Error: errs[0], Errors: errs[1:]}
 	}
 
 	WriteJson(ctx, w, code, err)
@@ -56,7 +57,7 @@ func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any
 		WriteError(ctx, w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(bytes)
