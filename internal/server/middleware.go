@@ -15,7 +15,24 @@ import (
 	"github.com/rs/zerolog/hlog"
 )
 
-func (s *Server) Auth(h http.Handler) http.Handler {
+type Middleware func(http.Handler) http.HandlerFunc
+
+func MiddlewareChain(h http.HandlerFunc, m ...Middleware) http.HandlerFunc {
+	if len(m) < 1 {
+		return h
+	}
+
+	wrapped := h
+
+	// loop in reverse to preserve middleware order
+	for i := len(m) - 1; i >= 0; i-- {
+		wrapped = m[i](wrapped)
+	}
+
+	return wrapped
+}
+
+func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
 		// TODO: also check if its a valid token (length, schema etc..)
@@ -43,8 +60,8 @@ func (s *Server) Auth(h http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) RequsetLogger(h http.Handler) http.Handler {
-	return hlog.AccessHandler(func(r *http.Request, status, size int, duration time.Duration) {
+func (s *Server) RequsetLogger(h http.Handler) http.HandlerFunc {
+	return hlog.AccessHandler(func(r *http.Request, status int, size int, duration time.Duration) {
 		logInfo := s.log.Info().
 			Str("method", r.Method).
 			Stringer("url", r.URL).
@@ -58,10 +75,10 @@ func (s *Server) RequsetLogger(h http.Handler) http.Handler {
 		}
 
 		logInfo.Send()
-	})(h)
+	})(h).ServeHTTP
 }
 
-func (s *Server) RequestUUIDMiddleware(h http.Handler) http.Handler {
+func (s *Server) RequestUUIDMiddleware(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var uuidVal uuid.UUID
 
@@ -82,7 +99,7 @@ func (s *Server) RequestUUIDMiddleware(h http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) LoggerInjector(h http.Handler) http.Handler {
+func (s *Server) LoggerInjector(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r.WithContext(s.log.WithContext(r.Context())))
 	})
