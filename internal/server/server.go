@@ -11,6 +11,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/logger"
 	"github.com/rs/zerolog"
 )
@@ -24,15 +25,17 @@ type Server struct {
 func NewServer(ctx context.Context) *http.Server {
 	log := logger.NewLogger(AppEnv.IsLocal())
 
+	l10n.InitL10n("./l10n", []string{"en", "ar"}, log)
+
 	port, err := strconv.Atoi(os.Getenv("PORT"))
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can not read the PORT from env or error while converting to int")
+		log.Fatal().Err(err).Msg("Can not read the PORT from env OR error while converting to int")
 		return nil
 	}
 
 	server := &Server{
 		port: port,
-		db:   database.NewConnection(ctx,log),
+		db:   database.NewConnection(ctx, log),
 		log:  log,
 	}
 
@@ -43,5 +46,4 @@ func NewServer(ctx context.Context) *http.Server {
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
-
 }

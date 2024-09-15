@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/user"
 	"github.com/google/uuid"
@@ -41,8 +42,9 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			return
 		}
 
-		userActions := user.NewActions(s.db)
+		userActions := user.NewRepository(s.db)
 		userModel, err := userActions.GetUserBySessionToken(r.Context(), token)
+
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				err = fmt.Errorf("unauthorized")
@@ -68,7 +70,7 @@ func (s *Server) RequsetLogger(h http.Handler) http.HandlerFunc {
 			Int("status", status).
 			Int("size", size).
 			Dur("duration", duration).
-			CallerSkipFrame(99999)
+			CallerSkipFrame(99999) // so it dose not print the file:line_num in the log. we do not need those
 
 		if id, ok := tracker.ReqUUIDFromContext(r.Context()); ok {
 			logInfo.Str("req_uuid", id.String())
@@ -102,5 +104,22 @@ func (s *Server) RequestUUIDMiddleware(h http.Handler) http.HandlerFunc {
 func (s *Server) LoggerInjector(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r.WithContext(s.log.WithContext(r.Context())))
+	})
+}
+
+func (s *Server) LocalizerInjector(h http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lang := r.Header.Get("Accept-Language")
+		langQP := r.FormValue("lang")
+		if langQP != "" {
+			lang = langQP
+		}
+
+		if lang == "" {
+			WriteError(r.Context(), w, http.StatusBadRequest, errors.New("missing Accept-Language in Headers or lang in Query Parameter"))
+			return
+		}
+
+		h.ServeHTTP(w, r.WithContext(l10n.ContextWithLocalizer(r.Context(), l10n.GetLocalizer(lang))))
 	})
 }

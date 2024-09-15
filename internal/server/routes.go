@@ -14,6 +14,7 @@ func (s *Server) RegisterRoutes() http.Handler {
 		mux.ServeHTTP,
 		s.LoggerInjector,
 		s.RequestUUIDMiddleware,
+		s.LocalizerInjector,
 		s.RequsetLogger,
 	)
 }

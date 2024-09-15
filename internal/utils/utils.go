@@ -11,3 +11,9 @@ func SafeIntToInt32(v int) (int32, error) {
 	}
 	return int32(v), nil
 }
+
+func Assert(ok bool, str string) {
+	if !ok {
+		panic(str)
+	}
+}
