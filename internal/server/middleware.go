@@ -62,7 +62,7 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 	})
 }
 
-func (s *Server) RequsetLogger(h http.Handler) http.HandlerFunc {
+func (s *Server) RequestLogger(h http.Handler) http.HandlerFunc {
 	return hlog.AccessHandler(func(r *http.Request, status int, size int, duration time.Duration) {
 		logInfo := s.log.Info().
 			Str("method", r.Method).
@@ -121,5 +121,17 @@ func (s *Server) LocalizerInjector(h http.Handler) http.HandlerFunc {
 		}
 
 		h.ServeHTTP(w, r.WithContext(l10n.ContextWithLocalizer(r.Context(), l10n.GetLocalizer(lang))))
+	})
+}
+
+func (s *Server) Heartbeat(h http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if (r.Method == "GET" || r.Method == "HEAD") && strings.EqualFold(r.URL.Path, "/ping") {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("pong"))
+			return
+		}
+		h.ServeHTTP(w, r)
 	})
 }

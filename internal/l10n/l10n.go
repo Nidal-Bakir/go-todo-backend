@@ -53,6 +53,9 @@ func (l *Localizer) GetWithPluralCount(id string, pluralCount int) string {
 }
 
 func (l *Localizer) GetWithData(id string, data map[string]interface{}) string {
+	utils.AssertDev(data != nil, "The data map can not be nil")
+	utils.AssertDev(len(data) != 0, "The data map should not be empty")
+
 	return l.localizeMsg(id, data, nil)
 }
 

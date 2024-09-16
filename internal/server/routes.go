@@ -15,7 +15,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 		s.LoggerInjector,
 		s.RequestUUIDMiddleware,
 		s.LocalizerInjector,
-		s.RequsetLogger,
+		s.RequestLogger,
+		s.Heartbeat,
 	)
 }
 

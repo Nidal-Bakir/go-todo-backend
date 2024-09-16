@@ -3,6 +3,8 @@ package utils
 import (
 	"fmt"
 	"math"
+
+	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 )
 
 func SafeIntToInt32(v int) (int32, error) {
@@ -14,6 +16,12 @@ func SafeIntToInt32(v int) (int32, error) {
 
 func Assert(ok bool, str string) {
 	if !ok {
+		panic(str)
+	}
+}
+
+func AssertDev(ok bool, str string) {
+	if !ok && AppEnv.IsStagOrLocal() {
 		panic(str)
 	}
 }
