@@ -9,7 +9,7 @@ import (
 
 func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", v1Router(s)))
+	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(s)))
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
@@ -18,7 +18,17 @@ func (s *Server) RegisterRoutes() http.Handler {
 		middleware.LocalizerInjector,
 		middleware.RequestLogger,
 		middleware.StripSlashes,
+		middleware.AllowContentType("application/json"),
 		middleware.Heartbeat,
+	)
+}
+
+func apiRouter(s *Server) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(s)))
+
+	return middleware.MiddlewareChain(
+		mux.ServeHTTP,
 	)
 }
 
@@ -27,13 +37,14 @@ func v1Router(s *Server) http.Handler {
 
 	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(s)))
 
-	mux.Handle("/todo", s.Auth(todoRouter(s)))
-	mux.Handle("/todo/", s.Auth(todoRouter(s)))
+	mux.Handle("/todo", todoRouter(s))
+	mux.Handle("/todo/", todoRouter(s))
 
 	if AppEnv.IsStagOrLocal() {
-		mux.Handle("/dev-tools", http.StripPrefix("/dev-tools", devToolsRouter(s)))
-		mux.Handle("/dev-tools", http.StripPrefix("/dev-tools", devToolsRouter(s)))
+		mux.Handle("/dev-tools", http.StripPrefix("/dev-tools", middleware.NoCache(devToolsRouter(s))))
 	}
 
-	return mux
+	return middleware.MiddlewareChain(
+		mux.ServeHTTP,
+	)
 }

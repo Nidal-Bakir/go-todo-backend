@@ -8,14 +8,7 @@ import (
 
 func devToolsRouter(s *Server) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", s.healthHandler)
-
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, r.RequestURI+"/pprof/", http.StatusMovedPermanently)
-	})
-	mux.HandleFunc("/pprof", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, r.RequestURI+"/", http.StatusMovedPermanently)
-	})
+	mux.HandleFunc("/db-health", s.dbHealthHandler)
 
 	mux.HandleFunc("/pprof/*", pprof.Index)
 	mux.HandleFunc("/pprof/cmdline", pprof.Cmdline)
@@ -34,6 +27,6 @@ func devToolsRouter(s *Server) http.Handler {
 	return mux
 }
 
-func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) dbHealthHandler(w http.ResponseWriter, r *http.Request) {
 	WriteJson(r.Context(), w, http.StatusOK, s.db.Health(r.Context()))
 }
