@@ -29,10 +29,15 @@ func InitL10n(path string, langs []string, logger zerolog.Logger) {
 	bundle = i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
 
+	logEvent := logger.Debug()
 	for _, lang := range languages {
-		bundle.MustLoadMessageFile(fmt.Sprintf(path+"/%s.json", lang))
+		filePath := fmt.Sprintf(path+"/%s.json", lang)
+		bundle.MustLoadMessageFile(filePath)
 		locales[lang] = &Localizer{l: i18n.NewLocalizer(bundle, lang), logger: logger}
+
+		logEvent.Str(lang, filePath)
 	}
+	logEvent.Msg("Localiztion files loaded")
 }
 
 func GetLocalizer(lang string) *Localizer {

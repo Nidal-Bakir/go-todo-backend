@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -27,9 +28,9 @@ func main() {
 		<-sig
 
 		// Shutdown signal with grace period of 30 seconds
-		shutdownCtx, shutdownCancelFunc  := context.WithTimeout(serverWithCancelCtx, 30*time.Second)
+		shutdownCtx, shutdownCancelFunc := context.WithTimeout(serverWithCancelCtx, 30*time.Second)
 		defer shutdownCancelFunc()
-		
+
 		go func() {
 			<-shutdownCtx.Done()
 			if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
@@ -42,14 +43,18 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		
+
 		serverStopCancelFunc()
 	}()
 
 	fmt.Println("Staring the server on port: ", os.Getenv("PORT"))
 	err := server.ListenAndServe()
 	if err != nil {
-		panic(fmt.Sprintf("cannot start server: %s", err))
+		if errors.Is(err, http.ErrServerClosed) {
+			fmt.Println("\nServer Stopped Gracefully.")
+		} else {
+			panic(fmt.Sprintf("can't start the server error: %s", err))
+		}
 	}
 
 	// Wait for server context to be stopped

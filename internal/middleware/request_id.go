@@ -32,7 +32,7 @@ func RequestUUIDMiddleware(next http.Handler) http.HandlerFunc {
 		}
 
 		ctx = tracker.ContextWithReqUUID(ctx, uuidVal)
-		ctx = log.With().Str("request_id", uuidVal.String()).Logger().WithContext(ctx)
+		ctx = log.With().Str(tracker.ReqIdStrKey, uuidVal.String()).Logger().WithContext(ctx)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

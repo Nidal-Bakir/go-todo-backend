@@ -13,6 +13,7 @@ func todoRouter(s *Server) http.Handler {
 func (s *Server) createTodo(w http.ResponseWriter, r *http.Request) {
 	WriteJson(r.Context(), w, http.StatusOK, map[string]string{"createTodo": "createTodo"})
 }
+
 func (s *Server) todoIndex(w http.ResponseWriter, r *http.Request) {
 	WriteJson(r.Context(), w, http.StatusOK, map[string]string{"todoIndex": "todoIndex"})
 }

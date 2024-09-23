@@ -21,6 +21,11 @@ docker-down:
 test:
 	@echo "Testing..."
 	@go test ./tests -v
+	
+# Format the codebase
+fmt:
+	@echo "Formating..."
+	@go fmt ./...
 
 # Live Reload
 watch:

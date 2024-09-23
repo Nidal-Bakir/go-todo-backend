@@ -9,6 +9,7 @@ import (
 type trackerCtxKey int
 
 const (
+	ReqIdStrKey   string        = "request_id"
 	reqUUIDCtxKey trackerCtxKey = iota
 )
 

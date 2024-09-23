@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/rs/zerolog"
 )
 
@@ -32,7 +33,7 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 }
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	log := zerolog.Ctx(ctx)
+	log := *zerolog.Ctx(ctx)
 
 	var err errorRes
 	if len(errs) == 0 {
@@ -45,10 +46,14 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 		err = errorRes{Error: errs[0], Errors: errs[1:]}
 	}
 
-	WriteJson(ctx, w, code, err)
+	_writeJson(ctx, w, code, err, true)
 }
 
 func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
+	_writeJson(ctx, w, code, payload, AppEnv.IsStagOrLocal())
+}
+
+func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload any, shouldLog bool) {
 	log := *zerolog.Ctx(ctx)
 
 	bytes, err := json.Marshal(payload)
@@ -61,4 +66,18 @@ func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(code)
 	w.Write(bytes)
+
+	if shouldLog {
+		_logRes(ctx, code, payload, log)
+	}
+}
+
+func _logRes(ctx context.Context, code int, payload any, log zerolog.Logger) {
+	logEvent := log.Info().Any("payload", payload).Int("code", code)
+	reqId, ok := tracker.ReqUUIDFromContext(ctx)
+	if ok {
+		logEvent.Str(tracker.ReqIdStrKey, reqId.String())
+	}
+	logEvent.CallerSkipFrame(99999999) // so it dose not print the file:line_num in the log. we do not need those
+	logEvent.Msg("Res")
 }

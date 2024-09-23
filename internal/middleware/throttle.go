@@ -43,11 +43,11 @@ func ThrottleBacklog(limit, backlogLimit int, backlogTimeout time.Duration) func
 // ThrottleWithOpts is a middleware that limits number of currently processed requests using passed ThrottleOpts.
 func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 	if opts.Limit < 1 {
-		panic("chi/middleware: Throttle expects limit > 0")
+		panic("middleware: Throttle expects limit > 0")
 	}
 
 	if opts.BacklogLimit < 0 {
-		panic("chi/middleware: Throttle expects backlogLimit to be positive")
+		panic("middleware: Throttle expects backlogLimit to be positive")
 	}
 
 	statusCode := opts.StatusCode

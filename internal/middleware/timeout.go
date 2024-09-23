@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/rs/zerolog"
 )
 
@@ -41,13 +42,14 @@ func Timeout(d time.Duration) func(next http.Handler) http.HandlerFunc {
 
 			defer func() {
 				cancelFunc()
-				if errors.Is(ctxWithCancel.Err(), context.DeadlineExceeded) {
-					w.WriteHeader(http.StatusGatewayTimeout)
 
-					reqId, ok := tracker.ReqUUIDFromContext(ctxWithCancel)
+				if errors.Is(ctxWithCancel.Err(), context.DeadlineExceeded) {
+					utils.WriteError(r.Context(), w, http.StatusGatewayTimeout, errors.New("timeout"))
+
 					logEvent := log.Warn().Err(context.DeadlineExceeded).Int("status_code", http.StatusGatewayTimeout)
+					reqId, ok := tracker.ReqUUIDFromContext(ctxWithCancel)
 					if ok {
-						logEvent.Str("request_id", reqId.String())
+						logEvent.Str(tracker.ReqIdStrKey, reqId.String())
 					}
 					logEvent.Msgf("Warning a request timed out. Sending Gateway-Timeout %d status code", http.StatusGatewayTimeout)
 				}

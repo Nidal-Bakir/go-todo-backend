@@ -24,8 +24,7 @@ func Recoverer(next http.Handler) http.HandlerFunc {
 				if err, ok := rvr.(error); ok {
 					log.Err(err)
 				}
-				
-			 
+
 				log.Msg("Panic")
 				debug.PrintStack()
 
