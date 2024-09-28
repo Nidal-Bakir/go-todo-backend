@@ -1,6 +1,8 @@
 package server
 
-import "net/http"
+import (
+	"net/http"
+)
 
 func todoRouter(s *Server) http.Handler {
 	mux := http.NewServeMux()
@@ -15,6 +17,7 @@ func (s *Server) createTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) todoIndex(w http.ResponseWriter, r *http.Request) {
+
 	WriteJson(r.Context(), w, http.StatusOK, map[string]string{"todoIndex": "todoIndex"})
 }
 

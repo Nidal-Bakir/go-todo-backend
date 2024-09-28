@@ -1,8 +1,8 @@
-version: '3.8'
-
 services:
   psql:
     image: postgres:latest
+    restart: always
+    shm_size: 128mb
     environment:
       POSTGRES_DB: ${DB_DATABASE}
       POSTGRES_USER: ${DB_USERNAME}

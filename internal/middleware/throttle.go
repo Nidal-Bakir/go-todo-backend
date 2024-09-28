@@ -1,18 +1,20 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
-)
 
-const (
-	errCapacityExceeded = "Server capacity exceeded."
-	errTimedOut         = "Timed out while waiting for a pending request to complete."
-	errContextCanceled  = "Context was canceled."
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 )
 
 var (
+	// errors
+	errCapacityExceeded error = errors.New("server capacity exceeded.")
+	errTimedOut         error = errors.New("timed out while waiting for a pending request to complete.")
+	errContextCanceled  error = errors.New("context was canceled.")
+
 	defaultBacklogTimeout = time.Second * 60
 )
 
@@ -42,13 +44,8 @@ func ThrottleBacklog(limit, backlogLimit int, backlogTimeout time.Duration) func
 
 // ThrottleWithOpts is a middleware that limits number of currently processed requests using passed ThrottleOpts.
 func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
-	if opts.Limit < 1 {
-		panic("middleware: Throttle expects limit > 0")
-	}
-
-	if opts.BacklogLimit < 0 {
-		panic("middleware: Throttle expects backlogLimit to be positive")
-	}
+	utils.Assert(opts.Limit >= 1, "middleware: Throttle expects limit >= 1")
+	utils.Assert(opts.BacklogLimit >= 0, "middleware: Throttle expects backlogLimit to be positive")
 
 	statusCode := opts.StatusCode
 	if statusCode == 0 {
@@ -72,14 +69,14 @@ func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 	}
 
 	return func(next http.Handler) http.HandlerFunc {
-		fn := func(w http.ResponseWriter, r *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
 			select {
 
 			case <-ctx.Done():
 				t.setRetryAfterHeaderIfNeeded(w, true)
-				http.Error(w, errContextCanceled, t.statusCode)
+				utils.WriteError(r.Context(), w, t.statusCode, errContextCanceled)
 				return
 
 			case btok := <-t.backlogTokens:
@@ -92,12 +89,12 @@ func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 				select {
 				case <-timer.C:
 					t.setRetryAfterHeaderIfNeeded(w, false)
-					http.Error(w, errTimedOut, t.statusCode)
+					utils.WriteError(r.Context(), w, t.statusCode, errTimedOut)
 					return
 				case <-ctx.Done():
 					timer.Stop()
 					t.setRetryAfterHeaderIfNeeded(w, true)
-					http.Error(w, errContextCanceled, t.statusCode)
+					utils.WriteError(r.Context(), w, t.statusCode, errContextCanceled)
 					return
 				case tok := <-t.tokens:
 					defer func() {
@@ -110,12 +107,11 @@ func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 
 			default:
 				t.setRetryAfterHeaderIfNeeded(w, false)
-				http.Error(w, errCapacityExceeded, t.statusCode)
+				utils.WriteError(r.Context(), w, t.statusCode, errCapacityExceeded)
 				return
 			}
 		}
 
-		return http.HandlerFunc(fn)
 	}
 }
 
