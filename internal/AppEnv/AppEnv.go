@@ -16,7 +16,8 @@ var (
 func init() {
 	file, err := os.Open(".env")
 	if err != nil {
-		log.Fatal("can not read .env file")
+		pwd, _ := os.Getwd()
+		log.Fatal("error: can not read .env file, pwd= ", pwd)
 	}
 	defer file.Close()
 

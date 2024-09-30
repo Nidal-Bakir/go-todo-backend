@@ -11,9 +11,9 @@ import (
 
 var (
 	// errors
-	errCapacityExceeded error = errors.New("server capacity exceeded.")
-	errTimedOut         error = errors.New("timed out while waiting for a pending request to complete.")
-	errContextCanceled  error = errors.New("context was canceled.")
+	errCapacityExceeded error = errors.New("server capacity exceeded")
+	errTimedOut         error = errors.New("timed out while waiting for a pending request to complete")
+	errContextCanceled  error = errors.New("context was canceled")
 
 	defaultBacklogTimeout = time.Second * 60
 )
@@ -72,43 +72,47 @@ func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			select {
-
-			case <-ctx.Done():
+			errContextCanceledFn := func() {
 				t.setRetryAfterHeaderIfNeeded(w, true)
 				utils.WriteError(r.Context(), w, t.statusCode, errContextCanceled)
-				return
+			}
+			errTimedOutFn := func() {
+				t.setRetryAfterHeaderIfNeeded(w, false)
+				utils.WriteError(r.Context(), w, t.statusCode, errTimedOut)
+			}
+			errCapacityExceededFn := func() {
+				t.setRetryAfterHeaderIfNeeded(w, false)
+				utils.WriteError(r.Context(), w, t.statusCode, errCapacityExceeded)
+			}
 
+			select {
 			case btok := <-t.backlogTokens:
 				timer := time.NewTimer(t.backlogTimeout)
 
 				defer func() {
+					timer.Stop()
 					t.backlogTokens <- btok
 				}()
 
 				select {
-				case <-timer.C:
-					t.setRetryAfterHeaderIfNeeded(w, false)
-					utils.WriteError(r.Context(), w, t.statusCode, errTimedOut)
-					return
-				case <-ctx.Done():
-					timer.Stop()
-					t.setRetryAfterHeaderIfNeeded(w, true)
-					utils.WriteError(r.Context(), w, t.statusCode, errContextCanceled)
-					return
 				case tok := <-t.tokens:
 					defer func() {
-						timer.Stop()
 						t.tokens <- tok
 					}()
 					next.ServeHTTP(w, r)
+
+				case <-timer.C:
+					errTimedOutFn()
+
+				case <-ctx.Done():
+					errContextCanceledFn()
 				}
-				return
+
+			case <-ctx.Done():
+				errContextCanceledFn()
 
 			default:
-				t.setRetryAfterHeaderIfNeeded(w, false)
-				utils.WriteError(r.Context(), w, t.statusCode, errCapacityExceeded)
-				return
+				errCapacityExceededFn()
 			}
 		}
 

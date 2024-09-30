@@ -12,7 +12,7 @@ run:
 # Create DB container
 docker-run:
 	@docker compose up
- 
+
 # Shutdown DB container
 docker-down:
 	@docker compose down
@@ -20,8 +20,14 @@ docker-down:
 # Test the application
 test:
 	@echo "Testing..."
-	@go test ./tests -v
-	
+	@go test ./... -v
+
+# Check go code using go vet & staticcheck
+chk:
+	@echo "Runing go vet & staticcheck..."
+	@go vet ./...
+	@staticcheck ./...
+
 # Format the codebase
 fmt:
 	@echo "Formating..."
@@ -80,4 +86,3 @@ clean:
 	@echo "Cleaning..."
 	@rm -f main
 	@echo "Done"
-

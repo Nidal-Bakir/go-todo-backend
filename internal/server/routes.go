@@ -37,7 +37,7 @@ func v1Router(s *Server) http.Handler {
 
 	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(s)))
 
-	mux.Handle("/todo", middleware.DDD(1)(todoRouter(s)))
+	mux.Handle("/todo", middleware.Throttle(1)(todoRouter(s)))
 	mux.Handle("/todo/", todoRouter(s))
 
 	if AppEnv.IsStagOrLocal() {

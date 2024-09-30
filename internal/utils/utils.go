@@ -26,10 +26,11 @@ func AssertDev(ok bool, v any) {
 	}
 }
 
-// usage e.g: 
-// 	func success() (int, error) {
-// 		return 0, nil
-// 	}
+// usage e.g:
+//
+//	func success() (int, error) {
+//		return 0, nil
+//	}
 //	n1 := Must(success())
 func Must[T any](d T, err error) T {
 	if err != nil {
@@ -38,14 +39,15 @@ func Must[T any](d T, err error) T {
 	return d
 }
 
-// usage e.g: 
-// 	func success() (int, string, error) {
-// 		return 0, "hi", nil
-// 	}
+// usage e.g:
+//
+//	func success() (int, string, error) {
+//		return 0, "hi", nil
+//	}
 //	d1, d2 := Must2(success())
 func Must2[T1 any, T2 any](d1 T1, d2 T2, err error) (T1, T2) {
-    if err != nil {
-        panic(err)
-    }
-    return d1, d2
+	if err != nil {
+		panic(err)
+	}
+	return d1, d2
 }

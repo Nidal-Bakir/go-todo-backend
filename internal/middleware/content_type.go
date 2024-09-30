@@ -41,7 +41,7 @@ func AllowContentType(contentTypes ...string) func(http.Handler) http.HandlerFun
 				return
 			}
 
-			utils.WriteError(r.Context(), w, http.StatusUnsupportedMediaType, errors.New("Did you set the Content-Type header correctly?"))
+			utils.WriteError(r.Context(), w, http.StatusUnsupportedMediaType, errors.New("did you set the Content-Type header correctly?"))
 		})
 	}
 }
