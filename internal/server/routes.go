@@ -41,7 +41,7 @@ func v1Router(s *Server) http.Handler {
 	mux.Handle("/todo/", todoRouter(s))
 
 	if AppEnv.IsStagOrLocal() {
-		mux.Handle("/dev-tools", http.StripPrefix("/dev-tools", middleware.NoCache(devToolsRouter(s))))
+		mux.Handle("/dev-tools/", http.StripPrefix("/dev-tools", middleware.NoCache(devToolsRouter(s))))
 	}
 
 	return middleware.MiddlewareChain(
