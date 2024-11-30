@@ -2,9 +2,11 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 )
 
 func (s *Server) RegisterRoutes() http.Handler {
@@ -14,11 +16,21 @@ func (s *Server) RegisterRoutes() http.Handler {
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 		s.LoggerInjector,
+		middleware.RealIp(),
 		middleware.RequestUUIDMiddleware,
 		middleware.LocalizerInjector,
 		middleware.RequestLogger,
 		middleware.StripSlashes,
 		middleware.AllowContentType("application/json"),
+		middleware.RateLimiter(
+			ratelimiter.Config{
+				Enabled:              true,
+				RequestsPerTimeFrame: 60,
+				TimeFrame:            time.Minute,
+			}, func(r *http.Request) string {
+				return middleware.LimitKeyFnUtil(r)
+			},
+		),
 		middleware.Heartbeat,
 	)
 }
@@ -37,7 +49,7 @@ func v1Router(s *Server) http.Handler {
 
 	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(s)))
 
-	mux.Handle("/todo", middleware.Throttle(1)(todoRouter(s)))
+	mux.Handle("/todo", todoRouter(s))
 	mux.Handle("/todo/", todoRouter(s))
 
 	if AppEnv.IsStagOrLocal() {

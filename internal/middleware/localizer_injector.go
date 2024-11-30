@@ -10,7 +10,7 @@ import (
 )
 
 func LocalizerInjector(next http.Handler) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		lang := r.Header.Get("Accept-Language")
 		langQP := r.FormValue("lang")
@@ -27,5 +27,5 @@ func LocalizerInjector(next http.Handler) http.HandlerFunc {
 		ctx = zerolog.Ctx(ctx).With().Str("lang", lang).Logger().WithContext(ctx)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	}
 }
