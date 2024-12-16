@@ -8,6 +8,9 @@
 # Log files
 *.log
 
+# redis config file
+redis.conf
+
 # Test binary, built with "go test -c"
 *.test
 

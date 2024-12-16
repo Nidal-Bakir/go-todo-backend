@@ -11,6 +11,7 @@ var (
 	isProd  = false
 	isStag  = false
 	isLocal = false
+	EnvName = ""
 )
 
 func init() {
@@ -49,6 +50,8 @@ func init() {
 	default:
 		log.Fatal("The value for APP_ENV in the .env file not determined, aborting...")
 	}
+	
+	EnvName = appEnv
 }
 
 func IsProd() bool {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/redis/go-redis/v9"
 )
 
 type Repository interface {
@@ -12,12 +13,13 @@ type Repository interface {
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
 }
 
-func NewRepository(db *database.Service) Repository {
-	return repositoryImpl{db: db}
+func NewRepository(db *database.Service, redis *redis.Client) Repository {
+	return repositoryImpl{db: db, redis: redis}
 }
 
 type repositoryImpl struct {
-	db *database.Service
+	db    *database.Service
+	redis *redis.Client
 }
 
 func (a repositoryImpl) GetUserById(ctx context.Context, id int) (User, error) {

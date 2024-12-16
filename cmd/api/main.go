@@ -3,20 +3,22 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
+
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	_ "github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv" // autoload .env with init function. Do not remove this line
+	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv" // autoload .env with init function. Do not remove this line
+	"github.com/Nidal-Bakir/go-todo-backend/internal/logger"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/server"
 )
 
 func main() {
-	server := server.NewServer(context.Background())
+	log := logger.NewLogger(AppEnv.IsLocal())
+
+	server := server.NewServer(context.Background(), log)
 
 	// Server run context
 	serverWithCancelCtx, serverStopCancelFunc := context.WithCancel(context.Background())
@@ -34,26 +36,27 @@ func main() {
 		go func() {
 			<-shutdownCtx.Done()
 			if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
-				log.Fatal("graceful shutdown timed out.. forcing exit.")
+				log.Fatal().Msg("graceful shutdown timed out.. forcing exit.")
 			}
 		}()
 
 		// Trigger graceful shutdown
 		err := server.Shutdown(shutdownCtx)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal().Err(err).Msg("Error while shuting down the server.")
 		}
 
 		serverStopCancelFunc()
 	}()
 
-	fmt.Println("Staring the server on port: ", os.Getenv("PORT"))
+	log.Info().Msgf("Staring the server on: %s", server.Addr)
+
 	err := server.ListenAndServe()
 	if err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
-			fmt.Println("\nServer Stopped Gracefully.")
+			log.Info().Msg("Server Stopped Gracefully.")
 		} else {
-			panic(fmt.Sprintf("can't start the server error: %s", err))
+			log.Fatal().Err(err).Msg("Can't start the server")
 		}
 	}
 

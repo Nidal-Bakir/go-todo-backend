@@ -9,35 +9,45 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/logger"
+	redisdb "github.com/Nidal-Bakir/go-todo-backend/internal/redis_db"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
 
+var (
+	serverPort = os.Getenv("SERVER_PORT")
+)
+
 type Server struct {
-	port int
-	db   *database.Service
-	log  zerolog.Logger
+	port  int
+	db    *database.Service
+	redis *redis.Client
+	log   zerolog.Logger
 }
 
-func NewServer(ctx context.Context) *http.Server {
-	log := logger.NewLogger(AppEnv.IsLocal())
+func NewServer(ctx context.Context, log zerolog.Logger) *http.Server {
 
 	l10n.InitL10n("./l10n", []string{"en", "ar"}, log)
 
-	port, err := strconv.Atoi(os.Getenv("PORT"))
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can not read the PORT from env OR error while converting to int")
-		return nil
+	server := &Server{
+		port:  utils.Must(strconv.Atoi(serverPort)),
+		db:    database.NewConnection(ctx, log),
+		redis: redisdb.NewRedisClient(ctx, log),
+		log:   log,
 	}
 
-	server := &Server{
-		port: port,
-		db:   database.NewConnection(ctx, log),
-		log:  log,
+	err := server.redis.Set(ctx, "mykey", 1, time.Minute).Err()
+	if err != nil {
+		panic(err)
 	}
+	// val , err:= server.redis.Get (ctx, "mykey").Result();
+	// if( err!= nil){
+	// 	panic(err)
+	// }
+	// fmt.Println("Val: "+val)
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", server.port),

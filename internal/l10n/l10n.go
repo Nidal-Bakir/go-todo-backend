@@ -29,7 +29,7 @@ func InitL10n(path string, langs []string, logger zerolog.Logger) {
 	bundle = i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
 
-	logEvent := logger.Debug()
+	logEvent := logger.Info()
 	for _, lang := range languages {
 		filePath := fmt.Sprintf(path+"/%s.json", lang)
 		bundle.MustLoadMessageFile(filePath)
