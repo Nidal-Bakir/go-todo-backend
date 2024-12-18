@@ -42,7 +42,7 @@ func NewConnection(ctx context.Context, log zerolog.Logger) *Service {
 	conStr := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s  sslmode=disable pool_max_conns=%s", username, password, host, port, database, poolMaxConns)
 	connectionPool, err := pgxpool.New(ctx, conStr)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can not create new connection to the database")
+		log.Fatal().Err(err).Msg("Can't create new connection to the database")
 	}
 
 	err = connectionPool.Ping(ctx)

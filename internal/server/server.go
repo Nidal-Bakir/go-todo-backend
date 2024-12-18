@@ -39,16 +39,6 @@ func NewServer(ctx context.Context, log zerolog.Logger) *http.Server {
 		log:   log,
 	}
 
-	err := server.redis.Set(ctx, "mykey", 1, time.Minute).Err()
-	if err != nil {
-		panic(err)
-	}
-	// val , err:= server.redis.Get (ctx, "mykey").Result();
-	// if( err!= nil){
-	// 	panic(err)
-	// }
-	// fmt.Println("Val: "+val)
-
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", server.port),
 		Handler:      server.RegisterRoutes(),
