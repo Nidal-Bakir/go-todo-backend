@@ -12,10 +12,10 @@ type TokenBucket struct {
 	conf Config
 }
 
-func (tb *TokenBucket) Allow(key string) (bool, time.Duration) {
-	return false, time.Second * 5
-}
-
 func (tb *TokenBucket) Config() Config {
 	return tb.conf
+}
+
+func (tb *TokenBucket) Allow(key string) (bool, time.Duration) {
+	return false, time.Second * 5
 }
