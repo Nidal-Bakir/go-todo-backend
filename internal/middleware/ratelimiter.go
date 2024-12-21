@@ -3,7 +3,6 @@ package middleware
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 
@@ -11,9 +10,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 )
 
-func RateLimiter(config ratelimiter.Config, limitKeyFn func(r *http.Request) string) func(next http.Handler) http.HandlerFunc {
-	limiter := ratelimiter.NewTokenBucketLimiter(config)
-
+func RateLimiter(limitKeyFn func(r *http.Request) string, limiter ratelimiter.Limiter) func(next http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			allow, backoffDuration := limiter.Allow(limitKeyFn(r))
@@ -21,7 +18,7 @@ func RateLimiter(config ratelimiter.Config, limitKeyFn func(r *http.Request) str
 			if !allow {
 				w.Header().Add("Retry-After", strconv.Itoa(int(backoffDuration.Seconds())))
 				// Request limit per ${config.TimeFrame}
-				w.Header().Add("X-RateLimit-Limit ", fmt.Sprint(config.RequestsPerTimeFrame))
+				w.Header().Add("X-RateLimit-Limit ", fmt.Sprint(limiter.Config().RequestsPerTimeFrame))
 				utils.WriteError(r.Context(), w, http.StatusTooManyRequests, errors.New("Too Many Requests!"))
 				return
 			}
@@ -29,20 +26,4 @@ func RateLimiter(config ratelimiter.Config, limitKeyFn func(r *http.Request) str
 			next.ServeHTTP(w, r)
 		}
 	}
-}
-
-func LimitKeyFnUtil(r *http.Request, trustedHeaders ...string) string {
-	for _, trustedHeader := range trustedHeaders {
-		if headerVal := r.Header.Get(trustedHeader); headerVal != "" {
-			if net.ParseIP(headerVal) != nil {
-				return canonicalizeIP(headerVal)
-			}
-		}
-	}
-
-	if ip, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-		return canonicalizeIP(ip)
-	}
-
-	return r.RemoteAddr
 }

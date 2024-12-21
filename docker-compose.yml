@@ -1,6 +1,6 @@
 services:
   psql:
-    image: postgres:latest
+    build: ./docker/postgres
     restart: always
     shm_size: 128mb
     environment:

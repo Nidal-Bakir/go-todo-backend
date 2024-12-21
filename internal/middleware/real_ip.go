@@ -7,14 +7,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func RealIp(trustedHeaders ...string) func(next http.Handler) http.HandlerFunc {
+func RealIp(trustedIpHeaders ...string) func(next http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			log := *zerolog.Ctx(r.Context())
-			
-			r.RemoteAddr = realIp(r, trustedHeaders...)
-			
+
+			r.RemoteAddr = RealIpFromRequest(r, trustedIpHeaders...)
+
 			ctx = log.With().Str("RealIP", r.RemoteAddr).Logger().WithContext(ctx)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -22,9 +22,9 @@ func RealIp(trustedHeaders ...string) func(next http.Handler) http.HandlerFunc {
 
 }
 
-func realIp(r *http.Request, trustedHeaders ...string) string {
-	for _, trustedHeader := range trustedHeaders {
-		if headerVal := r.Header.Get(trustedHeader); headerVal != "" {
+func RealIpFromRequest(r *http.Request, trustedIpHeaders ...string) string {
+	for _, trustedIpHeader := range trustedIpHeaders {
+		if headerVal := r.Header.Get(trustedIpHeader); headerVal != "" {
 			if net.ParseIP(headerVal) != nil {
 				return canonicalizeIP(headerVal)
 			}

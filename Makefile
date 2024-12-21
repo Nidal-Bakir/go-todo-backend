@@ -46,7 +46,7 @@ goose-up:
 	@${GOOSE_CMD} up
 
 # Roll back the version by 1
-goose-up-by-one :
+goose-up-by-one:
 	@${GOOSE_CMD} up-by-one
 
 # Migrate the DB to a specific VERSION
@@ -58,7 +58,7 @@ goose-down:
 	@${GOOSE_CMD} down
 
 # Roll back to a specific VERSION
-goose-down-to :
+goose-down-to:
 	@read -p "version: " version; ${GOOSE_CMD} down-to $$version
 
 # Re-run the latest migration
@@ -66,8 +66,11 @@ goose-redo :
 	@${GOOSE_CMD} redo
 
 # Roll back all migrations
-goose-reset :
+goose-reset:
 	@${GOOSE_CMD} reset
+	
+# Replay all migration from groud up
+goose-fresh: goose-reset goose-up
 
 # Dump the migration status for the current DB
 goose-status:

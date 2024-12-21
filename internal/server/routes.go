@@ -13,24 +13,31 @@ func (s *Server) RegisterRoutes() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(s)))
 
+	rateLimitGlobal := middleware.RateLimiter(
+		func(r *http.Request) string {
+			// since we are using the RealIp() middleware
+			// it should be safe to use r.RemoteAddr as limit key
+			return r.RemoteAddr
+		},
+		ratelimiter.NewTokenBucketLimiter(
+			ratelimiter.Config{
+				Enabled:              true,
+				RequestsPerTimeFrame: 5,
+				TimeFrame:            time.Minute,
+			},
+		),
+	)
+
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 		s.LoggerInjector,
-		middleware.RealIp(),
+		middleware.RealIp(), // required for the rate limiter to function correctly
 		middleware.RequestUUIDMiddleware,
 		middleware.LocalizerInjector,
 		middleware.RequestLogger,
 		middleware.StripSlashes,
 		middleware.AllowContentType("application/json"),
-		middleware.RateLimiter(
-			ratelimiter.Config{
-				Enabled:              true,
-				RequestsPerTimeFrame: 60,
-				TimeFrame:            time.Minute,
-			}, func(r *http.Request) string {
-				return middleware.LimitKeyFnUtil(r)
-			},
-		),
+		rateLimitGlobal,
 		middleware.Heartbeat,
 	)
 }

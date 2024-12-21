@@ -9,6 +9,7 @@ CREATE TABLE users (
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     blocked_at TIMESTAMPTZ,
+    blocked_until TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
     role_id INTEGER REFERENCES role(id)
 );

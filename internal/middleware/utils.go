@@ -22,7 +22,6 @@ func MiddlewareChain(h http.HandlerFunc, m ...Middleware) http.HandlerFunc {
 	return wrapped
 }
 
-
 // canonicalizeIP returns a form of ip suitable for comparison to other IPs.
 // For IPv4 addresses, this is simply the whole string.
 // For IPv6 addresses, this is the /64 prefix.

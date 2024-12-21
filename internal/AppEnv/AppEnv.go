@@ -50,7 +50,7 @@ func init() {
 	default:
 		log.Fatal("The value for APP_ENV in the .env file not determined, aborting...")
 	}
-	
+
 	EnvName = appEnv
 }
 
