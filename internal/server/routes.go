@@ -22,8 +22,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 		ratelimiter.NewTokenBucketLimiter(
 			ratelimiter.Config{
 				Enabled:              true,
-				RequestsPerTimeFrame: 5,
-				TimeFrame:            time.Minute,
+				RequestsPerTimeFrame: 60,
+				TimeFrame:            time.Second,
 			},
 		),
 	)
@@ -31,7 +31,8 @@ func (s *Server) RegisterRoutes() http.Handler {
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 		s.LoggerInjector,
-		middleware.RealIp(), // required for the rate limiter to function correctly
+		// required for the rate limiter to function correctly and for logging
+		middleware.RealIp(),
 		middleware.RequestUUIDMiddleware,
 		middleware.LocalizerInjector,
 		middleware.RequestLogger,

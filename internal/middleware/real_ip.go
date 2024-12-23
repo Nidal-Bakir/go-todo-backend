@@ -15,11 +15,10 @@ func RealIp(trustedIpHeaders ...string) func(next http.Handler) http.HandlerFunc
 
 			r.RemoteAddr = RealIpFromRequest(r, trustedIpHeaders...)
 
-			ctx = log.With().Str("RealIP", r.RemoteAddr).Logger().WithContext(ctx)
+			ctx = log.With().Str("client_ip", r.RemoteAddr).Logger().WithContext(ctx)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}
-
 }
 
 func RealIpFromRequest(r *http.Request, trustedIpHeaders ...string) string {

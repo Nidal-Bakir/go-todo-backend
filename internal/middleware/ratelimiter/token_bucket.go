@@ -2,14 +2,23 @@ package ratelimiter
 
 import (
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 func NewTokenBucketLimiter(conf Config) Limiter {
-	return &TokenBucket{conf: conf}
+	return &TokenBucket{
+		conf: conf,
+		limiter: rate.NewLimiter(
+			rate.Every(conf.TimeFrame),
+			conf.RequestsPerTimeFrame,
+		),
+	}
 }
 
 type TokenBucket struct {
-	conf Config
+	conf    Config
+	limiter *rate.Limiter
 }
 
 func (tb *TokenBucket) Config() Config {
@@ -17,5 +26,8 @@ func (tb *TokenBucket) Config() Config {
 }
 
 func (tb *TokenBucket) Allow(key string) (bool, time.Duration) {
-	return false, time.Second * 5
+	if tb.limiter.Allow() {
+		return true, 0
+	}
+	return false, tb.conf.TimeFrame / time.Duration(tb.conf.RequestsPerTimeFrame)
 }
