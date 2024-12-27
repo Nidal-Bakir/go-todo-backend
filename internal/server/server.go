@@ -41,7 +41,7 @@ func NewServer(ctx context.Context, log zerolog.Logger) *http.Server {
 
 	return &http.Server{
 		Addr:         fmt.Sprintf(":%d", server.port),
-		Handler:      server.RegisterRoutes(),
+		Handler:      server.RegisterRoutes(ctx),
 		IdleTimeout:  time.Minute,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

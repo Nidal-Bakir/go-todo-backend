@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 )
 
-func (s *Server) RegisterRoutes() http.Handler {
+func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(s)))
 
@@ -19,11 +20,13 @@ func (s *Server) RegisterRoutes() http.Handler {
 			// it should be safe to use r.RemoteAddr as limit key
 			return r.RemoteAddr
 		},
-		ratelimiter.NewTokenBucketLimiter(
+		ratelimiter.NewRedisTokenBucketLimiter(
+			ctx,
+			s.redis,
 			ratelimiter.Config{
 				Enabled:              true,
-				RequestsPerTimeFrame: 60,
-				TimeFrame:            time.Second,
+				RequestsPerTimeFrame: 5,
+				TimeFrame:            time.Minute,
 			},
 		),
 	)

@@ -18,10 +18,10 @@ import (
 func main() {
 	log := logger.NewLogger(AppEnv.IsLocal())
 
-	server := server.NewServer(context.Background(), log)
-
 	// Server run context
 	serverWithCancelCtx, serverStopCancelFunc := context.WithCancel(context.Background())
+
+	server := server.NewServer(serverWithCancelCtx, log)
 
 	// Listen for syscall signals for process to interrupt/quit
 	sig := make(chan os.Signal, 1)
