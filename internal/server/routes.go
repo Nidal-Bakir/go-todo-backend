@@ -8,6 +8,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
 )
 
 func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
@@ -20,12 +21,12 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 			// it should be safe to use r.RemoteAddr as limit key
 			return r.RemoteAddr
 		},
-		ratelimiter.NewRedisTokenBucketLimiter(
+		redis_ratelimiter.NewRedisFixedWindowLimiter(
 			ctx,
 			s.redis,
 			ratelimiter.Config{
 				Enabled:              true,
-				RequestsPerTimeFrame: 5,
+				RequestsPerTimeFrame: 1,
 				TimeFrame:            time.Minute,
 			},
 		),

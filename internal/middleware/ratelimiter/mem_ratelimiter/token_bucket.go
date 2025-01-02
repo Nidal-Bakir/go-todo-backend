@@ -1,4 +1,4 @@
-package ratelimiter
+package mem_ratelimiter
 
 import (
 	"context"
@@ -6,9 +6,10 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 )
 
-func NewTokenBucketLimiter(ctx context.Context, conf Config) Limiter {
+func NewTokenBucketLimiter(ctx context.Context, conf ratelimiter.Config) ratelimiter.Limiter {
 	tb := &TokenBucket{
 		conf:    conf,
 		clients: map[string]*client{},
@@ -18,7 +19,7 @@ func NewTokenBucketLimiter(ctx context.Context, conf Config) Limiter {
 }
 
 type TokenBucket struct {
-	conf    Config
+	conf    ratelimiter.Config
 	clients map[string]*client
 	mu      sync.Mutex
 }
@@ -28,7 +29,7 @@ type client struct {
 	lastUsed time.Time
 }
 
-func (tb *TokenBucket) Config() Config {
+func (tb *TokenBucket) Config() ratelimiter.Config {
 	return tb.conf
 }
 
