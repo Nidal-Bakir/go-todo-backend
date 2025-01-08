@@ -5,20 +5,26 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/time/rate"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
+	"golang.org/x/time/rate"
 )
 
 func NewTokenBucketLimiter(ctx context.Context, conf ratelimiter.Config) ratelimiter.Limiter {
-	tb := &TokenBucket{
+	tb := &tokenBucket{
 		conf:    conf,
 		clients: map[string]*client{},
 	}
 	tb.startVacuumProc(ctx)
-	return tb
+
+	return &memRatelimiter{
+		conf: conf,
+		allow: func(ctx context.Context, key string) (bool, time.Duration) {
+			return tb.allow(key)
+		},
+	}
 }
 
-type TokenBucket struct {
+type tokenBucket struct {
 	conf    ratelimiter.Config
 	clients map[string]*client
 	mu      sync.Mutex
@@ -29,11 +35,7 @@ type client struct {
 	lastUsed time.Time
 }
 
-func (tb *TokenBucket) Config() ratelimiter.Config {
-	return tb.conf
-}
-
-func (tb *TokenBucket) Allow(ctx context.Context, key string) (bool, time.Duration) {
+func (tb *tokenBucket) allow(key string) (bool, time.Duration) {
 	tb.mu.Lock()
 	c, ok := tb.clients[key]
 	if !ok {
@@ -56,12 +58,13 @@ func (tb *TokenBucket) Allow(ctx context.Context, key string) (bool, time.Durati
 	return false, tb.conf.TimeFrame / time.Duration(tb.conf.RequestsPerTimeFrame)
 }
 
-func (tb *TokenBucket) startVacuumProc(ctx context.Context) {
+func (tb *tokenBucket) startVacuumProc(ctx context.Context) {
 	go func(ctx context.Context) {
 		for {
 			time.Sleep(time.Minute)
 			select {
 			case <-ctx.Done():
+				break
 			default:
 				tb.mu.Lock()
 				for k, v := range tb.clients {

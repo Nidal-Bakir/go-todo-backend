@@ -12,10 +12,14 @@ func NewRedisTokenBucketLimiter(ctx context.Context, redis *redis.Client, conf r
 	return &redisRatelimiter{
 		conf:  conf,
 		redis: redis,
-		allow: _tokenBucketLimiterAllow,
+		allow: func(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
+			return _tokenBucketLimiterAllow(ctx, key, l)
+		},
 	}
 }
 
 func _tokenBucketLimiterAllow(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
+	// perTimeFram := l.conf.RequestsPerTimeFrame
+	// timeFram := l.conf.TimeFrame
 	return true, 0
 }

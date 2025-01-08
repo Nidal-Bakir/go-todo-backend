@@ -14,4 +14,5 @@ type Config struct {
 	RequestsPerTimeFrame int
 	TimeFrame            time.Duration
 	Enabled              bool
+	KeyPrefix            string
 }

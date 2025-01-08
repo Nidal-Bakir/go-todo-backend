@@ -26,8 +26,9 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 			s.redis,
 			ratelimiter.Config{
 				Enabled:              true,
-				RequestsPerTimeFrame: 1,
+				RequestsPerTimeFrame: 60,
 				TimeFrame:            time.Minute,
+				KeyPrefix:            "RT_FW_global",
 			},
 		),
 	)
