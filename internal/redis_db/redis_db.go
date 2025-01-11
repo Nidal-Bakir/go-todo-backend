@@ -18,7 +18,7 @@ var (
 	port       = os.Getenv("REDIS_PORT")
 	password   = os.Getenv("REDIS_PASSWORD")
 	username   = os.Getenv("REDIS_USERNAME")
-	clientName = os.Getenv("REDIS_CLIENT_NAME")
+	clientName = AppEnv.EnvName + "_" + os.Getenv("REDIS_CLIENT_NAME")
 	db         = os.Getenv("REDIS_DB")
 )
 
@@ -31,7 +31,7 @@ func NewRedisClient(ctx context.Context, log zerolog.Logger) *redis.Client {
 		Network:          "tcp",
 		Password:         password,
 		Username:         username,
-		ClientName:       AppEnv.EnvName + "_" + clientName,
+		ClientName:       clientName,
 		DB:               utils.Must(strconv.Atoi(db)),
 		Protocol:         3,
 		ConnMaxIdleTime:  30 * time.Minute,

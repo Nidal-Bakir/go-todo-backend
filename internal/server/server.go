@@ -22,10 +22,10 @@ var (
 )
 
 type Server struct {
-	port  int
-	db    *database.Service
-	redis *redis.Client
-	log   zerolog.Logger
+	port int
+	db   *database.Service
+	rdb  *redis.Client
+	log  zerolog.Logger
 }
 
 func NewServer(ctx context.Context, log zerolog.Logger) *http.Server {
@@ -33,10 +33,10 @@ func NewServer(ctx context.Context, log zerolog.Logger) *http.Server {
 	l10n.InitL10n("./l10n", []string{"en", "ar"}, log)
 
 	server := &Server{
-		port:  utils.Must(strconv.Atoi(serverPort)),
-		db:    database.NewConnection(ctx, log),
-		redis: redisdb.NewRedisClient(ctx, log),
-		log:   log,
+		port: utils.Must(strconv.Atoi(serverPort)),
+		db:   database.NewConnection(ctx, log),
+		rdb:  redisdb.NewRedisClient(ctx, log),
+		log:  log,
 	}
 
 	return &http.Server{

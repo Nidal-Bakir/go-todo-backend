@@ -17,8 +17,8 @@ func (l *memRatelimiter) Config() ratelimiter.Config {
 }
 
 func (l *memRatelimiter) Allow(ctx context.Context, key string) (bool, time.Duration) {
-	if l.conf.Enabled {
-		return l.allow(ctx, l.conf.KeyPrefix+":"+key)
+	if !l.conf.Enabled {
+		return true, 0
 	}
-	return true, 0
+	return l.allow(ctx, l.conf.KeyPrefix+":"+key)
 }

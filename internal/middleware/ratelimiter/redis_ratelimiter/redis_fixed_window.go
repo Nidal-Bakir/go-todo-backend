@@ -11,54 +11,53 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewRedisFixedWindowLimiter(ctx context.Context, redis *redis.Client, conf ratelimiter.Config) ratelimiter.Limiter {
+func NewRedisFixedWindowLimiter(ctx context.Context, rdb *redis.Client, conf ratelimiter.Config) ratelimiter.Limiter {
 	return &redisRatelimiter{
-		conf:  conf,
-		redis: redis,
-		allow: func(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
-			return _fixedWindowAllow(ctx, key, l)
-		},
+		conf:             conf,
+		rdb:              rdb,
+		limiterKeyPrefix: slidingWindowKeyPrefix,
+		allow:            _fixedWindowAllow,
 	}
 }
 
 func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
-	perTimeFram := l.conf.RequestsPerTimeFrame
-	timeFram := l.conf.TimeFrame
-	redisClient := l.redis
-	log := zerolog.Ctx(ctx).With().Str("key", key).Int("per_time_fram", perTimeFram).Dur("time_fram", timeFram).Logger()
+	perWindow := l.conf.RequestsPerTimeFrame
+	window := l.conf.TimeFrame
+	redisClient := l.rdb
+	log := zerolog.Ctx(ctx).With().Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
 
-	keyTimeFram := key + ":" + strconv.FormatInt(time.Now().UnixMilli()/timeFram.Milliseconds(), 10)
+	windowKey := key + ":" + strconv.FormatInt(time.Now().UnixMilli()/window.Milliseconds(), 10)
 
-	rate, err := redisClient.Get(ctx, keyTimeFram).Int()
+	rate, err := redisClient.Get(ctx, windowKey).Int()
 
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
 			log.Err(err).Msg("Can't rate limit, got an error from redis. Rejecting the request")
-			return false, timeFram
+			return false, window
 		}
 
 		// did not find the key, create new one
 		rate = 0
-		err = redisClient.Set(ctx, keyTimeFram, rate, timeFram).Err()
+		err = redisClient.Set(ctx, windowKey, rate, window).Err()
 		if err != nil {
 			log.Err(err).Msg("Can't rate limit, got an error from redis while seting the key value for the first time. Rejecting the request")
-			return false, timeFram
+			return false, window
 		}
 	}
 
-	if rate >= perTimeFram {
-		remainingTime, err := redisClient.TTL(ctx, keyTimeFram).Result()
+	if rate >= perWindow {
+		remainingTime, err := redisClient.TTL(ctx, windowKey).Result()
 		if err != nil {
-			log.Err(err).Msg("Can't get the TTL for the key, sending config time fram")
-			remainingTime = timeFram
+			log.Err(err).Msg("Can't get the TTL for the key, sending window")
+			remainingTime = window
 		}
 		return false, remainingTime
 	}
 
-	err = redisClient.Incr(ctx, keyTimeFram).Err()
+	err = redisClient.Incr(ctx, windowKey).Err()
 	if err != nil {
 		log.Err(err).Msg("Can't rate limit, got an error from redis while incr the key value. Rejecting the request")
-		return false, timeFram
+		return false, window
 	}
 
 	return true, 0

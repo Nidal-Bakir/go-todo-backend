@@ -8,16 +8,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRedisTokenBucketLimiter(ctx context.Context, rdb *redis.Client, conf ratelimiter.Config) ratelimiter.Limiter {
+func NewRedisLeakyBucketLimiter(ctx context.Context, rdb *redis.Client, conf ratelimiter.Config) ratelimiter.Limiter {
 	return &redisRatelimiter{
 		conf:             conf,
 		rdb:              rdb,
-		limiterKeyPrefix: tokenBuketKeyPrefix,
-		allow:            _tokenBucketLimiterAllow,
+		limiterKeyPrefix: leakyBuketKeyPrefix,
+		allow:            _leakyBucketLimiterAllow,
 	}
 }
 
-func _tokenBucketLimiterAllow(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
+func _leakyBucketLimiterAllow(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
 	// perTimeFram := l.conf.RequestsPerTimeFrame
 	// timeFram := l.conf.TimeFrame
 	return true, 0

@@ -8,10 +8,18 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	fixedWindowKeyPrefix   = "RT_FW"
+	slidingWindowKeyPrefix = "RT_SW"
+	tokenBuketKeyPrefix    = "RT_TB"
+	leakyBuketKeyPrefix    = "RT_LB"
+)
+
 type redisRatelimiter struct {
-	conf  ratelimiter.Config
-	redis *redis.Client
-	allow func(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration)
+	conf             ratelimiter.Config
+	rdb              *redis.Client
+	limiterKeyPrefix string
+	allow            func(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration)
 }
 
 func (l *redisRatelimiter) Config() ratelimiter.Config {
@@ -19,8 +27,8 @@ func (l *redisRatelimiter) Config() ratelimiter.Config {
 }
 
 func (l *redisRatelimiter) Allow(ctx context.Context, key string) (bool, time.Duration) {
-	if l.conf.Enabled {
-		return l.allow(ctx, l.conf.KeyPrefix+":"+key, l)
+	if !l.conf.Enabled {
+		return true, 0
 	}
-	return true, 0
+	return l.allow(ctx, l.limiterKeyPrefix+"_"+l.conf.KeyPrefix+":"+key, l)
 }

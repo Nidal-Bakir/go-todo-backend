@@ -20,7 +20,7 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			return
 		}
 
-		userActions := user.NewRepository(s.db, s.redis)
+		userActions := user.NewRepository(s.db, s.rdb)
 		userModel, err := userActions.GetUserBySessionToken(r.Context(), token)
 
 		if err != nil {
