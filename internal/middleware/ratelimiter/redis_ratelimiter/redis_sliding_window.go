@@ -53,7 +53,6 @@ func _slidingWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (
 }
 
 func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window time.Duration, rdb *redis.Client, zerolog zerolog.Logger) time.Duration {
-
 	fields, err := rdb.HKeys(ctx, key).Result()
 	if err != nil {
 		zerolog.Err(err).Msg("Can't get all fields in order to calc the remaining time, sending window")
@@ -68,7 +67,7 @@ func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window 
 
 	slices.Sort(fields)
 
-	res, err := rdb.HPTTL(ctx, key, fields[0]).Result()
+	fieldTTL, err := rdb.HPTTL(ctx, key, fields[0]).Result()
 	if err != nil {
 		zerolog.Err(err).Msg("Can't get the TTL for a hash feild, sending window")
 		return window
@@ -76,10 +75,10 @@ func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window 
 
 	// if there is no result then the key must have been expired and removed
 	// so the user can call the API at this moment
-	if len(res) == 0 {
+	if len(fieldTTL) == 0 {
 		return 0
 	}
 
-	remainingTime := time.Millisecond * time.Duration(res[0])
+	remainingTime := time.Millisecond * time.Duration(fieldTTL[0])
 	return remainingTime
 }
