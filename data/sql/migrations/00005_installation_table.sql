@@ -4,7 +4,7 @@ CREATE TABLE installation (
     installation_id UUID UNIQUE NOT NULL,
     notification_token VARCHAR(200),
     locale VARCHAR(16) NOT NULL CHECK (length(locale) >= 2),
-    timezone_Offset_in_minutes INTEGER NOT NULL,
+    timezone_offset_in_minutes INTEGER NOT NULL,
     device_manufacturer VARCHAR(50) NOT NULL,
     device_os VARCHAR(50) NOT NULL,
     device_os_version VARCHAR(50) NOT NULL,
