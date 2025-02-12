@@ -11,7 +11,9 @@ CREATE TABLE installation (
     app_version VARCHAR(50) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    deleted_at TIMESTAMPTZ
+    deleted_at TIMESTAMPTZ,
+    attach_to INTEGER NULL REFERENCES users(id),
+    last_attach_to INTEGER NULL REFERENCES users(id),
 );
 
 CREATE TRIGGER update_installation_updated_at_column BEFORE

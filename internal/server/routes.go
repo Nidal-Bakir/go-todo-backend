@@ -21,14 +21,14 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 			// it should be safe to use r.RemoteAddr as limit key
 			return r.RemoteAddr
 		},
-		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+		redis_ratelimiter.NewRedisTokenBucketLimiter(
 			ctx,
 			s.rdb,
 			ratelimiter.Config{
-				Enabled:              true,
-				RequestsPerTimeFrame: 5,
-				TimeFrame:            time.Minute,
-				KeyPrefix:            "global",
+				Enabled:      true,
+				PerTimeFrame: 5,
+				TimeFrame:    time.Minute,
+				KeyPrefix:    "global",
 			},
 		),
 	)

@@ -1,6 +1,6 @@
 module github.com/Nidal-Bakir/go-todo-backend
 
-go 1.23.3
+go 1.23.6
 
 require (
 	github.com/google/uuid v1.6.0

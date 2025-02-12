@@ -15,16 +15,16 @@ func NewRedisFixedWindowLimiter(ctx context.Context, rdb *redis.Client, conf rat
 	return &redisRatelimiter{
 		conf:             conf,
 		rdb:              rdb,
-		limiterKeyPrefix: slidingWindowKeyPrefix,
+		limiterKeyPrefix: fixedWindowKeyPrefix,
 		allow:            _fixedWindowAllow,
 	}
 }
 
 func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
-	perWindow := l.conf.RequestsPerTimeFrame
+	perWindow := l.conf.PerTimeFrame
 	window := l.conf.TimeFrame
 	redisClient := l.rdb
-	log := zerolog.Ctx(ctx).With().Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
+	log := zerolog.Ctx(ctx).With().Str("limiter_type", "redis_fixed_window").Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
 
 	windowKey := key + ":" + strconv.FormatInt(time.Now().UnixMilli()/window.Milliseconds(), 10)
 
@@ -32,7 +32,7 @@ func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bo
 
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
-			log.Err(err).Msg("Can't rate limit, got an error from redis. Rejecting the request")
+			log.Err(err).Msg("Can't rate limit, got an error from redis while geting the windowKey. Rejecting the request")
 			return false, window
 		}
 

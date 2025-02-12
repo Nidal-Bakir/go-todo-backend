@@ -9,10 +9,9 @@ import (
 )
 
 const (
-	fixedWindowKeyPrefix   = "RT_FW"
-	slidingWindowKeyPrefix = "RT_SW"
-	tokenBuketKeyPrefix    = "RT_TB"
-	leakyBuketKeyPrefix    = "RT_LB"
+	fixedWindowKeyPrefix   = "RT:FW"
+	slidingWindowKeyPrefix = "RT:SW"
+	tokenBucketKeyPrefix   = "RT:TB"
 )
 
 type redisRatelimiter struct {
@@ -30,5 +29,5 @@ func (l *redisRatelimiter) Allow(ctx context.Context, key string) (bool, time.Du
 	if !l.conf.Enabled {
 		return true, 0
 	}
-	return l.allow(ctx, l.limiterKeyPrefix+"_"+l.conf.KeyPrefix+":"+key, l)
+	return l.allow(ctx, l.limiterKeyPrefix+":"+l.conf.KeyPrefix+":"+key, l)
 }

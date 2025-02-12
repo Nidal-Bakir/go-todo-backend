@@ -25,7 +25,7 @@ func RateLimiter(limitKeyFn func(r *http.Request) string, limiter ratelimiter.Li
 
 				w.Header().Add("Retry-After", strconv.Itoa(int(math.Ceil(backoffDuration.Abs().Seconds()))))
 				// Request limit per ${config.TimeFrame}
-				w.Header().Add("X-RateLimit-Limit", fmt.Sprint(limiter.Config().RequestsPerTimeFrame))
+				w.Header().Add("X-RateLimit-Limit", fmt.Sprint(limiter.Config().PerTimeFrame))
 				utils.WriteError(r.Context(), w, http.StatusTooManyRequests, errors.New(local.GetWithId("too_many_requests")))
 				return
 			}

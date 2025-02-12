@@ -11,8 +11,8 @@ type Limiter interface {
 }
 
 type Config struct {
-	RequestsPerTimeFrame int
-	TimeFrame            time.Duration
-	Enabled              bool
-	KeyPrefix            string
+	PerTimeFrame int
+	TimeFrame    time.Duration
+	Enabled      bool
+	KeyPrefix    string
 }

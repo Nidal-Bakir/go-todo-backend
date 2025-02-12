@@ -37,34 +37,36 @@ type client struct {
 
 func (tb *tokenBucket) allow(key string) (bool, time.Duration) {
 	tb.mu.Lock()
+	defer tb.mu.Unlock()
+	
 	c, ok := tb.clients[key]
 	if !ok {
 		c = &client{
 			lastUsed: time.Now(),
 			limiter: rate.NewLimiter(
 				rate.Every(tb.conf.TimeFrame),
-				tb.conf.RequestsPerTimeFrame,
+				tb.conf.PerTimeFrame,
 			),
 		}
 		tb.clients[key] = c
 	}
 	c.lastUsed = time.Now()
 	isAllowed := c.limiter.Allow()
-	tb.mu.Unlock()
-
+	
 	if isAllowed {
 		return true, 0
 	}
-	return false, tb.conf.TimeFrame / time.Duration(tb.conf.RequestsPerTimeFrame)
+	return false, tb.conf.TimeFrame / time.Duration(tb.conf.PerTimeFrame)
 }
 
 func (tb *tokenBucket) startVacuumProc(ctx context.Context) {
-	go func(ctx context.Context) {
+	go func() {
+	forLoop:
 		for {
 			time.Sleep(time.Minute)
 			select {
 			case <-ctx.Done():
-				break
+				break forLoop
 			default:
 				tb.mu.Lock()
 				for k, v := range tb.clients {
@@ -75,5 +77,5 @@ func (tb *tokenBucket) startVacuumProc(ctx context.Context) {
 				tb.mu.Unlock()
 			}
 		}
-	}(ctx)
+	}()
 }

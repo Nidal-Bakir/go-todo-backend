@@ -21,10 +21,10 @@ func NewRedisSlidingWindowLimiter(ctx context.Context, rdb *redis.Client, conf r
 }
 
 func _slidingWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bool, time.Duration) {
-	perWindow := l.conf.RequestsPerTimeFrame
+	perWindow := l.conf.PerTimeFrame
 	window := l.conf.TimeFrame
 	rdb := l.rdb
-	zerolog := zerolog.Ctx(ctx).With().Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
+	zerolog := zerolog.Ctx(ctx).With().Str("limiter_type", "redis_sliding_window").Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
 
 	rate, err := rdb.HLen(ctx, key).Result()
 	if err != nil {
