@@ -33,7 +33,7 @@ func _slidingWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (
 	}
 
 	if rate >= int64(perWindow) {
-		return false, _calcRemainingTimeForSlidingWindow(ctx, key, window, rdb, zlog)
+		return false, calcRemainingTimeForSlidingWindow(ctx, key, window, rdb, zlog)
 	}
 
 	fieldKey := strconv.FormatInt(time.Now().UnixMilli(), 10)
@@ -52,7 +52,7 @@ func _slidingWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (
 	return true, 0
 }
 
-func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window time.Duration, rdb *redis.Client, zlog zerolog.Logger) time.Duration {
+func calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window time.Duration, rdb *redis.Client, zlog zerolog.Logger) time.Duration {
 	fields, err := rdb.HKeys(ctx, key).Result()
 	if err != nil {
 		zlog.Err(err).Msg("Can't get all fields in order to calc the remaining time, sending window")

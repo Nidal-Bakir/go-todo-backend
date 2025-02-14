@@ -3,6 +3,7 @@ package redis_ratelimiter
 import (
 	"context"
 	"errors"
+
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
@@ -28,14 +29,9 @@ func _tokenBucketLimiterAllow(ctx context.Context, key string, l *redisRatelimit
 	timeTakeToReset := rate * time.Duration(burst)
 
 	pip := rdb.Pipeline()
-
-	pip.PTTL(ctx, key)
-	pip.GetEx(ctx, key, timeTakeToReset)
-
-	pip.Exec(ctx)
-
-	curentBurst := 0
-	curentBurstStr, err := rdb.Get(ctx, key).Int()
+	pip.PTTL(ctx, key) // 0 for TTL
+	pip.Get(ctx, key)  // 1 for GET
+	pipRes, err := pip.Exec(ctx)
 
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
@@ -44,5 +40,52 @@ func _tokenBucketLimiterAllow(ctx context.Context, key string, l *redisRatelimit
 		}
 	}
 
+	ttl, err := pipRes[0].(*redis.DurationCmd).Result()
+	if err != nil {
+		zlog.Err(err).Msg("Can't rate limit, got an error from redis while geting the key PTTL. Rejecting the request")
+		return false, rate
+	}
+	if ttl < 0 { // if the ttl is in negative range that means there is no ttl on that key
+		ttl = 0
+	}
+
+	curentBurst, err := pipRes[1].(*redis.StringCmd).Int()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			zlog.Err(err).Msg("Can't rate limit, got an error from redis while geting the current burst. Rejecting the request")
+			return false, rate
+		}
+	}
+
+	curentBurst = fillBucket(curentBurst, ttl, timeTakeToReset, rate)
+
+	if curentBurst >= burst {
+		return false, rate
+	}
+
+	curentBurst++ // the current request
+
+	err = rdb.SetEx(ctx, key, curentBurst, timeTakeToReset).Err()
+	if err != nil {
+		zlog.Err(err).Msg("Can't rate limit, got an error from redis while seting the curent burst. Rejecting the request")
+		return false, rate
+	}
+
 	return true, 0
+}
+
+func fillBucket(curentBurst int, ttl, timeTakeToReset, rate time.Duration) int {
+	if curentBurst == 0 || ttl == 0 {
+		return 0
+	}
+
+	lastUpdated := time.Now().Add(-(timeTakeToReset - ttl))
+	gainedTokens := time.Since(lastUpdated).Milliseconds() / rate.Milliseconds()
+
+	newCurentBurst := curentBurst - int(gainedTokens)
+	if newCurentBurst < 0 {
+		newCurentBurst = 0
+	}
+
+	return newCurentBurst
 }
