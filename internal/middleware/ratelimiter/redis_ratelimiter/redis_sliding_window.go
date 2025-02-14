@@ -24,38 +24,38 @@ func _slidingWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (
 	perWindow := l.conf.PerTimeFrame
 	window := l.conf.TimeFrame
 	rdb := l.rdb
-	zerolog := zerolog.Ctx(ctx).With().Str("limiter_type", "redis_sliding_window").Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
+	zlog := zerolog.Ctx(ctx).With().Str("limiter_type", "redis_sliding_window").Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
 
 	rate, err := rdb.HLen(ctx, key).Result()
 	if err != nil {
-		zerolog.Err(err).Msg("Can't rate limit, unable to get the rate using the HLen on a hash")
+		zlog.Err(err).Msg("Can't rate limit, unable to get the rate using the HLen on a hash")
 		return false, window
 	}
 
 	if rate >= int64(perWindow) {
-		return false, _calcRemainingTimeForSlidingWindow(ctx, key, window, rdb, zerolog)
+		return false, _calcRemainingTimeForSlidingWindow(ctx, key, window, rdb, zlog)
 	}
 
 	fieldKey := strconv.FormatInt(time.Now().UnixMilli(), 10)
 	didAdd, err := rdb.HSetNX(ctx, key, fieldKey, "").Result()
 	if err != nil || !didAdd {
-		zerolog.Err(err).Msg("Can't rate limit, unable to register new requst in redis hash table")
+		zlog.Err(err).Msg("Can't rate limit, unable to register new requst in redis hash table")
 		return false, window
 	}
 
 	err = rdb.HExpire(ctx, key, window, fieldKey).Err()
 	if err != nil {
-		zerolog.Err(err).Msg("Can't rate limit, unable to set expire for the hash table field")
+		zlog.Err(err).Msg("Can't rate limit, unable to set expire for the hash table field")
 		return false, window
 	}
 
 	return true, 0
 }
 
-func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window time.Duration, rdb *redis.Client, zerolog zerolog.Logger) time.Duration {
+func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window time.Duration, rdb *redis.Client, zlog zerolog.Logger) time.Duration {
 	fields, err := rdb.HKeys(ctx, key).Result()
 	if err != nil {
-		zerolog.Err(err).Msg("Can't get all fields in order to calc the remaining time, sending window")
+		zlog.Err(err).Msg("Can't get all fields in order to calc the remaining time, sending window")
 		return window
 	}
 
@@ -69,7 +69,7 @@ func _calcRemainingTimeForSlidingWindow(ctx context.Context, key string, window 
 
 	fieldTTL, err := rdb.HPTTL(ctx, key, fields[0]).Result()
 	if err != nil {
-		zerolog.Err(err).Msg("Can't get the TTL for a hash feild, sending window")
+		zlog.Err(err).Msg("Can't get the TTL for a hash feild, sending window")
 		return window
 	}
 

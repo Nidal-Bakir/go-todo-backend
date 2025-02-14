@@ -27,7 +27,7 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			if errors.Is(err, pgx.ErrNoRows) {
 				err = fmt.Errorf("unauthorized")
 			} else if AppEnv.IsProd() {
-				s.log.Error().Err(err).Msg("Error while geting a user by session tokne in auth middleware")
+				s.zlog.Error().Err(err).Msg("Error while geting a user by session tokne in auth middleware")
 				err = fmt.Errorf("unauthorized")
 			}
 
@@ -42,6 +42,6 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 
 func (s *Server) LoggerInjector(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r.WithContext(s.log.WithContext(r.Context())))
+		h.ServeHTTP(w, r.WithContext(s.zlog.WithContext(r.Context())))
 	})
 }

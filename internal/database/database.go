@@ -27,7 +27,7 @@ var (
 	dbInstance   *Service
 )
 
-func NewConnection(ctx context.Context, log zerolog.Logger) *Service {
+func NewConnection(ctx context.Context, zlog zerolog.Logger) *Service {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 
@@ -35,22 +35,22 @@ func NewConnection(ctx context.Context, log zerolog.Logger) *Service {
 	if dbInstance != nil {
 		return dbInstance
 	}
-	assertEnvVars(log)
+	assertEnvVars(zlog)
 
-	log.Info().Msg(fmt.Sprintf("Connecting to database: %s on port: %s .....", database, port))
+	zlog.Info().Msg(fmt.Sprintf("Connecting to database: %s on port: %s .....", database, port))
 
 	conStr := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s  sslmode=disable pool_max_conns=%s", username, password, host, port, database, poolMaxConns)
 	connectionPool, err := pgxpool.New(ctx, conStr)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't create new connection to the database")
+		zlog.Fatal().Err(err).Msg("Can't create new connection to the database")
 	}
 
 	err = connectionPool.Ping(ctx)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Connection created but can not ping the database")
+		zlog.Fatal().Err(err).Msg("Connection created but can not ping the database")
 	}
 
-	log.Info().Msg(fmt.Sprintf("Connected to database: %s on port: %s\n", database, port))
+	zlog.Info().Msg(fmt.Sprintf("Connected to database: %s on port: %s\n", database, port))
 
 	dbInstance = &Service{
 		ConnPool: connectionPool,
@@ -99,23 +99,23 @@ func (s *Service) Close() {
 	s.ConnPool.Close()
 }
 
-func assertEnvVars(log zerolog.Logger) {
+func assertEnvVars(zlog zerolog.Logger) {
 	if database == "" {
-		log.Fatal().Msg("database env var is empty")
+		zlog.Fatal().Msg("database env var is empty")
 	}
 	if password == "" {
-		log.Fatal().Msg("password env var is empty")
+		zlog.Fatal().Msg("password env var is empty")
 	}
 	if username == "" {
-		log.Fatal().Msg("username env var is empty")
+		zlog.Fatal().Msg("username env var is empty")
 	}
 	if port == "" {
-		log.Fatal().Msg("port env var is empty")
+		zlog.Fatal().Msg("port env var is empty")
 	}
 	if host == "" {
-		log.Fatal().Msg("host env var is empty")
+		zlog.Fatal().Msg("host env var is empty")
 	}
 	if poolMaxConns == "" {
-		log.Fatal().Msg("poolMaxConns env var is empty")
+		zlog.Fatal().Msg("poolMaxConns env var is empty")
 	}
 }

@@ -11,7 +11,7 @@ import (
 func RequestUUIDMiddleware(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		log := *zerolog.Ctx(r.Context())
+		zlog := *zerolog.Ctx(r.Context())
 
 		var uuidVal uuid.UUID
 		uuidStr := r.Header.Get("X-Request-UUID")
@@ -21,7 +21,7 @@ func RequestUUIDMiddleware(next http.Handler) http.HandlerFunc {
 			if u, err := uuid.Parse(uuidStr); err == nil {
 				uuidVal = u
 			} else {
-				log.
+				zlog.
 					Error().
 					Err(err).
 					Str("uuidStr", uuidStr).
@@ -32,7 +32,7 @@ func RequestUUIDMiddleware(next http.Handler) http.HandlerFunc {
 		}
 
 		ctx = tracker.ContextWithReqUUID(ctx, uuidVal)
-		ctx = log.With().Str(tracker.ReqIdStrKey, uuidVal.String()).Logger().WithContext(ctx)
+		ctx = zlog.With().Str(tracker.ReqIdStrKey, uuidVal.String()).Logger().WithContext(ctx)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

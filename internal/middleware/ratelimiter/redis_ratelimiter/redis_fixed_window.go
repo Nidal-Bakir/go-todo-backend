@@ -24,7 +24,7 @@ func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bo
 	perWindow := l.conf.PerTimeFrame
 	window := l.conf.TimeFrame
 	redisClient := l.rdb
-	log := zerolog.Ctx(ctx).With().Str("limiter_type", "redis_fixed_window").Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
+	zlog := zerolog.Ctx(ctx).With().Str("limiter_type", "redis_fixed_window").Str("key", key).Int("per_window", perWindow).Dur("window", window).Logger()
 
 	windowKey := key + ":" + strconv.FormatInt(time.Now().UnixMilli()/window.Milliseconds(), 10)
 
@@ -32,7 +32,7 @@ func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bo
 
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
-			log.Err(err).Msg("Can't rate limit, got an error from redis while geting the windowKey. Rejecting the request")
+			zlog.Err(err).Msg("Can't rate limit, got an error from redis while geting the windowKey. Rejecting the request")
 			return false, window
 		}
 
@@ -40,7 +40,7 @@ func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bo
 		rate = 0
 		err = redisClient.Set(ctx, windowKey, rate, window).Err()
 		if err != nil {
-			log.Err(err).Msg("Can't rate limit, got an error from redis while seting the key value for the first time. Rejecting the request")
+			zlog.Err(err).Msg("Can't rate limit, got an error from redis while seting the key value for the first time. Rejecting the request")
 			return false, window
 		}
 	}
@@ -48,7 +48,7 @@ func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bo
 	if rate >= perWindow {
 		remainingTime, err := redisClient.TTL(ctx, windowKey).Result()
 		if err != nil {
-			log.Err(err).Msg("Can't get the TTL for the key, sending window")
+			zlog.Err(err).Msg("Can't get the TTL for the key, sending window")
 			remainingTime = window
 		}
 		return false, remainingTime
@@ -56,7 +56,7 @@ func _fixedWindowAllow(ctx context.Context, key string, l *redisRatelimiter) (bo
 
 	err = redisClient.Incr(ctx, windowKey).Err()
 	if err != nil {
-		log.Err(err).Msg("Can't rate limit, got an error from redis while incr the key value. Rejecting the request")
+		zlog.Err(err).Msg("Can't rate limit, got an error from redis while incr the key value. Rejecting the request")
 		return false, window
 	}
 

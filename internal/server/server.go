@@ -25,18 +25,18 @@ type Server struct {
 	port int
 	db   *database.Service
 	rdb  *redis.Client
-	log  zerolog.Logger
+	zlog zerolog.Logger
 }
 
-func NewServer(ctx context.Context, log zerolog.Logger) *http.Server {
+func NewServer(ctx context.Context, zlog zerolog.Logger) *http.Server {
 
-	l10n.InitL10n("./l10n", []string{"en", "ar"}, log)
+	l10n.InitL10n("./l10n", []string{"en", "ar"}, zlog)
 
 	server := &Server{
 		port: utils.Must(strconv.Atoi(serverPort)),
-		db:   database.NewConnection(ctx, log),
-		rdb:  redisdb.NewRedisClient(ctx, log),
-		log:  log,
+		db:   database.NewConnection(ctx, zlog),
+		rdb:  redisdb.NewRedisClient(ctx, zlog),
+		zlog: zlog,
 	}
 
 	return &http.Server{

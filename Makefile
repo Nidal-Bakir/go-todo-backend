@@ -38,6 +38,11 @@ watch:
 	air; \
 	echo "Watching...";\
 
+# Live Reload
+sqlc-gen:
+	@echo "Generating...";
+	@sqlc generate
+
 # goose db migrations binary utils
 GOOSE_CMD=GOOSE_MIGRATION_DIR=${GOOSE_MIGRATION_DIR} GOOSE_DRIVER=${GOOSE_DRIVER} GOOSE_DBSTRING=${GOOSE_DBSTRING} goose
 
@@ -68,7 +73,7 @@ goose-redo :
 # Roll back all migrations
 goose-reset:
 	@${GOOSE_CMD} reset
-	
+
 # Replay all migration from groud up
 goose-fresh: goose-reset goose-up
 

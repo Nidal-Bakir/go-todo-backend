@@ -38,7 +38,7 @@ type client struct {
 func (tb *tokenBucket) allow(key string) (bool, time.Duration) {
 	tb.mu.Lock()
 	defer tb.mu.Unlock()
-	
+
 	c, ok := tb.clients[key]
 	if !ok {
 		c = &client{
@@ -52,7 +52,7 @@ func (tb *tokenBucket) allow(key string) (bool, time.Duration) {
 	}
 	c.lastUsed = time.Now()
 	isAllowed := c.limiter.Allow()
-	
+
 	if isAllowed {
 		return true, 0
 	}

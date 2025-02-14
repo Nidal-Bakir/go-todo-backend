@@ -11,11 +11,11 @@ func RealIp(trustedIpHeaders ...string) func(next http.Handler) http.HandlerFunc
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
-			log := *zerolog.Ctx(r.Context())
+			zlog := *zerolog.Ctx(r.Context())
 
 			r.RemoteAddr = RealIpFromRequest(r, trustedIpHeaders...)
 
-			ctx = log.With().Str("client_ip", r.RemoteAddr).Logger().WithContext(ctx)
+			ctx = zlog.With().Str("client_ip", r.RemoteAddr).Logger().WithContext(ctx)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}

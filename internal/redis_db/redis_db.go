@@ -22,8 +22,8 @@ var (
 	db         = os.Getenv("REDIS_DB")
 )
 
-func NewRedisClient(ctx context.Context, log zerolog.Logger) *redis.Client {
-	log.Info().Msgf("Connecting to redis server on address=%s, username=%s, clientName=%s .....", addr, username, clientName)
+func NewRedisClient(ctx context.Context, zlog zerolog.Logger) *redis.Client {
+	zlog.Info().Msgf("Connecting to redis server on address=%s, username=%s, clientName=%s .....", addr, username, clientName)
 
 	readTimeout := 50 * time.Second
 	client := redis.NewClient(&redis.Options{
@@ -50,14 +50,14 @@ func NewRedisClient(ctx context.Context, log zerolog.Logger) *redis.Client {
 		DialTimeout:      5 * time.Second,
 		PoolTimeout:      readTimeout + time.Second,
 		OnConnect: func(ctx context.Context, cn *redis.Conn) error {
-			log.Info().Msgf("Connected to redis server on address=%s, username=%s, clientName=%s .....", addr, username, clientName)
+			zlog.Info().Msgf("Connected to redis server on address=%s, username=%s, clientName=%s .....", addr, username, clientName)
 			return nil
 		},
 	})
 
 	err := client.Ping(ctx).Err()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Can't PING the redis server")
+		zlog.Fatal().Err(err).Msg("Can't PING the redis server")
 		return nil
 	}
 

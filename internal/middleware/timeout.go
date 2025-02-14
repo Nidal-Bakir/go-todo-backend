@@ -38,7 +38,7 @@ func Timeout(d time.Duration) func(next http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctxWithCancel, cancelFunc := context.WithTimeout(r.Context(), d)
-			log := *zerolog.Ctx(ctxWithCancel)
+			zlog := *zerolog.Ctx(ctxWithCancel)
 
 			defer func() {
 				cancelFunc()
@@ -46,7 +46,7 @@ func Timeout(d time.Duration) func(next http.Handler) http.HandlerFunc {
 				if errors.Is(ctxWithCancel.Err(), context.DeadlineExceeded) {
 					utils.WriteError(r.Context(), w, http.StatusGatewayTimeout, errors.New("timeout"))
 
-					logEvent := log.Warn().Err(context.DeadlineExceeded).Int("status_code", http.StatusGatewayTimeout)
+					logEvent := zlog.Warn().Err(context.DeadlineExceeded).Int("status_code", http.StatusGatewayTimeout)
 					reqId, ok := tracker.ReqUUIDFromContext(ctxWithCancel)
 					if ok {
 						logEvent.Str(tracker.ReqIdStrKey, reqId.String())

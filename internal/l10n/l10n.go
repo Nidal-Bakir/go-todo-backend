@@ -22,18 +22,18 @@ type Localizer struct {
 	logger zerolog.Logger
 }
 
-func InitL10n(path string, langs []string, logger zerolog.Logger) {
+func InitL10n(path string, langs []string, zlog zerolog.Logger) {
 	utils.Assert(len(langs) != 0, "The langs slice can not be empty")
 	languages = langs
 
 	bundle = i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
 
-	logEvent := logger.Info()
+	logEvent := zlog.Info()
 	for _, lang := range languages {
 		filePath := fmt.Sprintf(path+"/%s.json", lang)
 		bundle.MustLoadMessageFile(filePath)
-		locales[lang] = &Localizer{l: i18n.NewLocalizer(bundle, lang), logger: logger}
+		locales[lang] = &Localizer{l: i18n.NewLocalizer(bundle, lang), logger: zlog}
 
 		logEvent.Str(lang, filePath)
 	}

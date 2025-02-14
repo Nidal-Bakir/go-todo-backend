@@ -20,12 +20,12 @@ func Recoverer(next http.Handler) http.HandlerFunc {
 					panic(rvr)
 				}
 
-				log := zerolog.Ctx(r.Context()).Error().CallerSkipFrame(1)
+				logEvent := zerolog.Ctx(r.Context()).Error().CallerSkipFrame(1)
 				if err, ok := rvr.(error); ok {
-					log.Err(err)
+					logEvent.Err(err)
 				}
 
-				log.Msg("Panic")
+				logEvent.Msg("Panic")
 				debug.PrintStack()
 
 				if r.Header.Get("Connection") != "Upgrade" {

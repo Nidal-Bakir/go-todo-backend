@@ -33,14 +33,14 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 }
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	log := *zerolog.Ctx(ctx)
+	zlog := *zerolog.Ctx(ctx)
 
 	var err errorRes
 	if len(errs) == 0 {
 		if AppEnv.IsStagOrLocal() {
 			panic("WriteError: empty errs array")
 		}
-		log.Warn().Msg("WriteError: empty errs array")
+		zlog.Warn().Msg("WriteError: empty errs array")
 		err = errorRes{Error: fmt.Errorf("empty errs array"), Errors: []error{}}
 	} else {
 		err = errorRes{Error: errs[0], Errors: errs[1:]}
@@ -54,11 +54,11 @@ func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any
 }
 
 func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload any, shouldLog bool) {
-	log := *zerolog.Ctx(ctx)
+	zlog := *zerolog.Ctx(ctx)
 
 	bytes, err := json.Marshal(payload)
 	if err != nil {
-		log.Error().Err(err).Any("payload", payload).Int("code", code).Msg("can not marshal payload in WriteJson")
+		zlog.Error().Err(err).Any("payload", payload).Int("code", code).Msg("can not marshal payload in WriteJson")
 		WriteError(ctx, w, http.StatusInternalServerError, err)
 		return
 	}
@@ -68,12 +68,12 @@ func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload an
 	w.Write(bytes)
 
 	if shouldLog {
-		_logRes(ctx, code, payload, log)
+		_logRes(ctx, code, payload, zlog)
 	}
 }
 
-func _logRes(ctx context.Context, code int, payload any, log zerolog.Logger) {
-	logEvent := log.Info().Any("payload", payload).Int("code", code)
+func _logRes(ctx context.Context, code int, payload any, zerolog zerolog.Logger) {
+	logEvent := zerolog.Info().Any("payload", payload).Int("code", code)
 	reqId, ok := tracker.ReqUUIDFromContext(ctx)
 	if ok {
 		logEvent.Str(tracker.ReqIdStrKey, reqId.String())

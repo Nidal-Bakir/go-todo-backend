@@ -16,12 +16,12 @@ import (
 )
 
 func main() {
-	log := logger.NewLogger(AppEnv.IsLocal())
+	zlog := logger.NewLogger(AppEnv.IsLocal())
 
 	// Server run context
 	serverWithCancelCtx, serverStopCancelFunc := context.WithCancel(context.Background())
 
-	server := server.NewServer(serverWithCancelCtx, log)
+	server := server.NewServer(serverWithCancelCtx, zlog)
 
 	// Listen for syscall signals for process to interrupt/quit
 	sig := make(chan os.Signal, 1)
@@ -36,27 +36,27 @@ func main() {
 		go func() {
 			<-shutdownCtx.Done()
 			if errors.Is(shutdownCtx.Err(), context.DeadlineExceeded) {
-				log.Fatal().Msg("graceful shutdown timed out.. forcing exit.")
+				zlog.Fatal().Msg("graceful shutdown timed out.. forcing exit.")
 			}
 		}()
 
 		// Trigger graceful shutdown
 		err := server.Shutdown(shutdownCtx)
 		if err != nil {
-			log.Fatal().Err(err).Msg("Error while shuting down the server.")
+			zlog.Fatal().Err(err).Msg("Error while shuting down the server.")
 		}
 
 		serverStopCancelFunc()
 	}()
 
-	log.Info().Msgf("Staring the server on: %s", server.Addr)
+	zlog.Info().Msgf("Staring the server on: %s", server.Addr)
 
 	err := server.ListenAndServe()
 	if err != nil {
 		if errors.Is(err, http.ErrServerClosed) {
-			log.Info().Msg("Server Stopped Gracefully.")
+			zlog.Info().Msg("Server Stopped Gracefully.")
 		} else {
-			log.Fatal().Err(err).Msg("Can't start the server")
+			zlog.Fatal().Err(err).Msg("Can't start the server")
 		}
 	}
 
