@@ -60,7 +60,7 @@ func _tokenBucketLimiterAllow(ctx context.Context, key string, l *redisRatelimit
 	curentBurst = fillBucket(curentBurst, ttl, timeTakeToReset, rate)
 
 	if curentBurst >= burst {
-		return false, rate
+		return false, rate - (timeTakeToReset - ttl)
 	}
 
 	curentBurst++ // the current request

@@ -27,7 +27,7 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 			ratelimiter.Config{
 				Enabled:      true,
 				PerTimeFrame: 5,
-				TimeFrame:    time.Second,
+				TimeFrame:    time.Minute,
 				KeyPrefix:    "global",
 			},
 		),
