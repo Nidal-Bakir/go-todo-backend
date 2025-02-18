@@ -25,7 +25,7 @@ const (
 	colorWhite
 )
 
-func NewLogger(shouldOutputToConcole bool) zerolog.Logger {
+func NewLogger(shouldOutputToConcole bool) *zerolog.Logger {
 	var output io.Writer
 
 	if shouldOutputToConcole {
@@ -56,7 +56,7 @@ func NewLogger(shouldOutputToConcole bool) zerolog.Logger {
 
 	log.Logger = zerolog.New(output).With().Caller().Timestamp().Logger()
 
-	return log.Logger
+	return &log.Logger
 }
 
 // for concole formating

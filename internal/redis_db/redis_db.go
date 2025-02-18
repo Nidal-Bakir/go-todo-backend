@@ -22,7 +22,8 @@ var (
 	db         = os.Getenv("REDIS_DB")
 )
 
-func NewRedisClient(ctx context.Context, zlog zerolog.Logger) *redis.Client {
+func NewRedisClient(ctx context.Context) *redis.Client {
+	zlog := *zerolog.Ctx(ctx)
 	zlog.Info().Msgf("Connecting to redis server on address=%s, username=%s, clientName=%s .....", addr, username, clientName)
 
 	readTimeout := 50 * time.Second

@@ -17,11 +17,12 @@ import (
 
 func main() {
 	zlog := logger.NewLogger(AppEnv.IsLocal())
+	ctx := zlog.WithContext(context.Background())
 
 	// Server run context
-	serverWithCancelCtx, serverStopCancelFunc := context.WithCancel(context.Background())
+	serverWithCancelCtx, serverStopCancelFunc := context.WithCancel(ctx)
 
-	server := server.NewServer(serverWithCancelCtx, zlog)
+	server := server.NewServer(serverWithCancelCtx)
 
 	// Listen for syscall signals for process to interrupt/quit
 	sig := make(chan os.Signal, 1)

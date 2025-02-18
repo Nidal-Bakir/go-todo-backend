@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -33,4 +34,29 @@ func NewUserFromDatabaseuser(u database.User) User {
 		DeletedAt:    u.DeletedAt,
 		RoleID:       u.RoleID,
 	}
+}
+
+type UserNameType string
+
+const (
+	UserNameTypeEmail       UserNameType = "email"
+	UserNameTypePhoneNumber UserNameType = "phone"
+)
+
+type TempUser struct {
+	Fname        string
+	Lname        string
+	UserNameType UserNameType
+	phone        utils.PhoneNumber
+	email        string
+	otp          string
+	password     string
+}
+
+func (tu TempUser) isUsingEmail() bool {
+	return tu.UserNameType == UserNameTypeEmail
+}
+
+func (tu TempUser) isUsingPhoneNumber() bool {
+	return tu.UserNameType == UserNameTypePhoneNumber
 }
