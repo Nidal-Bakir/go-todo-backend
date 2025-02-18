@@ -27,9 +27,11 @@ var (
 	dbInstance   *Service
 )
 
-func NewConnection(ctx context.Context, zlog zerolog.Logger) *Service {
+func NewConnection(ctx context.Context) *Service {
 	ctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
+
+	zlog := *zerolog.Ctx(ctx)
 
 	// Reuse Connection
 	if dbInstance != nil {

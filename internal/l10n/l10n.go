@@ -1,6 +1,7 @@
 package l10n
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -22,7 +23,9 @@ type Localizer struct {
 	logger zerolog.Logger
 }
 
-func InitL10n(path string, langs []string, zlog zerolog.Logger) {
+func InitL10n(path string, langs []string, ctx context.Context) {
+	zlog := *zerolog.Ctx(ctx)
+
 	utils.Assert(len(langs) != 0, "The langs slice can not be empty")
 	languages = langs
 

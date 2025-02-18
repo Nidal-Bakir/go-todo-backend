@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/redis/go-redis/v9"
 )
@@ -11,17 +12,19 @@ import (
 type Repository interface {
 	GetUserById(ctx context.Context, id int) (User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
+	CreateTempUser(ctx context.Context, tUser TempUser) (TempUser, error)
 }
 
-func NewRepository(db *database.Service, redis *redis.Client) Repository {
-	return repositoryImpl{db: db, redis: redis}
+func NewRepository(db *database.Service, redis *redis.Client, gatewaysProvider gateway.Provider) Repository {
+	return repositoryImpl{db: db, redis: redis, gatewaysProvider: gatewaysProvider}
 }
 
 // ---------------------------------------------------------------------------------
 
 type repositoryImpl struct {
-	db    *database.Service
-	redis *redis.Client
+	db               *database.Service
+	redis            *redis.Client
+	gatewaysProvider gateway.Provider
 }
 
 func (repo repositoryImpl) GetUserById(ctx context.Context, id int) (User, error) {
@@ -47,4 +50,8 @@ func (repo repositoryImpl) GetUserBySessionToken(ctx context.Context, sessionTok
 
 	user := NewUserFromDatabaseuser(dbUser)
 	return user, err
+}
+
+func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser TempUser) (TempUser, error) {
+	return tUser, nil
 }
