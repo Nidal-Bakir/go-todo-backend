@@ -1,6 +1,8 @@
 package user
 
 import (
+	"fmt"
+
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -51,6 +53,19 @@ type TempUser struct {
 	email        string
 	otp          string
 	password     string
+}
+
+func (tu TempUser) Key() string {
+	if tu.isUsingEmail() {
+		utils.Assert(utils.IsValidEmail(tu.email), fmt.Sprintf("not valid email address: %s", tu.email))
+		return tu.email
+	}
+
+	if tu.isUsingPhoneNumber() {
+		return tu.phone.ToString()
+	}
+
+	panic("we should not reach this point")
 }
 
 func (tu TempUser) isUsingEmail() bool {

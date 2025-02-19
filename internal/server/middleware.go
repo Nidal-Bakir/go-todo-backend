@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/user"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/user"
 	"github.com/jackc/pgx/v5"
 )
 

@@ -2,8 +2,11 @@ package user
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/redis/go-redis/v9"
@@ -53,5 +56,41 @@ func (repo repositoryImpl) GetUserBySessionToken(ctx context.Context, sessionTok
 }
 
 func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser TempUser) (TempUser, error) {
+	otpSender := otp.NewOTPSender(repo.gatewaysProvider)
+	
+	
+	// TODO: Add logger to this code
+
+	var otp string
+	var err error
+	if tUser.isUsingEmail() {
+		otp, err = otpSender.SendEmailOTP(ctx, tUser.email)
+	} else if tUser.isUsingPhoneNumber() {
+		otp, err = otpSender.SendSMSOTP(ctx, tUser.phone)
+	} else {
+		panic("we should not be here!")
+	}
+
+	if err != nil {
+		return TempUser{}, err
+	}
+	tUser.otp = otp
+
+	key := fmt.Sprint("user:tmp:", tUser.Key())
+	pip := repo.redis.TxPipeline()
+	pip.Del(ctx, key)
+	pip.HSet(ctx, key)
+	pip.Expire(ctx, key, time.Hour*1)
+	resultArray, err := pip.Exec(ctx)
+
+	if err != nil {
+		return TempUser{}, err
+	}
+	for _, cmdResult := range resultArray {
+		if cmdResult.Err() != nil {
+			return TempUser{}, err
+		}
+	}
+
 	return tUser, nil
 }
