@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/user"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/user"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -20,7 +20,7 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			return
 		}
 
-		userRepo := user.NewRepository(s.db, s.rdb, s.gatewaysProvider)
+		userRepo := user.NewRepository(user.NewDataSource(s.db, s.rdb), s.gatewaysProvider)
 		userModel, err := userRepo.GetUserBySessionToken(r.Context(), token)
 
 		if err != nil {

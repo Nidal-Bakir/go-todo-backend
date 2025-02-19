@@ -1,3 +1,6 @@
 {
-  "too_many_requests": "Too Many Requests!"
+  "too_many_requests": "Too Many Requests!",
+  "no_result_found": "No Result Found",
+  "invalid_otp_code": "Invalid OTP code",
+  "invalid_data": "Invalid Data"
 }

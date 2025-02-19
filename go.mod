@@ -1,8 +1,9 @@
 module github.com/Nidal-Bakir/go-todo-backend
 
-go 1.23.6
+go 1.24.0
 
 require (
+	github.com/Nidal-Bakir/username_r_gen v0.0.0-20250226185250-7a3b83f70992
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/nicksnyder/go-i18n/v2 v2.5.1

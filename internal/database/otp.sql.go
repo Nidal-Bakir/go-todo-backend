@@ -26,8 +26,8 @@ RETURNING id, code, hit_count, created_at, updated_at, expires_at, deleted_at, i
 type CreateNewOtpParams struct {
 	Code           string             `json:"code"`
 	Intent         string             `json:"intent"`
-	OtpFor         int32              `json:"otp_for"`
-	UsingSessionID int32              `json:"using_session_id"`
+	OtpFor         pgtype.Int4        `json:"otp_for"`
+	UsingSessionID pgtype.Int4        `json:"using_session_id"`
 	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
@@ -78,8 +78,8 @@ LIMIT 1
 `
 
 type GetActiveOtpByIdPairedWithSessionIdParams struct {
-	ID             int32 `json:"id"`
-	UsingSessionID int32 `json:"using_session_id"`
+	ID             int32       `json:"id"`
+	UsingSessionID pgtype.Int4 `json:"using_session_id"`
 }
 
 // GetActiveOtpByIdPairedWithSessionId

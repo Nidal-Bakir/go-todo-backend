@@ -48,8 +48,8 @@ type Otp struct {
 	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 	Intent         string             `json:"intent"`
-	OtpFor         int32              `json:"otp_for"`
-	UsingSessionID int32              `json:"using_session_id"`
+	OtpFor         pgtype.Int4        `json:"otp_for"`
+	UsingSessionID pgtype.Int4        `json:"using_session_id"`
 }
 
 type Permission struct {

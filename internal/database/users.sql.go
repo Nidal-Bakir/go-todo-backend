@@ -181,3 +181,81 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, softDeleteUser, id)
 	return err
 }
+
+const updateUserData = `-- name: UpdateUserData :one
+UPDATE users SET
+username = $2,
+profile_image = $3,
+first_name = $4,
+last_name = $5,
+role_id = $6
+WHERE id = $1
+RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+`
+
+type UpdateUserDataParams struct {
+	ID           int32       `json:"id"`
+	Username     string      `json:"username"`
+	ProfileImage pgtype.Text `json:"profile_image"`
+	FirstName    string      `json:"first_name"`
+	LastName     pgtype.Text `json:"last_name"`
+	RoleID       pgtype.Int4 `json:"role_id"`
+}
+
+// UpdateUserData
+//
+//	UPDATE users SET
+//	username = $2,
+//	profile_image = $3,
+//	first_name = $4,
+//	last_name = $5,
+//	role_id = $6
+//	WHERE id = $1
+//	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+func (q *Queries) UpdateUserData(ctx context.Context, arg UpdateUserDataParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserData,
+		arg.ID,
+		arg.Username,
+		arg.ProfileImage,
+		arg.FirstName,
+		arg.LastName,
+		arg.RoleID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.ProfileImage,
+		&i.FirstName,
+		&i.MiddleName,
+		&i.LastName,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BlockedAt,
+		&i.BlockedUntil,
+		&i.DeletedAt,
+		&i.RoleID,
+	)
+	return i, err
+}
+
+const updateUsernameForUser = `-- name: UpdateUsernameForUser :exec
+UPDATE users SET
+username = $2
+WHERE id = $1
+`
+
+type UpdateUsernameForUserParams struct {
+	ID       int32  `json:"id"`
+	Username string `json:"username"`
+}
+
+// UpdateUsernameForUser
+//
+//	UPDATE users SET
+//	username = $2
+//	WHERE id = $1
+func (q *Queries) UpdateUsernameForUser(ctx context.Context, arg UpdateUsernameForUserParams) error {
+	_, err := q.db.Exec(ctx, updateUsernameForUser, arg.ID, arg.Username)
+	return err
+}

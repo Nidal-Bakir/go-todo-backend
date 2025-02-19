@@ -33,6 +33,23 @@ INSERT INTO users (
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+
+-- name: UpdateUserData :one
+UPDATE users SET
+username = $2,
+profile_image = $3,
+first_name = $4,
+last_name = $5,
+role_id = $6
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateUsernameForUser :exec
+UPDATE users SET
+username = $2
+WHERE id = $1;
+
+
 -- name: SoftDeleteUser :exec
 UPDATE users
 SET deleted_at = NOW()
