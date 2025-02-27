@@ -101,13 +101,59 @@ func (ds dataSource) DeleteUserFromTempCache(ctx context.Context, tempUserId uui
 	return ds.redis.Del(ctx, ds.genTempUserId(tempUserId)).Err()
 }
 
-func (ds dataSource) CreateUser(ctx context.Context, tUser *TempUser) (database.User, error) {
-	args := database.CreateNewUserParams{
-		FirstName: tUser.Fname,
-		Username:  tUser.Username,
-		LastName:  pgtype.Text{String: tUser.Lname},
+func (ds dataSource) CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error) {
+	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return database.User{}, err
 	}
-	return ds.db.Queries.CreateNewUser(ctx, args)
+
+	defer func() {
+		rolbackFn := func() {
+			rollBackErr := tx.Rollback(ctx)
+			err = errors.Join(rollBackErr, ctx.Err(), err)
+		}
+		commitFn := func() {
+			commitErr := tx.Commit(ctx)
+			err = errors.Join(commitErr, err)
+		}
+
+		select {
+		case <-ctx.Done():
+			rolbackFn()
+		default:
+			if err != nil {
+				rolbackFn()
+			} else {
+				commitFn()
+			}
+		}
+	}()
+
+	queries := ds.db.Queries.WithTx(tx)
+
+	user, err = queries.CreateNewUser(
+		ctx,
+		database.CreateNewUserParams{
+			FirstName:    userArgs.Fname,
+			Username:     userArgs.Username,
+			LastName:     pgtype.Text{String: userArgs.Lname, Valid: userArgs.Lname != ""},
+			ProfileImage: pgtype.Text{String: userArgs.ProfileImagePath, Valid: userArgs.ProfileImagePath != ""},
+			RoleID:       pgtype.Int4{Int32: userArgs.RoleID, Valid: userArgs.RoleID != 0},
+		})
+
+	_, err = queries.CreateNewLoginOption(
+		ctx,
+		database.CreateNewLoginOptionParams{
+			UserID:      user.ID,
+			LoginMethod: userArgs.LoginMethod.String(),
+			AccessKey:   userArgs.AccessKey,
+			HashedPass:  pgtype.Text{String: userArgs.HashedPass, Valid: userArgs.HashedPass != ""},
+			PassSalt:    pgtype.Text{String: userArgs.PassSalt, Valid: userArgs.PassSalt != ""},
+			VerifiedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		},
+	)
+
+	return user, err
 }
 
 func (ds dataSource) UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error {

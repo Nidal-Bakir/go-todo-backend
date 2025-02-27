@@ -37,36 +37,40 @@ func NewUserFromDatabaseUser(u database.User) User {
 	}
 }
 
-type UsernameType string
+type LoginMethod string
 
 const (
-	UserNameTypeEmail       UsernameType = "email"
-	UserNameTypePhoneNumber UsernameType = "phone"
+	LoginMethodEmail       LoginMethod = "email"
+	LoginMethodPhoneNumber LoginMethod = "phone"
 )
 
-func (u UsernameType) isUsingEmail() bool {
-	return u == UserNameTypeEmail
+func (u LoginMethod) isUsingEmail() bool {
+	return u == LoginMethodEmail
 }
-func (u UsernameType) isUsingPhoneNumber() bool {
-	return u == UserNameTypePhoneNumber
+func (u LoginMethod) isUsingPhoneNumber() bool {
+	return u == LoginMethodPhoneNumber
+}
+
+func (u LoginMethod) String() string {
+	return string(u)
 }
 
 type TempUser struct {
-	Id           uuid.UUID // used as a key
-	Username     string    // will be the same as Id and will be updated with new value afterword, but initaly this should not be empty
-	UsernameType UsernameType
-	Fname        string
-	Lname        string
-	Email        string
-	Phone        utils.PhoneNumber
-	SentOTP      string
-	Password     string
+	Id          uuid.UUID // used as a key
+	Username    string    // will be the same as Id and will be updated with new value afterword, but initaly this should not be empty
+	LoginMethod LoginMethod
+	Fname       string
+	Lname       string
+	Email       string
+	Phone       utils.PhoneNumber
+	SentOTP     string
+	Password    string
 }
 
 func (tu TempUser) ToMap() map[string]string {
 	m := make(map[string]string, 8)
 	m["username"] = tu.Username
-	m["user_name_type"] = string(tu.UsernameType)
+	m["login_method"] = tu.LoginMethod.String()
 	m["f_name"] = tu.Fname
 	m["l_name"] = tu.Lname
 	m["email"] = tu.Email
@@ -79,7 +83,7 @@ func (tu TempUser) ToMap() map[string]string {
 
 func (tu *TempUser) FromMap(m map[string]string) {
 	tu.Username = m["username"]
-	tu.UsernameType = UsernameType(m["user_name_type"])
+	tu.LoginMethod = LoginMethod(m["login_method"])
 	tu.Fname = m["f_name"]
 	tu.Lname = m["l_name"]
 	tu.Email = m["email"]
@@ -92,10 +96,10 @@ func (tu *TempUser) FromMap(m map[string]string) {
 func (tu TempUser) ValidateForStore() (ok bool) {
 	ok = tu.Username == tu.Id.String()
 
-	switch tu.UsernameType {
-	case UserNameTypeEmail:
+	switch tu.LoginMethod {
+	case LoginMethodEmail:
 		ok = ok && utils.IsValidEmail(tu.Email)
-	case UserNameTypePhoneNumber:
+	case LoginMethodPhoneNumber:
 		ok = ok && tu.Phone.IsValid()
 	}
 
@@ -104,4 +108,16 @@ func (tu TempUser) ValidateForStore() (ok bool) {
 	ok = ok && len(tu.Password) >= 6
 
 	return ok
+}
+
+type CreateUserArgs struct {
+	Username         string
+	Fname            string
+	Lname            string
+	LoginMethod      LoginMethod
+	AccessKey        string
+	HashedPass       string
+	PassSalt         string
+	ProfileImagePath string
+	RoleID           int32
 }

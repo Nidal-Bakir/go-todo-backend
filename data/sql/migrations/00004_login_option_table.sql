@@ -5,7 +5,7 @@ CREATE TABLE login_option (
     login_method VARCHAR(25) NOT NULL,
     access_key VARCHAR(200) UNIQUE NOT NULL CHECK (length(access_key) >= 5),
     hashed_pass VARCHAR(200),
-    pass_salt VARCHAR(25),
+    pass_salt VARCHAR(200),
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,

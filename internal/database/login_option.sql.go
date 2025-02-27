@@ -17,18 +17,20 @@ INSERT INTO login_option(
         access_key,
         hashed_pass,
         pass_salt,
+        verified_at,
         user_id
     )
-VALUES ($1, $2, $3, $4, $5)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 `
 
 type CreateNewLoginOptionParams struct {
-	LoginMethod string      `json:"login_method"`
-	AccessKey   string      `json:"access_key"`
-	HashedPass  pgtype.Text `json:"hashed_pass"`
-	PassSalt    pgtype.Text `json:"pass_salt"`
-	UserID      int32       `json:"user_id"`
+	LoginMethod string             `json:"login_method"`
+	AccessKey   string             `json:"access_key"`
+	HashedPass  pgtype.Text        `json:"hashed_pass"`
+	PassSalt    pgtype.Text        `json:"pass_salt"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	UserID      int32              `json:"user_id"`
 }
 
 // CreateNewLoginOption
@@ -38,9 +40,10 @@ type CreateNewLoginOptionParams struct {
 //	        access_key,
 //	        hashed_pass,
 //	        pass_salt,
+//	        verified_at,
 //	        user_id
 //	    )
-//	VALUES ($1, $2, $3, $4, $5)
+//	VALUES ($1, $2, $3, $4, $5, $6)
 //	RETURNING id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 func (q *Queries) CreateNewLoginOption(ctx context.Context, arg CreateNewLoginOptionParams) (LoginOption, error) {
 	row := q.db.QueryRow(ctx, createNewLoginOption,
@@ -48,6 +51,7 @@ func (q *Queries) CreateNewLoginOption(ctx context.Context, arg CreateNewLoginOp
 		arg.AccessKey,
 		arg.HashedPass,
 		arg.PassSalt,
+		arg.VerifiedAt,
 		arg.UserID,
 	)
 	var i LoginOption

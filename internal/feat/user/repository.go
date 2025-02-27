@@ -3,11 +3,13 @@ package user
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	apperr "github.com/Nidal-Bakir/go-todo-backend/internal/app_error"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
 	usernaemgen "github.com/Nidal-Bakir/username_r_gen"
 	"github.com/google/uuid"
 
@@ -86,12 +88,12 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 func sendOtpToTempUser(ctx context.Context, gatewaysProvider gateway.Provider, tUser TempUser) (sentOTP string, err error) {
 	otpSender := otp.NewOTPSender(gatewaysProvider)
 
-	if tUser.UsernameType.isUsingEmail() {
+	if tUser.LoginMethod.isUsingEmail() {
 		sentOTP, err = otpSender.SendEmailOTP(ctx, tUser.Email)
 		return sentOTP, err
 	}
 
-	if tUser.UsernameType.isUsingPhoneNumber() {
+	if tUser.LoginMethod.isUsingPhoneNumber() {
 		sentOTP, err = otpSender.SendSMSOTP(ctx, tUser.Phone)
 		return sentOTP, err
 	}
@@ -153,7 +155,12 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 		return User{}, ErrInvalidTempUserdata
 	}
 
-	dbUser, err := repo.dataSource.CreateUser(ctx, tUser)
+	createUserArgs, err := generateUserArgsForCreateUser(tUser)
+	if err != nil {
+		return User{}, err
+	}
+
+	dbUser, err := repo.dataSource.CreateUser(ctx, createUserArgs)
 	if err != nil {
 		zlog.Err(err).Msg("error while create new user in the database")
 		return User{}, err
@@ -173,11 +180,51 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 	return user, nil
 }
 
+func generateUserArgsForCreateUser(user *TempUser) (CreateUserArgs, error) {
+	var loginMethod LoginMethod
+	var accessKey, hashedPass, passSalt string
+	var supportPassword bool
+
+	switch user.LoginMethod {
+	case LoginMethodEmail:
+		supportPassword = true
+		accessKey = user.Email
+
+	case LoginMethodPhoneNumber:
+		supportPassword = true
+		// 963|123456789
+		accessKey = fmt.Sprintf("%s|%s", user.Phone.CounterCode, user.Phone.Number)
+
+	default:
+		panic(fmt.Sprintf("Not supported login method %s", user.LoginMethod.String()))
+	}
+
+	if supportPassword {
+		var err error
+		hashedPass, passSalt, err = password_hasher.NewPasswordHasher(password_hasher.BcryptPasswordHash).GenHashedPassdWithSalt((user.Password))
+		if err != nil {
+			return CreateUserArgs{}, nil
+		}
+	}
+
+	createUserArgs := CreateUserArgs{
+		Username:    user.Username,
+		Fname:       user.Fname,
+		Lname:       user.Lname,
+		LoginMethod: loginMethod,
+		AccessKey:   accessKey,
+		HashedPass:  hashedPass,
+		PassSalt:    passSalt,
+	}
+
+	return createUserArgs, nil
+}
+
 func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *TempUser) {
 	zlog := zerolog.Ctx(ctx)
 
-	// ignore any error because the temp user will be auto cleand by the redis after sometime
+	// ignore any error because the temp user will be auto cleand by redis after sometime
 	if err := repo.dataSource.DeleteUserFromTempCache(ctx, tUser.Id); err != nil {
-		zlog.Err(err).Msg("error while deleting user form temp cache")
+		zlog.Err(err).Msg("error while deleting user form temp cache. igonoring this error")
 	}
 }
