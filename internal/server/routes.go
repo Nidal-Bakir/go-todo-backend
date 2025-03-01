@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
@@ -65,7 +65,7 @@ func v1Router(s *Server) http.Handler {
 	mux.Handle("/todo", todoRouter(s))
 	mux.Handle("/todo/", todoRouter(s))
 
-	if AppEnv.IsStagOrLocal() {
+	if appenv.IsStagOrLocal() {
 		mux.Handle("/dev-tools/", http.StripPrefix("/dev-tools", middleware.NoCache(devToolsRouter(s))))
 	}
 

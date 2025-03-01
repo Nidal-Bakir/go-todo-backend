@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNewOtp = `-- name: CreateNewOtp :one
+const oTPCreateNewOtp = `-- name: OTPCreateNewOtp :one
 INSERT INTO otp (
         code,
         intent,
@@ -23,7 +23,7 @@ VALUES ($1, $2, $3, $4, $5)
 RETURNING id, code, hit_count, created_at, updated_at, expires_at, deleted_at, intent, otp_for, using_session_id
 `
 
-type CreateNewOtpParams struct {
+type OTPCreateNewOtpParams struct {
 	Code           string             `json:"code"`
 	Intent         string             `json:"intent"`
 	OtpFor         pgtype.Int4        `json:"otp_for"`
@@ -31,7 +31,7 @@ type CreateNewOtpParams struct {
 	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
-// CreateNewOtp
+// OTPCreateNewOtp
 //
 //	INSERT INTO otp (
 //	        code,
@@ -42,8 +42,8 @@ type CreateNewOtpParams struct {
 //	    )
 //	VALUES ($1, $2, $3, $4, $5)
 //	RETURNING id, code, hit_count, created_at, updated_at, expires_at, deleted_at, intent, otp_for, using_session_id
-func (q *Queries) CreateNewOtp(ctx context.Context, arg CreateNewOtpParams) (Otp, error) {
-	row := q.db.QueryRow(ctx, createNewOtp,
+func (q *Queries) OTPCreateNewOtp(ctx context.Context, arg OTPCreateNewOtpParams) (Otp, error) {
+	row := q.db.QueryRow(ctx, oTPCreateNewOtp,
 		arg.Code,
 		arg.Intent,
 		arg.OtpFor,
@@ -66,7 +66,7 @@ func (q *Queries) CreateNewOtp(ctx context.Context, arg CreateNewOtpParams) (Otp
 	return i, err
 }
 
-const getActiveOtpByIdPairedWithSessionId = `-- name: GetActiveOtpByIdPairedWithSessionId :one
+const oTPGetActiveOtpByIdPairedWithSessionId = `-- name: OTPGetActiveOtpByIdPairedWithSessionId :one
 SELECT id, code, hit_count, created_at, updated_at, expires_at, deleted_at, intent, otp_for, using_session_id
 FROM otp
 WHERE id = $1
@@ -77,12 +77,12 @@ WHERE id = $1
 LIMIT 1
 `
 
-type GetActiveOtpByIdPairedWithSessionIdParams struct {
+type OTPGetActiveOtpByIdPairedWithSessionIdParams struct {
 	ID             int32       `json:"id"`
 	UsingSessionID pgtype.Int4 `json:"using_session_id"`
 }
 
-// GetActiveOtpByIdPairedWithSessionId
+// OTPGetActiveOtpByIdPairedWithSessionId
 //
 //	SELECT id, code, hit_count, created_at, updated_at, expires_at, deleted_at, intent, otp_for, using_session_id
 //	FROM otp
@@ -92,8 +92,8 @@ type GetActiveOtpByIdPairedWithSessionIdParams struct {
 //	    AND expires_at > NOW()
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) GetActiveOtpByIdPairedWithSessionId(ctx context.Context, arg GetActiveOtpByIdPairedWithSessionIdParams) (Otp, error) {
-	row := q.db.QueryRow(ctx, getActiveOtpByIdPairedWithSessionId, arg.ID, arg.UsingSessionID)
+func (q *Queries) OTPGetActiveOtpByIdPairedWithSessionId(ctx context.Context, arg OTPGetActiveOtpByIdPairedWithSessionIdParams) (Otp, error) {
+	row := q.db.QueryRow(ctx, oTPGetActiveOtpByIdPairedWithSessionId, arg.ID, arg.UsingSessionID)
 	var i Otp
 	err := row.Scan(
 		&i.ID,
@@ -110,21 +110,21 @@ func (q *Queries) GetActiveOtpByIdPairedWithSessionId(ctx context.Context, arg G
 	return i, err
 }
 
-const recordHitForOtp = `-- name: RecordHitForOtp :one
+const oTPRecordHitForOtp = `-- name: OTPRecordHitForOtp :one
 UPDATE otp
 SET hit_count = hit_count + 1
 WHERE id = $1
 RETURNING id, code, hit_count, created_at, updated_at, expires_at, deleted_at, intent, otp_for, using_session_id
 `
 
-// RecordHitForOtp
+// OTPRecordHitForOtp
 //
 //	UPDATE otp
 //	SET hit_count = hit_count + 1
 //	WHERE id = $1
 //	RETURNING id, code, hit_count, created_at, updated_at, expires_at, deleted_at, intent, otp_for, using_session_id
-func (q *Queries) RecordHitForOtp(ctx context.Context, id int32) (Otp, error) {
-	row := q.db.QueryRow(ctx, recordHitForOtp, id)
+func (q *Queries) OTPRecordHitForOtp(ctx context.Context, id int32) (Otp, error) {
+	row := q.db.QueryRow(ctx, oTPRecordHitForOtp, id)
 	var i Otp
 	err := row.Scan(
 		&i.ID,
@@ -141,18 +141,18 @@ func (q *Queries) RecordHitForOtp(ctx context.Context, id int32) (Otp, error) {
 	return i, err
 }
 
-const softDeleteOtp = `-- name: SoftDeleteOtp :exec
+const oTPSoftDeleteOtp = `-- name: OTPSoftDeleteOtp :exec
 UPDATE otp
 SET deleted_at = NOW()
 WHERE id = $1
 `
 
-// SoftDeleteOtp
+// OTPSoftDeleteOtp
 //
 //	UPDATE otp
 //	SET deleted_at = NOW()
 //	WHERE id = $1
-func (q *Queries) SoftDeleteOtp(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, softDeleteOtp, id)
+func (q *Queries) OTPSoftDeleteOtp(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, oTPSoftDeleteOtp, id)
 	return err
 }

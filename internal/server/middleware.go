@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/user"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -20,13 +21,17 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			return
 		}
 
-		userRepo := user.NewRepository(user.NewDataSource(s.db, s.rdb), s.gatewaysProvider)
+		userRepo := user.NewRepository(
+			user.NewDataSource(s.db, s.rdb),
+			s.gatewaysProvider,
+			password_hasher.NewPasswordHasher(password_hasher.BcryptPasswordHash),
+		)
 		userModel, err := userRepo.GetUserBySessionToken(r.Context(), token)
 
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				err = fmt.Errorf("unauthorized")
-			} else if AppEnv.IsProd() {
+			} else if appenv.IsProd() {
 				s.zlog.Error().Err(err).Msg("Error while geting a user by session tokne in auth middleware")
 				err = fmt.Errorf("unauthorized")
 			}

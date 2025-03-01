@@ -1,11 +1,11 @@
--- name: GetUserById :one
+-- name: UsersGetUserById :one
 SELECT *
 FROM users
 WHERE id = $1
     AND deleted_at IS NULL
 LIMIT 1;
 
--- name: GetUserBySessionToken :one
+-- name: UsersGetUserBySessionToken :one
 SELECT u.*
 FROM session AS s
     JOIN login_option AS lo ON s.originated_from = lo.id
@@ -17,12 +17,12 @@ WHERE s.token = $1
     AND s.expires_at > NOW()
 LIMIT 1;
 
--- name: IsUsernameUsed :one
+-- name: UsersIsUsernameUsed :one
 SELECT COUNT(*)
 FROM users
 WHERE username = $1;
 
--- name: CreateNewUser :one
+-- name: UsersCreateNewUser :one
 INSERT INTO users (
         username,
         profile_image,
@@ -34,7 +34,7 @@ VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
 
--- name: UpdateUserData :one
+-- name: UsersUpdateUserData :one
 UPDATE users SET
 username = $2,
 profile_image = $3,
@@ -44,13 +44,13 @@ role_id = $6
 WHERE id = $1
 RETURNING *;
 
--- name: UpdateUsernameForUser :exec
+-- name: UsersUpdateUsernameForUser :exec
 UPDATE users SET
 username = $2
 WHERE id = $1;
 
 
--- name: SoftDeleteUser :exec
+-- name: UsersSoftDeleteUser :exec
 UPDATE users
 SET deleted_at = NOW()
 WHERE id = $1;

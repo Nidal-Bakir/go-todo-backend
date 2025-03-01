@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
@@ -18,7 +18,7 @@ var (
 	port       = os.Getenv("REDIS_PORT")
 	password   = os.Getenv("REDIS_PASSWORD")
 	username   = os.Getenv("REDIS_USERNAME")
-	clientName = AppEnv.EnvName + "_" + os.Getenv("REDIS_CLIENT_NAME")
+	clientName = appenv.EnvName + "_" + os.Getenv("REDIS_CLIENT_NAME")
 	db         = os.Getenv("REDIS_DB")
 )
 
@@ -38,7 +38,7 @@ func NewRedisClient(ctx context.Context) *redis.Client {
 		ConnMaxIdleTime:  30 * time.Minute,
 		DisableIndentity: false,
 		PoolFIFO:         false,
-		IdentitySuffix:   AppEnv.EnvName,
+		IdentitySuffix:   appenv.EnvName,
 		MaxActiveConns:   0,
 		MaxIdleConns:     1,
 		MinIdleConns:     0,

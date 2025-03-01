@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNewInstallation = `-- name: CreateNewInstallation :one
+const installationCreateNewInstallation = `-- name: InstallationCreateNewInstallation :one
 INSERT INTO installation (
         installation_id,
         notification_token,
@@ -26,7 +26,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 `
 
-type CreateNewInstallationParams struct {
+type InstallationCreateNewInstallationParams struct {
 	InstallationID     uuid.UUID   `json:"installation_id"`
 	NotificationToken  pgtype.Text `json:"notification_token"`
 	Locale             string      `json:"locale"`
@@ -36,7 +36,7 @@ type CreateNewInstallationParams struct {
 	AppVersion         string      `json:"app_version"`
 }
 
-// CreateNewInstallation
+// InstallationCreateNewInstallation
 //
 //	INSERT INTO installation (
 //	        installation_id,
@@ -49,8 +49,8 @@ type CreateNewInstallationParams struct {
 //	    )
 //	VALUES ($1, $2, $3, $4, $5, $6, $7)
 //	RETURNING id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
-func (q *Queries) CreateNewInstallation(ctx context.Context, arg CreateNewInstallationParams) (Installation, error) {
-	row := q.db.QueryRow(ctx, createNewInstallation,
+func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg InstallationCreateNewInstallationParams) (Installation, error) {
+	row := q.db.QueryRow(ctx, installationCreateNewInstallation,
 		arg.InstallationID,
 		arg.NotificationToken,
 		arg.Locale,
@@ -79,23 +79,23 @@ func (q *Queries) CreateNewInstallation(ctx context.Context, arg CreateNewInstal
 	return i, err
 }
 
-const softDeleteInstallation = `-- name: SoftDeleteInstallation :exec
+const installationSoftDeleteInstallation = `-- name: InstallationSoftDeleteInstallation :exec
 UPDATE installation
 SET deleted_at = NOW()
 WHERE id = $1
 `
 
-// SoftDeleteInstallation
+// InstallationSoftDeleteInstallation
 //
 //	UPDATE installation
 //	SET deleted_at = NOW()
 //	WHERE id = $1
-func (q *Queries) SoftDeleteInstallation(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, softDeleteInstallation, id)
+func (q *Queries) InstallationSoftDeleteInstallation(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, installationSoftDeleteInstallation, id)
 	return err
 }
 
-const updateInstallation = `-- name: UpdateInstallation :exec
+const installationUpdateInstallation = `-- name: InstallationUpdateInstallation :exec
 UPDATE installation
 SET notification_token = $3,
     locale = $4,
@@ -105,7 +105,7 @@ WHERE id = $1
     AND deleted_at IS NULL
 `
 
-type UpdateInstallationParams struct {
+type InstallationUpdateInstallationParams struct {
 	ID                      int32       `json:"id"`
 	InstallationID          uuid.UUID   `json:"installation_id"`
 	NotificationToken       pgtype.Text `json:"notification_token"`
@@ -113,7 +113,7 @@ type UpdateInstallationParams struct {
 	TimezoneOffsetInMinutes int32       `json:"timezone_offset_in_minutes"`
 }
 
-// UpdateInstallation
+// InstallationUpdateInstallation
 //
 //	UPDATE installation
 //	SET notification_token = $3,
@@ -122,8 +122,8 @@ type UpdateInstallationParams struct {
 //	WHERE id = $1
 //	    AND installation_id = $2
 //	    AND deleted_at IS NULL
-func (q *Queries) UpdateInstallation(ctx context.Context, arg UpdateInstallationParams) error {
-	_, err := q.db.Exec(ctx, updateInstallation,
+func (q *Queries) InstallationUpdateInstallation(ctx context.Context, arg InstallationUpdateInstallationParams) error {
+	_, err := q.db.Exec(ctx, installationUpdateInstallation,
 		arg.ID,
 		arg.InstallationID,
 		arg.NotificationToken,

@@ -1,4 +1,4 @@
--- name: CreateNewInstallation :one
+-- name: InstallationCreateNewInstallation :one
 INSERT INTO installation (
         installation_id,
         notification_token,
@@ -11,7 +11,7 @@ INSERT INTO installation (
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
--- name: UpdateInstallation :exec
+-- name: InstallationUpdateInstallation :exec
 UPDATE installation
 SET notification_token = $3,
     locale = $4,
@@ -20,7 +20,7 @@ WHERE id = $1
     AND installation_id = $2
     AND deleted_at IS NULL;
 
--- name: SoftDeleteInstallation :exec
+-- name: InstallationSoftDeleteInstallation :exec
 UPDATE installation
 SET deleted_at = NOW()
 WHERE id = $1;

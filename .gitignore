@@ -34,3 +34,7 @@ tmp/
 # Project build
 main
 *templ.go
+
+
+# Keys
+private_key.pem

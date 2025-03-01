@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	apperr "github.com/Nidal-Bakir/go-todo-backend/internal/app_error"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	appjwt "github.com/Nidal-Bakir/go-todo-backend/internal/utils/app_jwt"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
 	usernaemgen "github.com/Nidal-Bakir/username_r_gen"
 	"github.com/google/uuid"
@@ -21,23 +24,30 @@ type Repository interface {
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
 	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
+	Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
 }
 
-func NewRepository(ds *dataSource, gatewaysProvider gateway.Provider) Repository {
-	return repositoryImpl{dataSource: ds, gatewaysProvider: gatewaysProvider}
+func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher) Repository {
+	return repositoryImpl{dataSource: ds, gatewaysProvider: gatewaysProvider, PasswordHasher: passwordHasher}
 }
 
 // ---------------------------------------------------------------------------------
 
 type repositoryImpl struct {
-	dataSource       *dataSource
+	dataSource       DataSource
 	gatewaysProvider gateway.Provider
+	PasswordHasher   password_hasher.PasswordHasher
 }
 
 func (repo repositoryImpl) GetUserById(ctx context.Context, id int) (User, error) {
-	zlog := zerolog.Ctx(ctx).With().Int("user_id", id).Logger()
+	userId, err := utils.SafeIntToInt32(id)
+	if err != nil {
+		return User{}, err
+	}
 
-	dbUser, err := repo.dataSource.GetUserById(ctx, id)
+	zlog := zerolog.Ctx(ctx).With().Int32("user_id", userId).Logger()
+
+	dbUser, err := repo.dataSource.GetUserById(ctx, userId)
 	if err != nil {
 		if !errors.Is(err, apperr.ErrNoResult) {
 			zlog.Err(err).Msg("error geting the user by user id")
@@ -155,8 +165,9 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 		return User{}, ErrInvalidTempUserdata
 	}
 
-	createUserArgs, err := generateUserArgsForCreateUser(tUser)
+	createUserArgs, err := generateUserArgsForCreateUser(tUser, repo.PasswordHasher)
 	if err != nil {
+		zlog.Err(err).Msg("error generating user args")
 		return User{}, err
 	}
 
@@ -180,7 +191,7 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 	return user, nil
 }
 
-func generateUserArgsForCreateUser(user *TempUser) (CreateUserArgs, error) {
+func generateUserArgsForCreateUser(user *TempUser, passwordHasher password_hasher.PasswordHasher) (CreateUserArgs, error) {
 	var loginMethod LoginMethod
 	var accessKey, hashedPass, passSalt string
 	var supportPassword bool
@@ -201,7 +212,7 @@ func generateUserArgsForCreateUser(user *TempUser) (CreateUserArgs, error) {
 
 	if supportPassword {
 		var err error
-		hashedPass, passSalt, err = password_hasher.NewPasswordHasher(password_hasher.BcryptPasswordHash).GenHashedPassdWithSalt((user.Password))
+		hashedPass, passSalt, err = passwordHasher.GeneratePasswordHashWithSalt((user.Password))
 		if err != nil {
 			return CreateUserArgs{}, nil
 		}
@@ -227,4 +238,72 @@ func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *T
 	if err := repo.dataSource.DeleteUserFromTempCache(ctx, tUser.Id); err != nil {
 		zlog.Err(err).Msg("error while deleting user form temp cache. igonoring this error")
 	}
+}
+
+// TODO: get the installation using middelware and context injection like user Auth gaurd
+func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error) {
+	zlog := zerolog.Ctx(ctx)
+
+	userWithLoginOption, err := repo.dataSource.GetActiveLoginOptionWithUser(ctx, accessKey, loginMethod)
+	if err != nil {
+		if errors.Is(err, apperr.ErrNoResult) {
+			err = ErrInvalidLoginCredentials
+		} else {
+			zlog.Err(err).Msg("error geting active login option with user data")
+		}
+		return User{}, "", err
+	}
+
+	checkPassword := func() error {
+		hashedPassword := userWithLoginOption.LoginOptionHashedPass.String
+		salt := userWithLoginOption.LoginOptionPassSalt.String
+		if ok, err := repo.PasswordHasher.CompareHashAndPassword(hashedPassword, salt, password); !ok || err != nil {
+			if err != nil {
+				return err
+			}
+			return ErrInvalidLoginCredentials
+		}
+		return nil
+	}
+
+	switch loginMethod {
+	case LoginMethodPhoneNumber, LoginMethodEmail:
+		err := checkPassword()
+		if err != nil {
+			zlog.Err(err).Msg("error while checking the password for user to login")
+			return User{}, "", err
+		}
+
+	default:
+		panic(fmt.Sprintf("Not supported login method %s", loginMethod.String()))
+	}
+
+	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
+	token, err = appjwt.NewAppJWT().GenWithClaims(expiresAt, int(userWithLoginOption.UserID), "login")
+	if err != nil {
+		zlog.Err(err).Msg("error while generating a new session token using jwt, for login")
+		return User{}, "", err
+	}
+
+	err = repo.dataSource.CreateNewSession(ctx, userWithLoginOption.LoginOptionID, installation.ID, token, expiresAt)
+	if err != nil {
+		zlog.Err(err).Msg("error creating new session for user to login")
+		return User{}, "", err
+	}
+
+	user = User{
+		ID:           userWithLoginOption.UserID,
+		Username:     userWithLoginOption.UserUsername,
+		ProfileImage: userWithLoginOption.UserProfileImage,
+		FirstName:    userWithLoginOption.UserFirstName,
+		MiddleName:   userWithLoginOption.UserMiddleName,
+		LastName:     userWithLoginOption.UserLastName,
+		RoleID:       userWithLoginOption.UserRoleID,
+		DeletedAt:    userWithLoginOption.UserDeletedAt,
+		BlockedAt:    userWithLoginOption.UserBlockedAt,
+		CreatedAt:    userWithLoginOption.UserCreatedAt,
+		UpdatedAt:    userWithLoginOption.UserUpdatedAt,
+	}
+
+	return user, token, nil
 }

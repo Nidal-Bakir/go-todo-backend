@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNewUser = `-- name: CreateNewUser :one
+const usersCreateNewUser = `-- name: UsersCreateNewUser :one
 INSERT INTO users (
         username,
         profile_image,
@@ -23,7 +23,7 @@ VALUES ($1, $2, $3, $4, $5)
 RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
 `
 
-type CreateNewUserParams struct {
+type UsersCreateNewUserParams struct {
 	Username     string      `json:"username"`
 	ProfileImage pgtype.Text `json:"profile_image"`
 	FirstName    string      `json:"first_name"`
@@ -31,7 +31,7 @@ type CreateNewUserParams struct {
 	RoleID       pgtype.Int4 `json:"role_id"`
 }
 
-// CreateNewUser
+// UsersCreateNewUser
 //
 //	INSERT INTO users (
 //	        username,
@@ -42,8 +42,8 @@ type CreateNewUserParams struct {
 //	    )
 //	VALUES ($1, $2, $3, $4, $5)
 //	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
-func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createNewUser,
+func (q *Queries) UsersCreateNewUser(ctx context.Context, arg UsersCreateNewUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, usersCreateNewUser,
 		arg.Username,
 		arg.ProfileImage,
 		arg.FirstName,
@@ -68,7 +68,7 @@ func (q *Queries) CreateNewUser(ctx context.Context, arg CreateNewUserParams) (U
 	return i, err
 }
 
-const getUserById = `-- name: GetUserById :one
+const usersGetUserById = `-- name: UsersGetUserById :one
 SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
 FROM users
 WHERE id = $1
@@ -76,15 +76,15 @@ WHERE id = $1
 LIMIT 1
 `
 
-// GetUserById
+// UsersGetUserById
 //
 //	SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
 //	FROM users
 //	WHERE id = $1
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRow(ctx, getUserById, id)
+func (q *Queries) UsersGetUserById(ctx context.Context, id int32) (User, error) {
+	row := q.db.QueryRow(ctx, usersGetUserById, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -103,7 +103,7 @@ func (q *Queries) GetUserById(ctx context.Context, id int32) (User, error) {
 	return i, err
 }
 
-const getUserBySessionToken = `-- name: GetUserBySessionToken :one
+const usersGetUserBySessionToken = `-- name: UsersGetUserBySessionToken :one
 SELECT u.id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id
 FROM session AS s
     JOIN login_option AS lo ON s.originated_from = lo.id
@@ -116,7 +116,7 @@ WHERE s.token = $1
 LIMIT 1
 `
 
-// GetUserBySessionToken
+// UsersGetUserBySessionToken
 //
 //	SELECT u.id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id
 //	FROM session AS s
@@ -128,8 +128,8 @@ LIMIT 1
 //	    AND lo.deleted_at IS NULL
 //	    AND s.expires_at > NOW()
 //	LIMIT 1
-func (q *Queries) GetUserBySessionToken(ctx context.Context, token string) (User, error) {
-	row := q.db.QueryRow(ctx, getUserBySessionToken, token)
+func (q *Queries) UsersGetUserBySessionToken(ctx context.Context, token string) (User, error) {
+	row := q.db.QueryRow(ctx, usersGetUserBySessionToken, token)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -148,41 +148,41 @@ func (q *Queries) GetUserBySessionToken(ctx context.Context, token string) (User
 	return i, err
 }
 
-const isUsernameUsed = `-- name: IsUsernameUsed :one
+const usersIsUsernameUsed = `-- name: UsersIsUsernameUsed :one
 SELECT COUNT(*)
 FROM users
 WHERE username = $1
 `
 
-// IsUsernameUsed
+// UsersIsUsernameUsed
 //
 //	SELECT COUNT(*)
 //	FROM users
 //	WHERE username = $1
-func (q *Queries) IsUsernameUsed(ctx context.Context, username string) (int64, error) {
-	row := q.db.QueryRow(ctx, isUsernameUsed, username)
+func (q *Queries) UsersIsUsernameUsed(ctx context.Context, username string) (int64, error) {
+	row := q.db.QueryRow(ctx, usersIsUsernameUsed, username)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
 }
 
-const softDeleteUser = `-- name: SoftDeleteUser :exec
+const usersSoftDeleteUser = `-- name: UsersSoftDeleteUser :exec
 UPDATE users
 SET deleted_at = NOW()
 WHERE id = $1
 `
 
-// SoftDeleteUser
+// UsersSoftDeleteUser
 //
 //	UPDATE users
 //	SET deleted_at = NOW()
 //	WHERE id = $1
-func (q *Queries) SoftDeleteUser(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, softDeleteUser, id)
+func (q *Queries) UsersSoftDeleteUser(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, usersSoftDeleteUser, id)
 	return err
 }
 
-const updateUserData = `-- name: UpdateUserData :one
+const usersUpdateUserData = `-- name: UsersUpdateUserData :one
 UPDATE users SET
 username = $2,
 profile_image = $3,
@@ -193,7 +193,7 @@ WHERE id = $1
 RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
 `
 
-type UpdateUserDataParams struct {
+type UsersUpdateUserDataParams struct {
 	ID           int32       `json:"id"`
 	Username     string      `json:"username"`
 	ProfileImage pgtype.Text `json:"profile_image"`
@@ -202,7 +202,7 @@ type UpdateUserDataParams struct {
 	RoleID       pgtype.Int4 `json:"role_id"`
 }
 
-// UpdateUserData
+// UsersUpdateUserData
 //
 //	UPDATE users SET
 //	username = $2,
@@ -212,8 +212,8 @@ type UpdateUserDataParams struct {
 //	role_id = $6
 //	WHERE id = $1
 //	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
-func (q *Queries) UpdateUserData(ctx context.Context, arg UpdateUserDataParams) (User, error) {
-	row := q.db.QueryRow(ctx, updateUserData,
+func (q *Queries) UsersUpdateUserData(ctx context.Context, arg UsersUpdateUserDataParams) (User, error) {
+	row := q.db.QueryRow(ctx, usersUpdateUserData,
 		arg.ID,
 		arg.Username,
 		arg.ProfileImage,
@@ -239,23 +239,23 @@ func (q *Queries) UpdateUserData(ctx context.Context, arg UpdateUserDataParams) 
 	return i, err
 }
 
-const updateUsernameForUser = `-- name: UpdateUsernameForUser :exec
+const usersUpdateUsernameForUser = `-- name: UsersUpdateUsernameForUser :exec
 UPDATE users SET
 username = $2
 WHERE id = $1
 `
 
-type UpdateUsernameForUserParams struct {
+type UsersUpdateUsernameForUserParams struct {
 	ID       int32  `json:"id"`
 	Username string `json:"username"`
 }
 
-// UpdateUsernameForUser
+// UsersUpdateUsernameForUser
 //
 //	UPDATE users SET
 //	username = $2
 //	WHERE id = $1
-func (q *Queries) UpdateUsernameForUser(ctx context.Context, arg UpdateUsernameForUserParams) error {
-	_, err := q.db.Exec(ctx, updateUsernameForUser, arg.ID, arg.Username)
+func (q *Queries) UsersUpdateUsernameForUser(ctx context.Context, arg UsersUpdateUsernameForUserParams) error {
+	_, err := q.db.Exec(ctx, usersUpdateUsernameForUser, arg.ID, arg.Username)
 	return err
 }

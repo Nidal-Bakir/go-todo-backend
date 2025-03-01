@@ -6,7 +6,7 @@ import (
 	"math"
 	"net/mail"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 )
 
 var (
@@ -27,13 +27,13 @@ func Assert(ok bool, v any) {
 }
 
 func AssertDev(ok bool, v any) {
-	if !ok && AppEnv.IsStagOrLocal() {
+	if !ok && appenv.IsStagOrLocal() {
 		panic(v)
 	}
 }
 
 func AssertDevFn(v any, fn func() bool) {
-	if AppEnv.IsStagOrLocal() {
+	if appenv.IsStagOrLocal() {
 		if !fn() {
 			panic(v)
 		}

@@ -2,5 +2,6 @@
   "too_many_requests": "الكثير من الطلبات",
   "no_result_found": "لايوجد عناصر لعرضها",
   "invalid_otp_code": "رمز التحقق غير صالح",
-  "invalid_data": "بيانات عير صحيحة"
+  "invalid_data": "بيانات عير صحيحة",
+  "invalid_login_credentials": "اسم المستخدم او كلمة المرور غير صحيحة"
 }

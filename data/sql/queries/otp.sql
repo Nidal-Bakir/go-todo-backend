@@ -1,4 +1,4 @@
--- name: CreateNewOtp :one
+-- name: OTPCreateNewOtp :one
 INSERT INTO otp (
         code,
         intent,
@@ -9,7 +9,7 @@ INSERT INTO otp (
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
--- name: GetActiveOtpByIdPairedWithSessionId :one
+-- name: OTPGetActiveOtpByIdPairedWithSessionId :one
 SELECT *
 FROM otp
 WHERE id = $1
@@ -19,13 +19,13 @@ WHERE id = $1
     AND deleted_at IS NULL
 LIMIT 1;
 
--- name: RecordHitForOtp :one
+-- name: OTPRecordHitForOtp :one
 UPDATE otp
 SET hit_count = hit_count + 1
 WHERE id = $1
 RETURNING *;
 
--- name: SoftDeleteOtp :exec
+-- name: OTPSoftDeleteOtp :exec
 UPDATE otp
 SET deleted_at = NOW()
 WHERE id = $1;

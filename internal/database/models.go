@@ -76,14 +76,14 @@ type RolePermission struct {
 }
 
 type Session struct {
-	ID             int32              `json:"id"`
-	Token          string             `json:"token"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
-	OriginatedFrom int32              `json:"originated_from"`
-	InstallationID pgtype.Int4        `json:"installation_id"`
+	ID               int32              `json:"id"`
+	Token            string             `json:"token"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	OriginatedFrom   int32              `json:"originated_from"`
+	UsedInstallation int32              `json:"used_installation"`
 }
 
 type Todo struct {

@@ -10,13 +10,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv" // autoload .env with init function. Do not remove this line
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv" // autoload .env with init function. Do not remove this line
 	"github.com/Nidal-Bakir/go-todo-backend/internal/logger"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/server"
 )
 
 func main() {
-	zlog := logger.NewLogger(AppEnv.IsLocal())
+	zlog := logger.NewLogger(appenv.IsLocal())
 	ctx := zlog.WithContext(context.Background())
 
 	// Server run context

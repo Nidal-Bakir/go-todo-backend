@@ -8,41 +8,47 @@ import (
 
 	apperr "github.com/Nidal-Bakir/go-todo-backend/internal/app_error"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 )
 
-type dataSource struct {
+type DataSource interface {
+	GetUserById(ctx context.Context, id int32) (database.User, error)
+	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
+	genTempUserId(id uuid.UUID) string
+	SetUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
+	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
+	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
+	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
+	UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error
+	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
+	CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+}
+
+type dataSourceImpl struct {
 	db    *database.Service
 	redis *redis.Client
 }
 
-func NewDataSource(db *database.Service, redis *redis.Client) *dataSource {
-	return &dataSource{db: db, redis: redis}
+func NewDataSource(db *database.Service, redis *redis.Client) DataSource {
+	return &dataSourceImpl{db: db, redis: redis}
 }
 
-func (ds dataSource) GetUserById(ctx context.Context, id int) (database.User, error) {
-	userId, err := utils.SafeIntToInt32(id)
-	if err != nil {
-		return database.User{}, err
-	}
-
-	dbUser, err := ds.db.Queries.GetUserById(ctx, userId)
+func (ds dataSourceImpl) GetUserById(ctx context.Context, id int32) (database.User, error) {
+	dbUser, err := ds.db.Queries.UsersGetUserById(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbUser, apperr.ErrNoResult
 		}
 		return dbUser, err
 	}
-
 	return dbUser, nil
 }
 
-func (ds dataSource) GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error) {
-	dbUser, err := ds.db.Queries.GetUserBySessionToken(ctx, sessionToken)
+func (ds dataSourceImpl) GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error) {
+	dbUser, err := ds.db.Queries.UsersGetUserBySessionToken(ctx, sessionToken)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return dbUser, apperr.ErrNoResult
@@ -53,11 +59,11 @@ func (ds dataSource) GetUserBySessionToken(ctx context.Context, sessionToken str
 	return dbUser, err
 }
 
-func (ds dataSource) genTempUserId(id uuid.UUID) string {
+func (ds dataSourceImpl) genTempUserId(id uuid.UUID) string {
 	return fmt.Sprint("user:tmp:", id.String())
 }
 
-func (ds dataSource) SetUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error) {
+func (ds dataSourceImpl) SetUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error) {
 	key := ds.genTempUserId(tUser.Id)
 
 	pip := ds.redis.TxPipeline()
@@ -79,7 +85,7 @@ func (ds dataSource) SetUserInTempCache(ctx context.Context, tUser *TempUser) (*
 	return tUser, nil
 }
 
-func (ds dataSource) GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error) {
+func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error) {
 	key := ds.genTempUserId(tempUserId)
 
 	result, err := ds.redis.HGetAll(ctx, key).Result()
@@ -97,11 +103,11 @@ func (ds dataSource) GetUserFromTempCache(ctx context.Context, tempUserId uuid.U
 	return tUser, err
 }
 
-func (ds dataSource) DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error {
+func (ds dataSourceImpl) DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error {
 	return ds.redis.Del(ctx, ds.genTempUserId(tempUserId)).Err()
 }
 
-func (ds dataSource) CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error) {
+func (ds dataSourceImpl) CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error) {
 	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return database.User{}, err
@@ -131,9 +137,9 @@ func (ds dataSource) CreateUser(ctx context.Context, userArgs CreateUserArgs) (u
 
 	queries := ds.db.Queries.WithTx(tx)
 
-	user, err = queries.CreateNewUser(
+	user, err = queries.UsersCreateNewUser(
 		ctx,
-		database.CreateNewUserParams{
+		database.UsersCreateNewUserParams{
 			FirstName:    userArgs.Fname,
 			Username:     userArgs.Username,
 			LastName:     pgtype.Text{String: userArgs.Lname, Valid: userArgs.Lname != ""},
@@ -141,9 +147,9 @@ func (ds dataSource) CreateUser(ctx context.Context, userArgs CreateUserArgs) (u
 			RoleID:       pgtype.Int4{Int32: userArgs.RoleID, Valid: userArgs.RoleID != 0},
 		})
 
-	_, err = queries.CreateNewLoginOption(
+	_, err = queries.LoginOptionCreateNewLoginOption(
 		ctx,
-		database.CreateNewLoginOptionParams{
+		database.LoginOptionCreateNewLoginOptionParams{
 			UserID:      user.ID,
 			LoginMethod: userArgs.LoginMethod.String(),
 			AccessKey:   userArgs.AccessKey,
@@ -156,6 +162,34 @@ func (ds dataSource) CreateUser(ctx context.Context, userArgs CreateUserArgs) (u
 	return user, err
 }
 
-func (ds dataSource) UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error {
-	return ds.db.Queries.UpdateUsernameForUser(ctx, database.UpdateUsernameForUserParams{ID: id, Username: newUsername})
+func (ds dataSourceImpl) UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error {
+	return ds.db.Queries.UsersUpdateUsernameForUser(ctx, database.UsersUpdateUsernameForUserParams{ID: id, Username: newUsername})
+}
+
+func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error) {
+	userWithLoginOption, err := ds.db.Queries.LoginOptionGetActiveLoginOptionWithUser(
+		ctx,
+		database.LoginOptionGetActiveLoginOptionWithUserParams{
+			LoginMethod: loginMethod.String(),
+			AccessKey:   accessKey,
+		},
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	}
+
+	return userWithLoginOption, err
+}
+
+func (ds dataSourceImpl) CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error {
+	return ds.db.Queries.SessionCreateNewSession(
+		ctx,
+		database.SessionCreateNewSessionParams{
+			Token:            token,
+			OriginatedFrom:   loginOptionId,
+			UsedInstallation: installationId,
+			ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
+		},
+	)
 }

@@ -1,4 +1,4 @@
-package AppEnv
+package appenv
 
 import (
 	"bufio"

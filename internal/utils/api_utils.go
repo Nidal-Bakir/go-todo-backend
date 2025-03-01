@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/AppEnv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/rs/zerolog"
 )
@@ -37,7 +37,7 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 
 	var err errorRes
 	if len(errs) == 0 {
-		if AppEnv.IsStagOrLocal() {
+		if appenv.IsStagOrLocal() {
 			panic("WriteError: empty errs array")
 		}
 		zlog.Warn().Msg("WriteError: empty errs array")
@@ -50,7 +50,7 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 }
 
 func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
-	_writeJson(ctx, w, code, payload, AppEnv.IsStagOrLocal())
+	_writeJson(ctx, w, code, payload, appenv.IsStagOrLocal())
 }
 
 func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload any, shouldLog bool) {

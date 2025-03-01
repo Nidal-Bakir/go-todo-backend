@@ -11,57 +11,44 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNewSession = `-- name: CreateNewSession :one
+const sessionCreateNewSession = `-- name: SessionCreateNewSession :exec
 INSERT INTO session (
         token,
         originated_from,
-        installation_id,
+        used_installation,
         expires_at
     )
 VALUES ($1, $2, $3, $4)
-RETURNING id, token, created_at, updated_at, expires_at, deleted_at, originated_from, installation_id
 `
 
-type CreateNewSessionParams struct {
-	Token          string             `json:"token"`
-	OriginatedFrom int32              `json:"originated_from"`
-	InstallationID pgtype.Int4        `json:"installation_id"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+type SessionCreateNewSessionParams struct {
+	Token            string             `json:"token"`
+	OriginatedFrom   int32              `json:"originated_from"`
+	UsedInstallation int32              `json:"used_installation"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 }
 
-// CreateNewSession
+// SessionCreateNewSession
 //
 //	INSERT INTO session (
 //	        token,
 //	        originated_from,
-//	        installation_id,
+//	        used_installation,
 //	        expires_at
 //	    )
 //	VALUES ($1, $2, $3, $4)
-//	RETURNING id, token, created_at, updated_at, expires_at, deleted_at, originated_from, installation_id
-func (q *Queries) CreateNewSession(ctx context.Context, arg CreateNewSessionParams) (Session, error) {
-	row := q.db.QueryRow(ctx, createNewSession,
+func (q *Queries) SessionCreateNewSession(ctx context.Context, arg SessionCreateNewSessionParams) error {
+	_, err := q.db.Exec(ctx, sessionCreateNewSession,
 		arg.Token,
 		arg.OriginatedFrom,
-		arg.InstallationID,
+		arg.UsedInstallation,
 		arg.ExpiresAt,
 	)
-	var i Session
-	err := row.Scan(
-		&i.ID,
-		&i.Token,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.ExpiresAt,
-		&i.DeletedAt,
-		&i.OriginatedFrom,
-		&i.InstallationID,
-	)
-	return i, err
+	return err
 }
 
-const getActiveSessionById = `-- name: GetActiveSessionById :one
-SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, installation_id
+const sessionGetActiveSessionById = `-- name: SessionGetActiveSessionById :one
+SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, used_installation
 FROM session
 WHERE id = $1
     AND expires_at > NOW()
@@ -69,16 +56,16 @@ WHERE id = $1
 LIMIT 1
 `
 
-// GetActiveSessionById
+// SessionGetActiveSessionById
 //
-//	SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, installation_id
+//	SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, used_installation
 //	FROM session
 //	WHERE id = $1
 //	    AND expires_at > NOW()
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) GetActiveSessionById(ctx context.Context, id int32) (Session, error) {
-	row := q.db.QueryRow(ctx, getActiveSessionById, id)
+func (q *Queries) SessionGetActiveSessionById(ctx context.Context, id int32) (Session, error) {
+	row := q.db.QueryRow(ctx, sessionGetActiveSessionById, id)
 	var i Session
 	err := row.Scan(
 		&i.ID,
@@ -88,13 +75,13 @@ func (q *Queries) GetActiveSessionById(ctx context.Context, id int32) (Session, 
 		&i.ExpiresAt,
 		&i.DeletedAt,
 		&i.OriginatedFrom,
-		&i.InstallationID,
+		&i.UsedInstallation,
 	)
 	return i, err
 }
 
-const getActiveSessionByToken = `-- name: GetActiveSessionByToken :one
-SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, installation_id
+const sessionGetActiveSessionByToken = `-- name: SessionGetActiveSessionByToken :one
+SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, used_installation
 FROM session
 WHERE token = $1
     AND expires_at > NOW()
@@ -102,16 +89,16 @@ WHERE token = $1
 LIMIT 1
 `
 
-// GetActiveSessionByToken
+// SessionGetActiveSessionByToken
 //
-//	SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, installation_id
+//	SELECT id, token, created_at, updated_at, expires_at, deleted_at, originated_from, used_installation
 //	FROM session
 //	WHERE token = $1
 //	    AND expires_at > NOW()
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) GetActiveSessionByToken(ctx context.Context, token string) (Session, error) {
-	row := q.db.QueryRow(ctx, getActiveSessionByToken, token)
+func (q *Queries) SessionGetActiveSessionByToken(ctx context.Context, token string) (Session, error) {
+	row := q.db.QueryRow(ctx, sessionGetActiveSessionByToken, token)
 	var i Session
 	err := row.Scan(
 		&i.ID,
@@ -121,23 +108,23 @@ func (q *Queries) GetActiveSessionByToken(ctx context.Context, token string) (Se
 		&i.ExpiresAt,
 		&i.DeletedAt,
 		&i.OriginatedFrom,
-		&i.InstallationID,
+		&i.UsedInstallation,
 	)
 	return i, err
 }
 
-const softDeleteSession = `-- name: SoftDeleteSession :exec
+const sessionSoftDeleteSession = `-- name: SessionSoftDeleteSession :exec
 UPDATE session
 SET deleted_at = NOW()
 WHERE id = $1
 `
 
-// SoftDeleteSession
+// SessionSoftDeleteSession
 //
 //	UPDATE session
 //	SET deleted_at = NOW()
 //	WHERE id = $1
-func (q *Queries) SoftDeleteSession(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, softDeleteSession, id)
+func (q *Queries) SessionSoftDeleteSession(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, sessionSoftDeleteSession, id)
 	return err
 }

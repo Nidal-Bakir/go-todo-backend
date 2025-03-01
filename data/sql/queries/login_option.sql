@@ -1,4 +1,4 @@
--- name: CreateNewLoginOption :one
+-- name: LoginOptionCreateNewLoginOption :one
 INSERT INTO login_option(
         login_method,
         access_key,
@@ -10,7 +10,7 @@ INSERT INTO login_option(
 VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING *;
 
--- name: GetActiveLoginOption :one
+-- name: LoginOptionGetActiveLoginOption :one
 SELECT *
 FROM login_option
 WHERE login_method = $1
@@ -19,7 +19,7 @@ WHERE login_method = $1
     AND deleted_at IS NULL
 LIMIT 1;
 
--- name: GetActiveLoginOptionWithUser :one
+-- name: LoginOptionGetActiveLoginOptionWithUser :one
 SELECT lo.id as login_option_id,
     lo.login_method as login_option_login_method,
     lo.access_key as login_option_access_key,
@@ -49,18 +49,18 @@ WHERE lo.login_method = $1
     AND u.deleted_at IS NULL
 LIMIT 1;
 
--- name: MarkUserLoginOptionAsVerified :exec
+-- name: LoginOptionMarkUserLoginOptionAsVerified :exec
 UPDATE login_option
 SET verified_at = NOW()
 WHERE id = $1;
 
--- name: SetPasswordForUserLoginOption :exec
+-- name: LoginOptionSetPasswordForUserLoginOption :exec
 UPDATE login_option
 SET hashed_pass = $2,
     pass_salt = $3
 WHERE id = $1;
 
--- name: SoftDeleteUserLoginOption :exec
+-- name: LoginOptionSoftDeleteUserLoginOption :exec
 UPDATE login_option
 SET deleted_at = NOW()
 WHERE id = $1;

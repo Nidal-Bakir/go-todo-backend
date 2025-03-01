@@ -9,9 +9,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type passwordHasher interface {
-	GenHashedPassdWithSalt(rawPassword string) (hashedPass, salt string, err error)
-	isSamePassword(hashedPassword, salt, pasword string) (bool, error)
+type PasswordHasher interface {
+	GeneratePasswordHashWithSalt(rawPassword string) (hashedPass, salt string, err error)
+	CompareHashAndPassword(hashedPassword, salt, pasword string) (ok bool, err error)
 }
 
 type passwordHashType byte
@@ -21,7 +21,7 @@ const (
 	Argon2iPasswordHash passwordHashType = iota
 )
 
-func NewPasswordHasher(hashType passwordHashType) passwordHasher {
+func NewPasswordHasher(hashType passwordHashType) PasswordHasher {
 	switch hashType {
 	case BcryptPasswordHash:
 		return &bcryptPassworddHasher{cost: bcrypt.DefaultCost}
@@ -41,13 +41,13 @@ type bcryptPassworddHasher struct {
 	cost int
 }
 
-func (b bcryptPassworddHasher) GenHashedPassdWithSalt(rawPassword string) (hashedPass, salt string, err error) {
+func (b bcryptPassworddHasher) GeneratePasswordHashWithSalt(rawPassword string) (hashedPass, salt string, err error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(rawPassword), b.cost)
 	return string(hash), "", err
 }
 
-func (bcryptPassworddHasher) isSamePassword(hashedPassword, salt, pasword string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(pasword))
+func (bcryptPassworddHasher) CompareHashAndPassword(hashedPassword, salt, pasword string) (ok bool, err error) {
+	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(pasword))
 	return err == nil, nil
 }
 
@@ -65,13 +65,13 @@ func (argon argon2iPassworddHasher) Key(password, salt []byte) []byte {
 	return argon2.Key([]byte(password), salt, argon.time, argon.memory, argon.threads, argon.keyLen)
 }
 
-func (argon argon2iPassworddHasher) GenHashedPassdWithSalt(rawPassword string) (hashedPass, salt string, err error) {
+func (argon argon2iPassworddHasher) GeneratePasswordHashWithSalt(rawPassword string) (hashedPass, salt string, err error) {
 	saltBytes := generateRandomSalt(32)
 	hashedPassBytes := argon.Key([]byte(rawPassword), saltBytes)
 	return string(hashedPassBytes), string(saltBytes), nil
 }
 
-func (argon argon2iPassworddHasher) isSamePassword(hashedPassword, salt, pasword string) (bool, error) {
+func (argon argon2iPassworddHasher) CompareHashAndPassword(hashedPassword, salt, pasword string) (ok bool, err error) {
 	hashedPassBytes := []byte(hashedPassword)
 	generatedHashedPassBytes := argon.Key([]byte(pasword), []byte(salt))
 	return slices.Equal(hashedPassBytes, generatedHashedPassBytes), nil

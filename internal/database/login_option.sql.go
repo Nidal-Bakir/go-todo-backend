@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createNewLoginOption = `-- name: CreateNewLoginOption :one
+const loginOptionCreateNewLoginOption = `-- name: LoginOptionCreateNewLoginOption :one
 INSERT INTO login_option(
         login_method,
         access_key,
@@ -24,7 +24,7 @@ VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 `
 
-type CreateNewLoginOptionParams struct {
+type LoginOptionCreateNewLoginOptionParams struct {
 	LoginMethod string             `json:"login_method"`
 	AccessKey   string             `json:"access_key"`
 	HashedPass  pgtype.Text        `json:"hashed_pass"`
@@ -33,7 +33,7 @@ type CreateNewLoginOptionParams struct {
 	UserID      int32              `json:"user_id"`
 }
 
-// CreateNewLoginOption
+// LoginOptionCreateNewLoginOption
 //
 //	INSERT INTO login_option(
 //	        login_method,
@@ -45,8 +45,8 @@ type CreateNewLoginOptionParams struct {
 //	    )
 //	VALUES ($1, $2, $3, $4, $5, $6)
 //	RETURNING id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-func (q *Queries) CreateNewLoginOption(ctx context.Context, arg CreateNewLoginOptionParams) (LoginOption, error) {
-	row := q.db.QueryRow(ctx, createNewLoginOption,
+func (q *Queries) LoginOptionCreateNewLoginOption(ctx context.Context, arg LoginOptionCreateNewLoginOptionParams) (LoginOption, error) {
+	row := q.db.QueryRow(ctx, loginOptionCreateNewLoginOption,
 		arg.LoginMethod,
 		arg.AccessKey,
 		arg.HashedPass,
@@ -70,7 +70,7 @@ func (q *Queries) CreateNewLoginOption(ctx context.Context, arg CreateNewLoginOp
 	return i, err
 }
 
-const getActiveLoginOption = `-- name: GetActiveLoginOption :one
+const loginOptionGetActiveLoginOption = `-- name: LoginOptionGetActiveLoginOption :one
 SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 FROM login_option
 WHERE login_method = $1
@@ -80,12 +80,12 @@ WHERE login_method = $1
 LIMIT 1
 `
 
-type GetActiveLoginOptionParams struct {
+type LoginOptionGetActiveLoginOptionParams struct {
 	LoginMethod string `json:"login_method"`
 	AccessKey   string `json:"access_key"`
 }
 
-// GetActiveLoginOption
+// LoginOptionGetActiveLoginOption
 //
 //	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 //	FROM login_option
@@ -94,8 +94,8 @@ type GetActiveLoginOptionParams struct {
 //	    AND verified_at IS NOT NULL
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) GetActiveLoginOption(ctx context.Context, arg GetActiveLoginOptionParams) (LoginOption, error) {
-	row := q.db.QueryRow(ctx, getActiveLoginOption, arg.LoginMethod, arg.AccessKey)
+func (q *Queries) LoginOptionGetActiveLoginOption(ctx context.Context, arg LoginOptionGetActiveLoginOptionParams) (LoginOption, error) {
+	row := q.db.QueryRow(ctx, loginOptionGetActiveLoginOption, arg.LoginMethod, arg.AccessKey)
 	var i LoginOption
 	err := row.Scan(
 		&i.ID,
@@ -112,7 +112,7 @@ func (q *Queries) GetActiveLoginOption(ctx context.Context, arg GetActiveLoginOp
 	return i, err
 }
 
-const getActiveLoginOptionWithUser = `-- name: GetActiveLoginOptionWithUser :one
+const loginOptionGetActiveLoginOptionWithUser = `-- name: LoginOptionGetActiveLoginOptionWithUser :one
 SELECT lo.id as login_option_id,
     lo.login_method as login_option_login_method,
     lo.access_key as login_option_access_key,
@@ -143,12 +143,12 @@ WHERE lo.login_method = $1
 LIMIT 1
 `
 
-type GetActiveLoginOptionWithUserParams struct {
+type LoginOptionGetActiveLoginOptionWithUserParams struct {
 	LoginMethod string `json:"login_method"`
 	AccessKey   string `json:"access_key"`
 }
 
-type GetActiveLoginOptionWithUserRow struct {
+type LoginOptionGetActiveLoginOptionWithUserRow struct {
 	LoginOptionID          int32              `json:"login_option_id"`
 	LoginOptionLoginMethod string             `json:"login_option_login_method"`
 	LoginOptionAccessKey   string             `json:"login_option_access_key"`
@@ -171,7 +171,7 @@ type GetActiveLoginOptionWithUserRow struct {
 	UserRoleID             pgtype.Int4        `json:"user_role_id"`
 }
 
-// GetActiveLoginOptionWithUser
+// LoginOptionGetActiveLoginOptionWithUser
 //
 //	SELECT lo.id as login_option_id,
 //	    lo.login_method as login_option_login_method,
@@ -201,9 +201,9 @@ type GetActiveLoginOptionWithUserRow struct {
 //	    AND lo.deleted_at IS NULL
 //	    AND u.deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) GetActiveLoginOptionWithUser(ctx context.Context, arg GetActiveLoginOptionWithUserParams) (GetActiveLoginOptionWithUserRow, error) {
-	row := q.db.QueryRow(ctx, getActiveLoginOptionWithUser, arg.LoginMethod, arg.AccessKey)
-	var i GetActiveLoginOptionWithUserRow
+func (q *Queries) LoginOptionGetActiveLoginOptionWithUser(ctx context.Context, arg LoginOptionGetActiveLoginOptionWithUserParams) (LoginOptionGetActiveLoginOptionWithUserRow, error) {
+	row := q.db.QueryRow(ctx, loginOptionGetActiveLoginOptionWithUser, arg.LoginMethod, arg.AccessKey)
+	var i LoginOptionGetActiveLoginOptionWithUserRow
 	err := row.Scan(
 		&i.LoginOptionID,
 		&i.LoginOptionLoginMethod,
@@ -229,58 +229,58 @@ func (q *Queries) GetActiveLoginOptionWithUser(ctx context.Context, arg GetActiv
 	return i, err
 }
 
-const markUserLoginOptionAsVerified = `-- name: MarkUserLoginOptionAsVerified :exec
+const loginOptionMarkUserLoginOptionAsVerified = `-- name: LoginOptionMarkUserLoginOptionAsVerified :exec
 UPDATE login_option
 SET verified_at = NOW()
 WHERE id = $1
 `
 
-// MarkUserLoginOptionAsVerified
+// LoginOptionMarkUserLoginOptionAsVerified
 //
 //	UPDATE login_option
 //	SET verified_at = NOW()
 //	WHERE id = $1
-func (q *Queries) MarkUserLoginOptionAsVerified(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, markUserLoginOptionAsVerified, id)
+func (q *Queries) LoginOptionMarkUserLoginOptionAsVerified(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, loginOptionMarkUserLoginOptionAsVerified, id)
 	return err
 }
 
-const setPasswordForUserLoginOption = `-- name: SetPasswordForUserLoginOption :exec
+const loginOptionSetPasswordForUserLoginOption = `-- name: LoginOptionSetPasswordForUserLoginOption :exec
 UPDATE login_option
 SET hashed_pass = $2,
     pass_salt = $3
 WHERE id = $1
 `
 
-type SetPasswordForUserLoginOptionParams struct {
+type LoginOptionSetPasswordForUserLoginOptionParams struct {
 	ID         int32       `json:"id"`
 	HashedPass pgtype.Text `json:"hashed_pass"`
 	PassSalt   pgtype.Text `json:"pass_salt"`
 }
 
-// SetPasswordForUserLoginOption
+// LoginOptionSetPasswordForUserLoginOption
 //
 //	UPDATE login_option
 //	SET hashed_pass = $2,
 //	    pass_salt = $3
 //	WHERE id = $1
-func (q *Queries) SetPasswordForUserLoginOption(ctx context.Context, arg SetPasswordForUserLoginOptionParams) error {
-	_, err := q.db.Exec(ctx, setPasswordForUserLoginOption, arg.ID, arg.HashedPass, arg.PassSalt)
+func (q *Queries) LoginOptionSetPasswordForUserLoginOption(ctx context.Context, arg LoginOptionSetPasswordForUserLoginOptionParams) error {
+	_, err := q.db.Exec(ctx, loginOptionSetPasswordForUserLoginOption, arg.ID, arg.HashedPass, arg.PassSalt)
 	return err
 }
 
-const softDeleteUserLoginOption = `-- name: SoftDeleteUserLoginOption :exec
+const loginOptionSoftDeleteUserLoginOption = `-- name: LoginOptionSoftDeleteUserLoginOption :exec
 UPDATE login_option
 SET deleted_at = NOW()
 WHERE id = $1
 `
 
-// SoftDeleteUserLoginOption
+// LoginOptionSoftDeleteUserLoginOption
 //
 //	UPDATE login_option
 //	SET deleted_at = NOW()
 //	WHERE id = $1
-func (q *Queries) SoftDeleteUserLoginOption(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, softDeleteUserLoginOption, id)
+func (q *Queries) LoginOptionSoftDeleteUserLoginOption(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, loginOptionSoftDeleteUserLoginOption, id)
 	return err
 }
