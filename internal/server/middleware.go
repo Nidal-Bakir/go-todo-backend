@@ -7,16 +7,21 @@ import (
 	"strings"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/user"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
-	"github.com/jackc/pgx/v5"
 )
 
 func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
-		// TODO: also check if its a valid token (length, schema etc..)
 		if token == "" {
+			WriteError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+			return
+		}
+
+		if _, err := appjwt.NewAppJWT().VerifyToken(token, "auth"); err != nil {
 			WriteError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
 		}
@@ -29,7 +34,7 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 		userModel, err := userRepo.GetUserBySessionToken(r.Context(), token)
 
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
+			if errors.Is(err, apperr.ErrNoResult) {
 				err = fmt.Errorf("unauthorized")
 			} else if appenv.IsProd() {
 				s.zlog.Error().Err(err).Msg("Error while geting a user by session tokne in auth middleware")

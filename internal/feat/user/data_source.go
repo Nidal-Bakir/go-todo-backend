@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	apperr "github.com/Nidal-Bakir/go-todo-backend/internal/app_error"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"

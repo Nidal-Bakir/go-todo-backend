@@ -66,6 +66,7 @@ func (a appJWT) GenWithClaims(tokenExpAt time.Time, userId int, subject string) 
 	return sToken, nil
 }
 
+// be carfull the subject shuold match from the signing phase, use "" to skip it
 func (a appJWT) VerifyToken(token, subject string) (*userClaims, error) {
 	keyFn := func(t *jwt.Token) (any, error) {
 		return &a.key.PublicKey, nil

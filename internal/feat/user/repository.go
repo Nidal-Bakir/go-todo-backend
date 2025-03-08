@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	apperr "github.com/Nidal-Bakir/go-todo-backend/internal/app_error"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
-	appjwt "github.com/Nidal-Bakir/go-todo-backend/internal/utils/app_jwt"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
 	usernaemgen "github.com/Nidal-Bakir/username_r_gen"
 	"github.com/google/uuid"
@@ -279,7 +279,7 @@ func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string
 	}
 
 	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
-	token, err = appjwt.NewAppJWT().GenWithClaims(expiresAt, int(userWithLoginOption.UserID), "login")
+	token, err = appjwt.NewAppJWT().GenWithClaims(expiresAt, int(userWithLoginOption.UserID), "auth")
 	if err != nil {
 		zlog.Err(err).Msg("error while generating a new session token using jwt, for login")
 		return User{}, "", err
