@@ -11,10 +11,13 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/user"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
+	"github.com/rs/zerolog"
 )
 
 func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		zlog := zerolog.Ctx(r.Context())
+
 		token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
 		if token == "" {
 			WriteError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
@@ -22,6 +25,9 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 		}
 
 		if _, err := appjwt.NewAppJWT().VerifyToken(token, "auth"); err != nil {
+			if appenv.IsStagOrLocal() {
+				zlog.Error().Err(err).Msg("Error from jwt verify function")
+			}
 			WriteError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
 		}
@@ -37,7 +43,7 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			if errors.Is(err, apperr.ErrNoResult) {
 				err = fmt.Errorf("unauthorized")
 			} else if appenv.IsProd() {
-				s.zlog.Error().Err(err).Msg("Error while geting a user by session tokne in auth middleware")
+				zlog.Error().Err(err).Msg("Error while geting a user by session tokne in auth middleware")
 				err = fmt.Errorf("unauthorized")
 			}
 
