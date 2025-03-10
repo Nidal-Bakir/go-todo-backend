@@ -8,19 +8,20 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/user"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
-func (s *Server) Auth(h http.Handler) http.HandlerFunc {
+func (s *Server) Auth(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		zlog := zerolog.Ctx(r.Context())
+		ctx := r.Context()
+		zlog := zerolog.Ctx(ctx)
 
 		token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
 		if token == "" {
-			WriteError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+			WriteError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
 		}
 
@@ -28,16 +29,12 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 			if appenv.IsStagOrLocal() {
 				zlog.Error().Err(err).Msg("Error from jwt verify function")
 			}
-			WriteError(r.Context(), w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+			WriteError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 			return
 		}
 
-		userRepo := user.NewRepository(
-			user.NewDataSource(s.db, s.rdb),
-			s.gatewaysProvider,
-			password_hasher.NewPasswordHasher(password_hasher.BcryptPasswordHash),
-		)
-		userModel, err := userRepo.GetUserBySessionToken(r.Context(), token)
+		authRepo := s.NewAuthRepository()
+		userModel, err := authRepo.GetUserBySessionToken(ctx, token)
 
 		if err != nil {
 			if errors.Is(err, apperr.ErrNoResult) {
@@ -47,17 +44,62 @@ func (s *Server) Auth(h http.Handler) http.HandlerFunc {
 				err = fmt.Errorf("unauthorized")
 			}
 
-			WriteError(r.Context(), w, http.StatusUnauthorized, err)
+			WriteError(ctx, w, http.StatusUnauthorized, err)
 			return
 		}
 
-		r = r.WithContext(user.ContextWithUser(r.Context(), userModel))
-		h.ServeHTTP(w, r)
+		r = r.WithContext(auth.ContextWithUser(ctx, userModel))
+		next.ServeHTTP(w, r)
 	})
 }
 
 func (s *Server) LoggerInjector(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r.WithContext(s.zlog.WithContext(r.Context())))
+	})
+}
+
+// Inject the Installation into the request context,
+// will respond with error if it can't find the Installation in the database
+func (s *Server) Installation(next http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		zlog := zerolog.Ctx(ctx)
+
+		missingOrInvalidErr := errors.New("missing A-Installation in the request header, or the the installation id is invalid")
+		sendError := func() {
+			WriteError(ctx, w, http.StatusBadRequest, missingOrInvalidErr)
+		}
+
+		installationId, err := uuid.Parse(r.Header.Get("A-Installation"))
+		if err != nil {
+			sendError()
+			return
+		}
+
+		var attachedToUser *int32
+		user, ok := auth.UserFromContext(ctx)
+		if ok {
+			attachedToUser = &user.ID
+		}
+
+		authRepo := s.NewAuthRepository()
+		installation, err := authRepo.GetInstallation(ctx, installationId, attachedToUser)
+
+		if err != nil {
+			if errors.Is(err, apperr.ErrNoResult) {
+				sendError()
+				return
+			}
+			zlog.Error().Err(err).Msg("Error while geting a Installation from database in Installation middleware")
+			if appenv.IsProd() {
+				err = missingOrInvalidErr
+			}
+			WriteError(ctx, w, http.StatusBadRequest, err)
+			return
+		}
+
+		r = r.WithContext(auth.ContextWithInstallation(ctx, installation))
+		next.ServeHTTP(w, r)
 	})
 }

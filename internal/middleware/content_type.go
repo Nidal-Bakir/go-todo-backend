@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/mimes"
 )
 
 // SetHeader is a convenience handler to set a response header key/value
@@ -35,13 +36,39 @@ func AllowContentType(contentTypes ...string) func(http.Handler) http.HandlerFun
 			}
 
 			s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
-
 			if _, ok := allowedContentTypes[s]; ok {
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			utils.WriteError(r.Context(), w, http.StatusUnsupportedMediaType, errors.New("did you set the Content-Type header correctly?"))
+			apiutils.WriteError(r.Context(), w, http.StatusUnsupportedMediaType, errors.New("did you set the Content-Type header correctly?"))
 		})
+	}
+}
+
+// Only allow the content type application/x-www-form-urlencoded
+//
+// Use AllowContentType, to construct custom allowed list of content types
+func ACT_app_x_www_form_urlencoded(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		AllowContentType(mimes.App_x_www_form_urlencoded)(next).ServeHTTP(w, r)
+	}
+}
+
+// Only allow the content type multipart/form-data
+//
+// Use AllowContentType, to construct custom allowed list of content types
+func ACT_multipart_form_data(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		AllowContentType(mimes.Multipart_form_data)(next).ServeHTTP(w, r)
+	}
+}
+
+// Only allow the content type application/json
+//
+// Use AllowContentType, to construct custom allowed list of content types
+func ACT_app_json(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		AllowContentType(mimes.App_json)(next).ServeHTTP(w, r)
 	}
 }

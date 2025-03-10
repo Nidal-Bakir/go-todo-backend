@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
 	"github.com/rs/zerolog"
 )
 
@@ -44,7 +44,7 @@ func Timeout(d time.Duration) func(next http.Handler) http.HandlerFunc {
 				cancelFunc()
 
 				if errors.Is(ctxWithCancel.Err(), context.DeadlineExceeded) {
-					utils.WriteError(r.Context(), w, http.StatusGatewayTimeout, errors.New("timeout"))
+					apiutils.WriteError(r.Context(), w, http.StatusGatewayTimeout, errors.New("timeout"))
 
 					logEvent := zlog.Warn().Err(context.DeadlineExceeded).Int("status_code", http.StatusGatewayTimeout)
 					reqId, ok := tracker.ReqUUIDFromContext(ctxWithCancel)

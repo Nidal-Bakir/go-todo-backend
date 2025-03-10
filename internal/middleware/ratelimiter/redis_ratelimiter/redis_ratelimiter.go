@@ -26,7 +26,7 @@ func (l *redisRatelimiter) Config() ratelimiter.Config {
 }
 
 func (l *redisRatelimiter) Allow(ctx context.Context, key string) (bool, time.Duration) {
-	if !l.conf.Enabled {
+	if l.conf.Disabled {
 		return true, 0
 	}
 	return l.allow(ctx, l.limiterKeyPrefix+":"+l.conf.KeyPrefix+":"+key, l)

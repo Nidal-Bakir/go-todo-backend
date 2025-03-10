@@ -13,6 +13,6 @@ type Limiter interface {
 type Config struct {
 	PerTimeFrame int
 	TimeFrame    time.Duration
-	Enabled      bool
+	Disabled     bool
 	KeyPrefix    string
 }

@@ -4,13 +4,13 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
 )
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	utils.WriteError(ctx, w, code, errs...)
+	apiutils.WriteError(ctx, w, code, errs...)
 }
 
 func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
-	utils.WriteJson(ctx, w, code, payload)
+	apiutils.WriteJson(ctx, w, code, payload)
 }

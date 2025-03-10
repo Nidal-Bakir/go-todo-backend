@@ -13,19 +13,18 @@ import (
 
 func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(s)))
+	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(ctx, s)))
 
 	rateLimitGlobal := middleware.RateLimiter(
-		func(r *http.Request) string {
+		func(r *http.Request) (string, error) {
 			// since we are using the RealIp() middleware
 			// it should be safe to use r.RemoteAddr as limit key
-			return r.RemoteAddr
+			return r.RemoteAddr, nil
 		},
 		redis_ratelimiter.NewRedisSlidingWindowLimiter(
 			ctx,
 			s.rdb,
 			ratelimiter.Config{
-				Enabled:      true,
 				PerTimeFrame: 60,
 				TimeFrame:    time.Minute,
 				KeyPrefix:    "global",
@@ -42,25 +41,24 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 		middleware.LocalizerInjector,
 		middleware.RequestLogger,
 		middleware.StripSlashes,
-		middleware.AllowContentType("application/json"),
 		rateLimitGlobal,
 		middleware.Heartbeat,
 	)
 }
 
-func apiRouter(s *Server) http.Handler {
+func apiRouter(ctx context.Context, s *Server) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(s)))
+	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(ctx, s)))
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 	)
 }
 
-func v1Router(s *Server) http.Handler {
+func v1Router(ctx context.Context, s *Server) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(s)))
+	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(ctx, s)))
 
 	mux.Handle("/todo", todoRouter(s))
 	mux.Handle("/todo/", todoRouter(s))

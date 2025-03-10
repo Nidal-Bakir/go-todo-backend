@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
 )
 
 var (
@@ -61,7 +62,7 @@ func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 	}
 
 	// Filling tokens.
-	for i := 0; i < opts.Limit+opts.BacklogLimit; i++ {
+	for i := range opts.Limit + opts.BacklogLimit {
 		if i < opts.Limit {
 			t.tokens <- token{}
 		}
@@ -74,15 +75,15 @@ func ThrottleWithOpts(opts ThrottleOpts) func(http.Handler) http.HandlerFunc {
 
 			errContextCanceledFn := func() {
 				t.setRetryAfterHeaderIfNeeded(w, true)
-				utils.WriteError(r.Context(), w, t.statusCode, errContextCanceled)
+				apiutils.WriteError(r.Context(), w, t.statusCode, errContextCanceled)
 			}
 			errTimedOutFn := func() {
 				t.setRetryAfterHeaderIfNeeded(w, false)
-				utils.WriteError(r.Context(), w, t.statusCode, errTimedOut)
+				apiutils.WriteError(r.Context(), w, t.statusCode, errTimedOut)
 			}
 			errCapacityExceededFn := func() {
 				t.setRetryAfterHeaderIfNeeded(w, false)
-				utils.WriteError(r.Context(), w, t.statusCode, errCapacityExceeded)
+				apiutils.WriteError(r.Context(), w, t.statusCode, errCapacityExceeded)
 			}
 
 			select {

@@ -3,5 +3,7 @@
   "no_result_found": "No Result Found",
   "invalid_otp_code": "Invalid OTP code",
   "invalid_data": "Invalid Data",
+  "invalid_email": "Invalid Email",
+  "unexpected_error_occurred": "Unexpected error occurred",
   "invalid_login_credentials": "Invalid Login Credentials"
 }

@@ -33,22 +33,20 @@ INSERT INTO users (
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
-
 -- name: UsersUpdateUserData :one
-UPDATE users SET
-username = $2,
-profile_image = $3,
-first_name = $4,
-last_name = $5,
-role_id = $6
+UPDATE users
+SET username = $2,
+    profile_image = $3,
+    first_name = $4,
+    last_name = $5,
+    role_id = $6
 WHERE id = $1
 RETURNING *;
 
 -- name: UsersUpdateUsernameForUser :exec
-UPDATE users SET
-username = $2
+UPDATE users
+SET username = $2
 WHERE id = $1;
-
 
 -- name: UsersSoftDeleteUser :exec
 UPDATE users

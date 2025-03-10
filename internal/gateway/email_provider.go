@@ -3,7 +3,7 @@ package gateway
 import (
 	"context"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	"github.com/rs/zerolog"
 )
 
@@ -11,7 +11,7 @@ type simpleEmailProvider struct {
 }
 
 func (p simpleEmailProvider) Send(ctx context.Context, target, content string) error {
-	err := utils.IsValidEmailErr(target)
+	err := emailvalidator.IsValidEmailErr(target)
 	if err != nil {
 		return err
 	}

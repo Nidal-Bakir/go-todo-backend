@@ -40,7 +40,7 @@ func InitL10n(path string, langs []string, ctx context.Context) {
 
 		logEvent.Str(lang, filePath)
 	}
-	logEvent.Msg("Localiztion files loaded")
+	logEvent.Msg("Localization files loaded")
 }
 
 func GetLocalizer(lang string) *Localizer {
@@ -60,9 +60,9 @@ func (l *Localizer) GetWithPluralCount(id string, pluralCount int) string {
 	return l.localizeMsg(id, nil, pluralCount)
 }
 
-func (l *Localizer) GetWithData(id string, data map[string]interface{}) string {
-	utils.AssertDev(data != nil, "The data map can not be nil")
-	utils.AssertDev(len(data) != 0, "The data map should not be empty")
+func (l *Localizer) GetWithData(id string, data map[string]any) string {
+	utils.Assert(data != nil, "The data map can not be nil")
+	utils.Assert(len(data) != 0, "The data map should not be empty")
 
 	return l.localizeMsg(id, data, nil)
 }
@@ -71,7 +71,7 @@ func (l *Localizer) Get(id string, data map[string]string, pluralCount int) stri
 	return l.localizeMsg(id, data, pluralCount)
 }
 
-func (l *Localizer) localizeMsg(id string, data interface{}, pluralCount interface{}) string {
+func (l *Localizer) localizeMsg(id string, data any, pluralCount any) string {
 	cfg := &i18n.LocalizeConfig{
 		DefaultMessage: defaultMessage(id),
 		TemplateData:   data,
@@ -81,7 +81,7 @@ func (l *Localizer) localizeMsg(id string, data interface{}, pluralCount interfa
 	str, err := l.l.Localize(cfg)
 	if err != nil {
 		errLog := l.logger.Error().Err(err).Str("id", id)
-		if d, ok := data.(map[string]interface{}); ok {
+		if d, ok := data.(map[string]any); ok {
 			errLog.Fields(d)
 		}
 		if pluralCount != nil {

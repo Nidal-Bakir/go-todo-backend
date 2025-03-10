@@ -1,13 +1,16 @@
-package utils
+package apiutils
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
+
 	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/mimes"
 	"github.com/rs/zerolog"
 )
 
@@ -33,18 +36,18 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 }
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	zlog := *zerolog.Ctx(ctx)
+	// Assert(len(errs) != 0, "no errors to send")
 
-	var err errorRes
-	if len(errs) == 0 {
-		if appenv.IsStagOrLocal() {
-			panic("WriteError: empty errs array")
+	for i, e := range errs {
+		appError := new(apperr.AppErr)
+		ok := errors.As(e, appError)
+		if ok {
+			appError.SetTranslation(ctx)
+			errs[i] = appError
 		}
-		zlog.Warn().Msg("WriteError: empty errs array")
-		err = errorRes{Error: fmt.Errorf("empty errs array"), Errors: []error{}}
-	} else {
-		err = errorRes{Error: errs[0], Errors: errs[1:]}
 	}
+
+	err := errorRes{Error: errs[0], Errors: errs[1:]}
 
 	_writeJson(ctx, w, code, err, true)
 }
@@ -63,7 +66,7 @@ func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload an
 		return
 	}
 
-	w.Header().Add("Content-Type", "application/json")
+	w.Header().Add("Content-Type", mimes.App_json)
 	w.WriteHeader(code)
 	w.Write(bytes)
 

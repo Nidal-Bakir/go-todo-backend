@@ -3,5 +3,7 @@
   "no_result_found": "لايوجد عناصر لعرضها",
   "invalid_otp_code": "رمز التحقق غير صالح",
   "invalid_data": "بيانات عير صحيحة",
+  "invalid_email": "البريد الالكتروني غير صالح",
+  "unexpected_error_occurred": "حدث خطأ غير متوقع",
   "invalid_login_credentials": "اسم المستخدم او كلمة المرور غير صحيحة"
 }

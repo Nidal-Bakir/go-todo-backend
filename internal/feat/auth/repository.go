@@ -1,4 +1,4 @@
-package user
+package auth
 
 import (
 	"context"
@@ -25,6 +25,7 @@ type Repository interface {
 	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
 	Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
+	GetInstallation(ctx context.Context, InstallationId uuid.UUID, attachedToUser *int32) (database.Installation, error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher) Repository {
@@ -143,7 +144,6 @@ func (repo repositoryImpl) getTempUser(ctx context.Context, id uuid.UUID) (*Temp
 		return nil, apperr.ErrNoResult
 	}
 
-	utils.AssertDev(tUser != nil, "tuser should not be nil! something is wrong")
 	if tUser == nil {
 		return nil, apperr.ErrNoResult
 	}
@@ -240,7 +240,6 @@ func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *T
 	}
 }
 
-// TODO: get the installation using middelware and context injection like user Auth gaurd
 func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error) {
 	zlog := zerolog.Ctx(ctx)
 
@@ -306,4 +305,8 @@ func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string
 	}
 
 	return user, token, nil
+}
+
+func (repo repositoryImpl) GetInstallation(ctx context.Context, InstallationId uuid.UUID, attachedToUser *int32) (database.Installation, error) {
+	panic("not implemented")
 }

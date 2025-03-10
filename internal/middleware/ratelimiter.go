@@ -1,32 +1,37 @@
 package middleware
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"net/http"
 	"strconv"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
+	"github.com/rs/zerolog"
 )
 
-func RateLimiter(limitKeyFn func(r *http.Request) string, limiter ratelimiter.Limiter) func(next http.Handler) http.HandlerFunc {
+func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratelimiter.Limiter) func(next http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			allow, backoffDuration := limiter.Allow(ctx, limitKeyFn(r))
+			key, err := limitKeyFn(r)
+			if err != nil {
+				zlog := zerolog.Ctx(ctx)
+				apiutils.WriteError(ctx, w, http.StatusInternalServerError, apperr.ErrUnexpectedErrorOccurred)
+				zlog.Err(err).Msg("error while getting the limit key for the rate limiter")
+				return
+			}
+
+			allow, backoffDuration := limiter.Allow(ctx, key)
 
 			if !allow {
-				local, ok := l10n.LocalizerFromContext(ctx)
-				utils.AssertDev(ok, "LocalizerFromContext could not find the localizer in the context tree!")
-
 				w.Header().Add("Retry-After", strconv.Itoa(int(math.Ceil(backoffDuration.Abs().Seconds()))))
 				// Request limit per ${config.TimeFrame}
 				w.Header().Add("X-RateLimit-Limit", fmt.Sprint(limiter.Config().PerTimeFrame))
-				utils.WriteError(r.Context(), w, http.StatusTooManyRequests, errors.New(local.GetWithId("too_many_requests")))
+				apiutils.WriteError(ctx, w, http.StatusTooManyRequests, apperr.ErrTooManyRequests)
 				return
 			}
 

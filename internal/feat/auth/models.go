@@ -1,8 +1,9 @@
-package user
+package auth
 
 import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -98,7 +99,7 @@ func (tu TempUser) ValidateForStore() (ok bool) {
 
 	switch tu.LoginMethod {
 	case LoginMethodEmail:
-		ok = ok && utils.IsValidEmail(tu.Email)
+		ok = ok && emailvalidator.IsValidEmail(tu.Email)
 	case LoginMethodPhoneNumber:
 		ok = ok && tu.Phone.IsValid()
 	}
