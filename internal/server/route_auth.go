@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -56,23 +58,30 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// loginParam := struct {
-	// 	LoginMethod auth.LoginMethod
-	// 	Username    string
-	// 	Password    string
-	// }{}
+	loginParam := struct {
+		LoginMethod auth.LoginMethod
+		Username    string
+		Password    string
+	}{}
 
-	// authRepo := s.NewAuthRepository()
-	// installation, ok := auth.InstallationFromContext(ctx)
-	// utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
+	authRepo := s.NewAuthRepository()
+	installation, ok := auth.InstallationFromContext(ctx)
+	utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
 
-	// user, token, err := authRepo.Login(ctx, loginParam.Username, loginParam.Password, loginParam.LoginMethod, installation)
+	user, token, err := authRepo.Login(ctx, loginParam.Username, loginParam.Password, loginParam.LoginMethod, installation)
+	if err != nil {
+		WriteError(ctx, w, http.StatusInternalServerError, err)
+		return
+	}
 
-	// r.Form
-	// TODO: not implemented
-	//
-	//
-
+	response := struct {
+		User  auth.User `json:"user"`
+		Token string    `json:"token"`
+	}{
+		User:  user,
+		Token: token,
+	}
+	WriteJson(ctx, w, http.StatusCreated, response)
 }
 
 func getCreateAcccountRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {

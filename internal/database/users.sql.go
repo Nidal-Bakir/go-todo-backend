@@ -183,12 +183,12 @@ func (q *Queries) UsersSoftDeleteUser(ctx context.Context, id int32) error {
 }
 
 const usersUpdateUserData = `-- name: UsersUpdateUserData :one
-UPDATE users SET
-username = $2,
-profile_image = $3,
-first_name = $4,
-last_name = $5,
-role_id = $6
+UPDATE users
+SET username = $2,
+    profile_image = $3,
+    first_name = $4,
+    last_name = $5,
+    role_id = $6
 WHERE id = $1
 RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
 `
@@ -204,12 +204,12 @@ type UsersUpdateUserDataParams struct {
 
 // UsersUpdateUserData
 //
-//	UPDATE users SET
-//	username = $2,
-//	profile_image = $3,
-//	first_name = $4,
-//	last_name = $5,
-//	role_id = $6
+//	UPDATE users
+//	SET username = $2,
+//	    profile_image = $3,
+//	    first_name = $4,
+//	    last_name = $5,
+//	    role_id = $6
 //	WHERE id = $1
 //	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
 func (q *Queries) UsersUpdateUserData(ctx context.Context, arg UsersUpdateUserDataParams) (User, error) {
@@ -240,8 +240,8 @@ func (q *Queries) UsersUpdateUserData(ctx context.Context, arg UsersUpdateUserDa
 }
 
 const usersUpdateUsernameForUser = `-- name: UsersUpdateUsernameForUser :exec
-UPDATE users SET
-username = $2
+UPDATE users
+SET username = $2
 WHERE id = $1
 `
 
@@ -252,8 +252,8 @@ type UsersUpdateUsernameForUserParams struct {
 
 // UsersUpdateUsernameForUser
 //
-//	UPDATE users SET
-//	username = $2
+//	UPDATE users
+//	SET username = $2
 //	WHERE id = $1
 func (q *Queries) UsersUpdateUsernameForUser(ctx context.Context, arg UsersUpdateUsernameForUserParams) error {
 	_, err := q.db.Exec(ctx, usersUpdateUsernameForUser, arg.ID, arg.Username)

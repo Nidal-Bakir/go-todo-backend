@@ -9,6 +9,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
+	"github.com/rs/cors"
 )
 
 func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
@@ -34,6 +35,7 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
+		corsMiddleware,
 		s.LoggerInjector,
 		// required for the rate limiter to function correctly and for logging
 		middleware.RealIp(),
@@ -44,6 +46,21 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 		rateLimitGlobal,
 		middleware.Heartbeat,
 	)
+}
+
+func corsMiddleware(next http.Handler) http.HandlerFunc {
+	isStagOrLocal := appenv.IsStagOrLocal()
+	if isStagOrLocal {
+		o := cors.Options{
+			Debug:            isStagOrLocal,
+			AllowedOrigins:   []string{"http://127.0.0.1:8080"},
+			AllowedMethods:   []string{"OPTIONS", "HEAD", "GET", "POST", "DELETE", "PUT", "PATCH"},
+			AllowedHeaders:   []string{"*"},
+			AllowCredentials: true,
+		}
+		return middleware.Cors(o)(next)
+	}
+	return next.ServeHTTP
 }
 
 func apiRouter(ctx context.Context, s *Server) http.Handler {

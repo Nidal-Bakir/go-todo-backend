@@ -310,3 +310,5 @@ func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string
 func (repo repositoryImpl) GetInstallation(ctx context.Context, InstallationId uuid.UUID, attachedToUser *int32) (database.Installation, error) {
 	panic("not implemented")
 }
+
+

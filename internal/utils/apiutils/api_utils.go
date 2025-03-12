@@ -9,7 +9,6 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/mimes"
 	"github.com/rs/zerolog"
 )
@@ -36,8 +35,6 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 }
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	// Assert(len(errs) != 0, "no errors to send")
-
 	for i, e := range errs {
 		appError := new(apperr.AppErr)
 		ok := errors.As(e, appError)
@@ -46,8 +43,16 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 			errs[i] = appError
 		}
 	}
-
 	err := errorRes{Error: errs[0], Errors: errs[1:]}
+
+	// on production log the actual error, and send an arbitrary error to the user
+	if code == http.StatusInternalServerError && appenv.IsProd() {
+		_logRes(code, err, *zerolog.Ctx(ctx))
+		err := apperr.ErrUnexpectedErrorOccurred.(apperr.AppErr)
+		err.SetTranslation(ctx)
+		_writeJson(ctx, w, code, err, false)
+		return
+	}
 
 	_writeJson(ctx, w, code, err, true)
 }
@@ -71,16 +76,12 @@ func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload an
 	w.Write(bytes)
 
 	if shouldLog {
-		_logRes(ctx, code, payload, zlog)
+		_logRes(code, payload, zlog)
 	}
 }
 
-func _logRes(ctx context.Context, code int, payload any, zerolog zerolog.Logger) {
+func _logRes(code int, payload any, zerolog zerolog.Logger) {
 	logEvent := zerolog.Info().Any("payload", payload).Int("code", code)
-	reqId, ok := tracker.ReqUUIDFromContext(ctx)
-	if ok {
-		logEvent.Str(tracker.ReqIdStrKey, reqId.String())
-	}
 	logEvent.CallerSkipFrame(99999999) // so it dose not print the file:line_num in the log. we do not need those
 	logEvent.Msg("Res")
 }
