@@ -25,9 +25,17 @@ UPDATE installation
 SET deleted_at = NOW()
 WHERE id = $1;
 
--- name: InstallationGetInstallation :one
+-- name: InstallationGetInstallationUsingUUID :one
 SELECT *
 FROM installation
 WHERE installation_id = $1
+    AND deleted_at IS NULL
+LIMIT 1;
+
+-- name: InstallationGetInstallationUsingUUIdAndWhereAttachTo :one
+SELECT *
+FROM installation
+WHERE installation_id = $1
+    AND attach_to = $2
     AND deleted_at IS NULL
 LIMIT 1;

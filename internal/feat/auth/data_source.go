@@ -25,6 +25,8 @@ type DataSource interface {
 	UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
 	CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+	GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, InstallationId uuid.UUID, attachedToUser int32) (database.Installation, error)
+	GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error)
 }
 
 type dataSourceImpl struct {
@@ -192,4 +194,32 @@ func (ds dataSourceImpl) CreateNewSession(ctx context.Context, loginOptionId, in
 			ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
 		},
 	)
+}
+
+func (ds dataSourceImpl) GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, InstallationId uuid.UUID, attachedToUser int32) (database.Installation, error) {
+	installation, err := ds.db.Queries.InstallationGetInstallationUsingUUIdAndWhereAttachTo(
+		ctx,
+		database.InstallationGetInstallationUsingUUIdAndWhereAttachToParams{
+			InstallationID: InstallationId,
+			AttachTo:       pgtype.Int4{Int32: attachedToUser, Valid: true},
+		},
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	}
+
+	return installation, err
+}
+func (ds dataSourceImpl) GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error) {
+	installation, err := ds.db.Queries.InstallationGetInstallationUsingUUID(
+		ctx,
+		InstallationId,
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	}
+
+	return installation, err
 }

@@ -79,7 +79,7 @@ func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg Ins
 	return i, err
 }
 
-const installationGetInstallation = `-- name: InstallationGetInstallation :one
+const installationGetInstallationUsingUUID = `-- name: InstallationGetInstallationUsingUUID :one
 SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 FROM installation
 WHERE installation_id = $1
@@ -87,15 +87,59 @@ WHERE installation_id = $1
 LIMIT 1
 `
 
-// InstallationGetInstallation
+// InstallationGetInstallationUsingUUID
 //
 //	SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 //	FROM installation
 //	WHERE installation_id = $1
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) InstallationGetInstallation(ctx context.Context, installationID uuid.UUID) (Installation, error) {
-	row := q.db.QueryRow(ctx, installationGetInstallation, installationID)
+func (q *Queries) InstallationGetInstallationUsingUUID(ctx context.Context, installationID uuid.UUID) (Installation, error) {
+	row := q.db.QueryRow(ctx, installationGetInstallationUsingUUID, installationID)
+	var i Installation
+	err := row.Scan(
+		&i.ID,
+		&i.InstallationID,
+		&i.NotificationToken,
+		&i.Locale,
+		&i.TimezoneOffsetInMinutes,
+		&i.DeviceManufacturer,
+		&i.DeviceOs,
+		&i.DeviceOsVersion,
+		&i.AppVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.AttachTo,
+		&i.LastAttachTo,
+	)
+	return i, err
+}
+
+const installationGetInstallationUsingUUIdAndWhereAttachTo = `-- name: InstallationGetInstallationUsingUUIdAndWhereAttachTo :one
+SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+FROM installation
+WHERE installation_id = $1
+    AND attach_to = $2
+    AND deleted_at IS NULL
+LIMIT 1
+`
+
+type InstallationGetInstallationUsingUUIdAndWhereAttachToParams struct {
+	InstallationID uuid.UUID   `json:"installation_id"`
+	AttachTo       pgtype.Int4 `json:"attach_to"`
+}
+
+// InstallationGetInstallationUsingUUIdAndWhereAttachTo
+//
+//	SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+//	FROM installation
+//	WHERE installation_id = $1
+//	    AND attach_to = $2
+//	    AND deleted_at IS NULL
+//	LIMIT 1
+func (q *Queries) InstallationGetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, arg InstallationGetInstallationUsingUUIdAndWhereAttachToParams) (Installation, error) {
+	row := q.db.QueryRow(ctx, installationGetInstallationUsingUUIdAndWhereAttachTo, arg.InstallationID, arg.AttachTo)
 	var i Installation
 	err := row.Scan(
 		&i.ID,

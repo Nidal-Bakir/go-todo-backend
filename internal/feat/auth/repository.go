@@ -25,7 +25,7 @@ type Repository interface {
 	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
 	Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
-	GetInstallation(ctx context.Context, InstallationId uuid.UUID, attachedToUser *int32) (database.Installation, error)
+	GetInstallationUsingUuid(ctx context.Context, InstallationId uuid.UUID, attachedToUserId *int32) (database.Installation, error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher) Repository {
@@ -141,7 +141,7 @@ func (repo repositoryImpl) getTempUser(ctx context.Context, id uuid.UUID) (*Temp
 		if !errors.Is(err, apperr.ErrNoResult) {
 			zlog.Err(err).Msg("error geting user from cache")
 		}
-		return nil, apperr.ErrNoResult
+		return nil, err
 	}
 
 	if tUser == nil {
@@ -307,8 +307,21 @@ func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string
 	return user, token, nil
 }
 
-func (repo repositoryImpl) GetInstallation(ctx context.Context, InstallationId uuid.UUID, attachedToUser *int32) (database.Installation, error) {
-	panic("not implemented")
+func (repo repositoryImpl) GetInstallationUsingUuid(ctx context.Context, InstallationId uuid.UUID, attachedToUserId *int32) (installation database.Installation, err error) {
+	zlog := zerolog.Ctx(ctx)
+
+	if attachedToUserId == nil {
+		installation, err = repo.dataSource.GetInstallationUsingUUID(ctx, InstallationId)
+	} else {
+		installation, err = repo.dataSource.GetInstallationUsingUUIdAndWhereAttachTo(ctx, InstallationId, *attachedToUserId)
+	}
+
+	if err != nil {
+		if !errors.Is(err, apperr.ErrNoResult) {
+			zlog.Err(err).Msg("error geting an installation from the database")
+		}
+		return database.Installation{}, err
+	}
+
+	return installation, nil
 }
-
-

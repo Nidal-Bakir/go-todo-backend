@@ -77,14 +77,14 @@ func (s *Server) Installation(next http.Handler) http.HandlerFunc {
 			return
 		}
 
-		var attachedToUser *int32
+		var attachedToUserId *int32
 		user, ok := auth.UserFromContext(ctx)
 		if ok {
-			attachedToUser = &user.ID
+			attachedToUserId = &user.ID
 		}
 
 		authRepo := s.NewAuthRepository()
-		installation, err := authRepo.GetInstallation(ctx, installationId, attachedToUser)
+		installation, err := authRepo.GetInstallationUsingUuid(ctx, installationId, attachedToUserId)
 
 		if err != nil {
 			if errors.Is(err, apperr.ErrNoResult) {
