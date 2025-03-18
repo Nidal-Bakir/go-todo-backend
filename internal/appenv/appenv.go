@@ -33,6 +33,14 @@ func init() {
 
 		key = strings.TrimSpace(key)
 		val = strings.TrimSpace(val)
+
+		// escape quotes if any
+		var q byte = '"'
+		lastIndex := len(val) - 1
+		if val[0] == q && val[lastIndex] == q {
+			val = val[1:lastIndex]
+		}
+
 		err := os.Setenv(key, val)
 		if err != nil {
 			log.Fatal("can not set env var error: ", err)
