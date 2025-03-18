@@ -23,7 +23,7 @@ func NewOTPSender(provider gateway.Provider) *OTPSender {
 
 func (o OTPSender) SendSMSOTP(ctx context.Context, target utils.PhoneNumber) (otp string, err error) {
 	otp = o.genRandOTP(6)
-	err = o.provider.GetSMSProvider(ctx, target.CounterCode).Send(ctx, target.ToString(), otp)
+	err = o.provider.GetSMSProvider(ctx, target.CountryCode).Send(ctx, target.ToString(), otp)
 	return otp, err
 }
 

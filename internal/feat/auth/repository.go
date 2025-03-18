@@ -19,12 +19,17 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type PasswordLoginAccessKey struct {
+	Phone utils.PhoneNumber
+	Email string
+}
+
 type Repository interface {
 	GetUserById(ctx context.Context, id int) (User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
 	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
-	Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
+	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
 	GetInstallationUsingUuid(ctx context.Context, InstallationId uuid.UUID, attachedToUserId *int32) (database.Installation, error)
 }
 
@@ -81,6 +86,10 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 	tUser.Id = uuid.New()
 	tUser.Username = tUser.Id.String()
 
+	if ok := tUser.ValidateForStore(); !ok {
+		return tUser, apperr.ErrInvalidTempUserdata
+	}
+
 	sentOtp, err := sendOtpToTempUser(ctx, repo.gatewaysProvider, *tUser)
 	if err != nil {
 		zlog.Err(err).Msg("error sending otp to temp user")
@@ -88,7 +97,7 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 	}
 	tUser.SentOTP = sentOtp
 
-	tUser, err = repo.dataSource.SetUserInTempCache(ctx, tUser)
+	tUser, err = repo.dataSource.StoreUserInTempCache(ctx, tUser)
 	if err != nil {
 		zlog.Err(err).Msg("error creating temp user in the cache database")
 	}
@@ -153,7 +162,7 @@ func (repo repositoryImpl) getTempUser(ctx context.Context, id uuid.UUID) (*Temp
 
 func checkTempUserOTP(tUser *TempUser, providedOTP string) error {
 	if tUser.SentOTP != providedOTP {
-		return ErrInvalidOtpCode
+		return apperr.ErrInvalidOtpCode
 	}
 	return nil
 }
@@ -162,7 +171,7 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 	zlog := zerolog.Ctx(ctx)
 
 	if ok := tUser.ValidateForStore(); !ok {
-		return User{}, ErrInvalidTempUserdata
+		return User{}, apperr.ErrInvalidTempUserdata
 	}
 
 	createUserArgs, err := generateUserArgsForCreateUser(tUser, repo.PasswordHasher)
@@ -196,19 +205,15 @@ func generateUserArgsForCreateUser(user *TempUser, passwordHasher password_hashe
 	var accessKey, hashedPass, passSalt string
 	var supportPassword bool
 
-	switch user.LoginMethod {
-	case LoginMethodEmail:
-		supportPassword = true
-		accessKey = user.Email
-
-	case LoginMethodPhoneNumber:
-		supportPassword = true
-		// 963|123456789
-		accessKey = fmt.Sprintf("%s|%s", user.Phone.CounterCode, user.Phone.Number)
-
-	default:
-		panic(fmt.Sprintf("Not supported login method %s", user.LoginMethod.String()))
-	}
+	user.LoginMethod.Fold(
+		func() {
+			supportPassword = true
+			accessKey = user.Email
+		}, func() {
+			supportPassword = true
+			accessKey = user.Phone.ToAppStanderdForm()
+		},
+	)
 
 	if supportPassword {
 		var err error
@@ -240,13 +245,23 @@ func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *T
 	}
 }
 
-func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error) {
+func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAccessKey PasswordLoginAccessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error) {
 	zlog := zerolog.Ctx(ctx)
+
+	var accessKey string
+
+	loginMethod.Fold(
+		func() {
+			accessKey = passwordLoginAccessKey.Email
+		}, func() {
+			accessKey = passwordLoginAccessKey.Phone.ToAppStanderdForm()
+		},
+	)
 
 	userWithLoginOption, err := repo.dataSource.GetActiveLoginOptionWithUser(ctx, accessKey, loginMethod)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNoResult) {
-			err = ErrInvalidLoginCredentials
+			err = apperr.ErrInvalidLoginCredentials
 		} else {
 			zlog.Err(err).Msg("error geting active login option with user data")
 		}
@@ -260,7 +275,7 @@ func (repo repositoryImpl) Login(ctx context.Context, accessKey, password string
 			if err != nil {
 				return err
 			}
-			return ErrInvalidLoginCredentials
+			return apperr.ErrInvalidLoginCredentials
 		}
 		return nil
 	}

@@ -1,6 +1,9 @@
 package auth
 
 import (
+	"fmt"
+
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
@@ -45,15 +48,52 @@ const (
 	LoginMethodPhoneNumber LoginMethod = "phone"
 )
 
-func (u LoginMethod) isUsingEmail() bool {
-	return u == LoginMethodEmail
+func (l LoginMethod) isUsingEmail() bool {
+	return l == LoginMethodEmail
 }
-func (u LoginMethod) isUsingPhoneNumber() bool {
-	return u == LoginMethodPhoneNumber
+func (l LoginMethod) isUsingPhoneNumber() bool {
+	return l == LoginMethodPhoneNumber
 }
 
-func (u LoginMethod) String() string {
-	return string(u)
+func (l LoginMethod) String() string {
+	return string(l)
+}
+
+func (l *LoginMethod) FromString(str string) (*LoginMethod, error) {
+	switch {
+	case LoginMethodEmail.String() == str:
+		*l = LoginMethodEmail
+
+	case LoginMethodPhoneNumber.String() == str:
+		*l = LoginMethodPhoneNumber
+
+	default:
+		l = nil
+		return l, apperr.ErrUnsupportedLoginMethod
+	}
+
+	return l, nil
+}
+
+func (l LoginMethod) Fold(onEmail func(), onPhone func()) {
+	l.FoldOr(
+		onEmail,
+		onPhone,
+		func() {
+			panic(fmt.Sprintf("Not supported login method %s", l.String()))
+		},
+	)
+}
+
+func (l LoginMethod) FoldOr(onEmail func(), onPhone func(), orElse func()) {
+	switch l {
+	case LoginMethodEmail:
+		onEmail()
+	case LoginMethodPhoneNumber:
+		onPhone()
+	default:
+		orElse()
+	}
 }
 
 type TempUser struct {
@@ -76,7 +116,7 @@ func (tu TempUser) ToMap() map[string]string {
 	m["l_name"] = tu.Lname
 	m["email"] = tu.Email
 	m["phone_number"] = tu.Phone.Number
-	m["phone_counter_code"] = tu.Phone.CounterCode
+	m["phone_country_code"] = tu.Phone.CountryCode
 	m["sent_otp"] = tu.SentOTP
 	m["password"] = tu.Password
 	return m
@@ -89,13 +129,15 @@ func (tu *TempUser) FromMap(m map[string]string) {
 	tu.Lname = m["l_name"]
 	tu.Email = m["email"]
 	tu.Phone.Number = m["phone_number"]
-	tu.Phone.CounterCode = m["phone_counter_code"]
+	tu.Phone.CountryCode = m["phone_country_code"]
 	tu.SentOTP = m["sent_otp"]
 	tu.Password = m["password"]
 }
 
 func (tu TempUser) ValidateForStore() (ok bool) {
 	ok = tu.Username == tu.Id.String()
+
+	tu.LoginMethod.Fold(func() {}, nil)
 
 	switch tu.LoginMethod {
 	case LoginMethodEmail:

@@ -17,8 +17,7 @@ import (
 type DataSource interface {
 	GetUserById(ctx context.Context, id int32) (database.User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
-	genTempUserId(id uuid.UUID) string
-	SetUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
+	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
 	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
 	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
@@ -61,12 +60,12 @@ func (ds dataSourceImpl) GetUserBySessionToken(ctx context.Context, sessionToken
 	return dbUser, err
 }
 
-func (ds dataSourceImpl) genTempUserId(id uuid.UUID) string {
+func genTempUserId(id uuid.UUID) string {
 	return fmt.Sprint("user:tmp:", id.String())
 }
 
-func (ds dataSourceImpl) SetUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error) {
-	key := ds.genTempUserId(tUser.Id)
+func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error) {
+	key := genTempUserId(tUser.Id)
 
 	pip := ds.redis.TxPipeline()
 	pip.Del(ctx, key)
@@ -88,7 +87,7 @@ func (ds dataSourceImpl) SetUserInTempCache(ctx context.Context, tUser *TempUser
 }
 
 func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error) {
-	key := ds.genTempUserId(tempUserId)
+	key := genTempUserId(tempUserId)
 
 	result, err := ds.redis.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -106,7 +105,7 @@ func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uu
 }
 
 func (ds dataSourceImpl) DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error {
-	return ds.redis.Del(ctx, ds.genTempUserId(tempUserId)).Err()
+	return ds.redis.Del(ctx, genTempUserId(tempUserId)).Err()
 }
 
 func (ds dataSourceImpl) CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error) {
@@ -211,6 +210,7 @@ func (ds dataSourceImpl) GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Co
 
 	return installation, err
 }
+
 func (ds dataSourceImpl) GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error) {
 	installation, err := ds.db.Queries.InstallationGetInstallationUsingUUID(
 		ctx,
