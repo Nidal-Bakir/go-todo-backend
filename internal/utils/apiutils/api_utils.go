@@ -14,22 +14,21 @@ import (
 )
 
 type errorRes struct {
-	Error  error   `json:"error"`
-	Errors []error `json:"errors,omitempty"`
+	Errors []error `json:"errors"`
 }
 
 func (e errorRes) MarshalJSON() ([]byte, error) {
 	m := make(map[string]any)
-	m["error"] = e.Error.Error()
 
-	errsLen := len(e.Errors)
-	if errsLen != 0 {
-		errors := make([]string, errsLen)
-		for i, e := range e.Errors {
-			errors[i] = e.Error()
+	errorList := make([]any, len(e.Errors))
+	for i, e := range e.Errors {
+		if _, ok := e.(*apperr.AppErr); ok {
+			errorList[i] = e
+		} else {
+			errorList[i] = map[string]string{"error": e.Error()}
 		}
-		m["errors"] = errors
 	}
+	m["errors"] = errorList
 
 	return json.Marshal(m)
 }
@@ -43,7 +42,7 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 			errs[i] = appError
 		}
 	}
-	err := errorRes{Error: errs[0], Errors: errs[1:]}
+	err := errorRes{Errors: errs}
 
 	// on production log the actual error, and send an arbitrary error to the user
 	if code == http.StatusInternalServerError && appenv.IsProd() {

@@ -4,6 +4,10 @@
   "invalid_otp_code": "رمز التحقق غير صالح",
   "invalid_data": "بيانات عير صحيحة",
   "invalid_email": "البريد الالكتروني غير صالح",
+  "invalid_phone_number": "رقم العاتف المدخل غير صالح",
   "unexpected_error_occurred": "حدث خطأ غير متوقع",
-  "invalid_login_credentials": "اسم المستخدم او كلمة المرور غير صحيحة"
+  "invalid_login_credentials": "اسم المستخدم او كلمة المرور غير صحيحة",
+  "unsupported_login_method": "طريقة تسجيل دخول غير مدعومة",
+  "too_short_name": "الاسم قصير جداً",
+  "too_short_password": "كلمة السر يجب ان تكون 6 محارف على الاقل"
 }
