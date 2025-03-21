@@ -137,14 +137,11 @@ func (tu *TempUser) FromMap(m map[string]string) {
 func (tu TempUser) ValidateForStore() (ok bool) {
 	ok = tu.Username == tu.Id.String()
 
-	tu.LoginMethod.Fold(func() {}, nil)
-
-	switch tu.LoginMethod {
-	case LoginMethodEmail:
-		ok = ok && emailvalidator.IsValidEmail(tu.Email)
-	case LoginMethodPhoneNumber:
-		ok = ok && tu.Phone.IsValid()
-	}
+	tu.LoginMethod.FoldOr(
+		func() { ok = ok && emailvalidator.IsValidEmail(tu.Email) },
+		func() { ok = ok && tu.Phone.IsValid() },
+		func() { ok = false },
+	)
 
 	ok = ok && len(tu.Fname) != 0
 	ok = ok && len(tu.Lname) != 0

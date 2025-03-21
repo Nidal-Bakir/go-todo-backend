@@ -20,7 +20,7 @@ func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratel
 			key, err := limitKeyFn(r)
 			if err != nil {
 				zlog := zerolog.Ctx(ctx)
-				apiutils.WriteError(ctx, w, http.StatusInternalServerError, apperr.ErrUnexpectedErrorOccurred)
+				apiutils.WriteError(ctx, w, http.StatusInternalServerError, err)
 				zlog.Err(err).Msg("error while getting the limit key for the rate limiter")
 				return
 			}

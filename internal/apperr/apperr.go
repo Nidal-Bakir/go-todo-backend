@@ -84,4 +84,6 @@ var (
 	ErrInvalidOtpCode          = NewAppErrWithTr(errors.New("error invalid otp code"), "invalid_otp_code", "auth_6")
 	ErrInvalidTempUserdata     = NewAppErrWithTr(errors.New("error invalid temp user data"), "invalid_data", "auth_7")
 	ErrInvalidLoginCredentials = NewAppErrWithTr(errors.New("error invalid login credentials"), "invalid_login_credentials", "auth_8")
+	ErrAlreadyUsedEmail        = NewAppErrWithTr(errors.New("error already used email"), "already_used_email", "auth_10")
+	ErrAlreadyUsedPhoneNumber  = NewAppErrWithTr(errors.New("error already used phone number"), "already_used_phone_number", "auth_11")
 )

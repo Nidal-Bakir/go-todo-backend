@@ -14,18 +14,30 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	expirationForTempUser = time.Minute * 30
+)
+
 type DataSource interface {
+	// Query
 	GetUserById(ctx context.Context, id int32) (database.User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
-	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
-	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
-	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
-	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
-	UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
-	CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
 	GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, InstallationId uuid.UUID, attachedToUser int32) (database.Installation, error)
 	GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error)
+	IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error)
+
+	// Create
+	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
+	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
+	CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+
+	// Update
+	UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error
+
+	// Delete
+	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
 }
 
 type dataSourceImpl struct {
@@ -70,7 +82,7 @@ func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser *TempUs
 	pip := ds.redis.TxPipeline()
 	pip.Del(ctx, key)
 	pip.HSet(ctx, key, tUser.ToMap())
-	pip.Expire(ctx, key, time.Minute*30)
+	pip.Expire(ctx, key, expirationForTempUser)
 	resultArray, err := pip.Exec(ctx)
 
 	if err != nil {
@@ -222,4 +234,12 @@ func (ds dataSourceImpl) GetInstallationUsingUUID(ctx context.Context, Installat
 	}
 
 	return installation, err
+}
+
+func (ds dataSourceImpl) IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (isUsed bool, err error) {
+	count, err := ds.db.Queries.LoginOptionIsAccessKeyUsed(ctx, accessKey)
+	if count > 0 {
+		isUsed = true
+	}
+	return isUsed, err
 }

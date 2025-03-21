@@ -7,6 +7,17 @@ import (
 
 type Middleware func(http.Handler) http.HandlerFunc
 
+// Wrappe an endpoint with a chain of middlewares
+//
+// e.g:
+//
+//	middleware.MiddlewareChain(
+//		CreateNewBook, // <-- wrapped by the next middlewares:
+//		middleware.ACT_app_x_www_form_urlencoded, // <-- First middleware to be run
+//		middleware.Cors, // <-- Second
+//		middleware.Auth, // <-- Third
+//		middleware.RateLimiter, // <-- Fourth, and last
+//	)
 func MiddlewareChain(h http.HandlerFunc, m ...Middleware) http.HandlerFunc {
 	if len(m) < 1 {
 		return h

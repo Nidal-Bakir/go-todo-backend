@@ -229,6 +229,26 @@ func (q *Queries) LoginOptionGetActiveLoginOptionWithUser(ctx context.Context, a
 	return i, err
 }
 
+const loginOptionIsAccessKeyUsed = `-- name: LoginOptionIsAccessKeyUsed :one
+SELECT COUNT(*) FROM login_option
+WHERE access_key = $1
+    AND deleted_at IS NULL
+    AND verified_at IS NULL
+`
+
+// LoginOptionIsAccessKeyUsed
+//
+//	SELECT COUNT(*) FROM login_option
+//	WHERE access_key = $1
+//	    AND deleted_at IS NULL
+//	    AND verified_at IS NULL
+func (q *Queries) LoginOptionIsAccessKeyUsed(ctx context.Context, accessKey string) (int64, error) {
+	row := q.db.QueryRow(ctx, loginOptionIsAccessKeyUsed, accessKey)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const loginOptionMarkUserLoginOptionAsVerified = `-- name: LoginOptionMarkUserLoginOptionAsVerified :exec
 UPDATE login_option
 SET verified_at = NOW()

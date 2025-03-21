@@ -19,6 +19,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	OtpCodeLength = 6
+)
+
 type PasswordLoginAccessKey struct {
 	Phone utils.PhoneNumber
 	Email string
@@ -90,6 +94,19 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 		return tUser, apperr.ErrInvalidTempUserdata
 	}
 
+	// check if the user is already present in the database with this Credentials
+	if isUsed, err := repo.isUsedCredentials(ctx, *tUser); isUsed || err != nil {
+		if err != nil {
+			return tUser, err
+		}
+
+		tUser.LoginMethod.Fold(
+			func() { err = apperr.ErrAlreadyUsedEmail },
+			func() { err = apperr.ErrAlreadyUsedPhoneNumber },
+		)
+		return tUser, err
+	}
+
 	sentOtp, err := sendOtpToTempUser(ctx, repo.gatewaysProvider, *tUser)
 	if err != nil {
 		zlog.Err(err).Msg("error sending otp to temp user")
@@ -105,8 +122,21 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 	return tUser, err
 }
 
+func (repo repositoryImpl) isUsedCredentials(ctx context.Context, tUser TempUser) (bool, error) {
+	var accessKey string
+	tUser.LoginMethod.Fold(
+		func() { accessKey = tUser.Email },
+		func() { accessKey = tUser.Phone.ToAppStanderdForm() },
+	)
+	return repo.isAccessKeyUsedInAnyLoginOption(ctx, accessKey)
+}
+
+func (repo repositoryImpl) isAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error) {
+	return repo.dataSource.IsAccessKeyUsedInAnyLoginOption(ctx, accessKey)
+}
+
 func sendOtpToTempUser(ctx context.Context, gatewaysProvider gateway.Provider, tUser TempUser) (sentOTP string, err error) {
-	otpSender := otp.NewOTPSender(gatewaysProvider)
+	otpSender := otp.NewOTPSender(gatewaysProvider, OtpCodeLength)
 
 	if tUser.LoginMethod.isUsingEmail() {
 		sentOTP, err = otpSender.SendEmailOTP(ctx, tUser.Email)
@@ -251,11 +281,8 @@ func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAcces
 	var accessKey string
 
 	loginMethod.Fold(
-		func() {
-			accessKey = passwordLoginAccessKey.Email
-		}, func() {
-			accessKey = passwordLoginAccessKey.Phone.ToAppStanderdForm()
-		},
+		func() { accessKey = passwordLoginAccessKey.Email },
+		func() { accessKey = passwordLoginAccessKey.Phone.ToAppStanderdForm() },
 	)
 
 	userWithLoginOption, err := repo.dataSource.GetActiveLoginOptionWithUser(ctx, accessKey, loginMethod)

@@ -9,5 +9,7 @@
   "invalid_login_credentials": "Invalid Login Credentials",
   "unsupported_login_method": "Unsupported Login Method",
   "too_short_name": "Too Short Name",
+  "already_used_email": "Already Used Email",
+  "already_used_phone_number": "Already Used Phone Number",
   "too_short_password": "Too Short Password"
 }

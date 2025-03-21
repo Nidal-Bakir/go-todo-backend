@@ -75,7 +75,9 @@ func apiRouter(ctx context.Context, s *Server) http.Handler {
 func v1Router(ctx context.Context, s *Server) http.Handler {
 	mux := http.NewServeMux()
 
-	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(ctx, s)))
+	authRepo := s.NewAuthRepository()
+
+	mux.Handle("/auth/", http.StripPrefix("/auth", authRouter(ctx, s, authRepo)))
 
 	mux.Handle("/todo", todoRouter(s))
 	mux.Handle("/todo/", todoRouter(s))
