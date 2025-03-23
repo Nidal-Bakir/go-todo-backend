@@ -8,6 +8,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
@@ -15,6 +16,10 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+)
+
+const (
+	PasswordRecommendedLength = 8
 )
 
 func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
@@ -45,6 +50,15 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 			login(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
 			loginRateLimiter(ctx, s.rdb),
+		),
+	)
+
+	mux.HandleFunc(
+		"POST /change-password",
+		middleware.MiddlewareChain(
+			changeUserPassword(authRepo),
+			middleware.ACT_app_x_www_form_urlencoded,
+			Auth(authRepo),
 		),
 	)
 
@@ -243,15 +257,14 @@ func validateCreateAccountParam(r *http.Request) (createAccountParams, []error) 
 	fNameFormStr := r.FormValue("f_name")
 	lNameFormStr := r.FormValue("l_name")
 
-	errList := make([]error, 5)
+	errList := make([]error, 0, 5)
 
 	loginMethod, err := new(auth.LoginMethod).FromString(loginMethodFormStr)
 	if err != nil {
 		errList = append(errList, err)
 	}
-	if len(passwordFormStr) <= 6 {
-		errList = append(errList, apperr.ErrTooShortPassword)
-	}
+
+	errList = append(errList, validatePassword(passwordFormStr)...)
 
 	loginMethod.FoldOr(
 		func() {
@@ -340,7 +353,7 @@ func validateVareifyAccountParams(r *http.Request) (vareifyAccountParams, []erro
 	idFormStr := r.FormValue("id")
 	code := r.FormValue("code")
 
-	errList := make([]error, 3)
+	errList := make([]error, 0, 2)
 
 	tUserUUID, err := uuid.Parse(idFormStr)
 	if err != nil {
@@ -426,15 +439,14 @@ func validateLoginParam(r *http.Request) (loginParams, []error) {
 
 	passwordFormStr := r.FormValue("password")
 
-	errList := make([]error, 3)
+	errList := make([]error, 0, 3)
 
 	loginMethod, err := new(auth.LoginMethod).FromString(loginMethodFormStr)
 	if err != nil {
 		errList = append(errList, err)
 	}
-	if len(passwordFormStr) <= 6 {
-		errList = append(errList, apperr.ErrTooShortPassword)
-	}
+
+	errList = append(errList, validatePassword(passwordFormStr)...)
 
 	loginMethod.FoldOr(
 		func() {
@@ -467,3 +479,73 @@ func validateLoginParam(r *http.Request) (loginParams, []error) {
 }
 
 //-----------------------------------------------------------------------------
+
+type changePasswordParams struct {
+	LoginMethod auth.LoginMethod
+	oldPassword string
+	newPassword string
+}
+
+func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		err := r.ParseForm()
+		if err != nil {
+			WriteError(ctx, w, http.StatusBadRequest, err)
+			return
+		}
+
+		params, errList := validateChangePasswordParam(r)
+		if len(errList) != 0 {
+			WriteError(ctx, w, http.StatusBadRequest, errList...)
+			return
+		}
+
+		user, ok := auth.UserFromContext(ctx)
+		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+
+		err = authRepo.ChangePasswordForAllLoginOptions(ctx, user, params.oldPassword, params.newPassword)
+		if err != nil {
+			WriteError(ctx, w, http.StatusInternalServerError, err)
+			return
+		}
+
+		localizer, ok := l10n.LocalizerFromContext(ctx)
+		utils.Assert(ok, "we should find the localizer in the context tree, but we did not. something is wrong.")
+
+		WriteJson(ctx, w, http.StatusOK, map[string]string{"msg": localizer.GetWithId(l10n.OperationDoneSuccessfullyTrId)})
+	}
+}
+
+func validateChangePasswordParam(r *http.Request) (changePasswordParams, []error) {
+	oldPassword := r.FormValue("old_password")
+	newPassword := r.FormValue("new_password")
+
+	errList := make([]error, 0, 1)
+
+	errList = append(errList, validatePassword(newPassword)...)
+
+	if len(errList) != 0 {
+		return changePasswordParams{}, errList
+	}
+
+	params := changePasswordParams{
+		oldPassword: oldPassword,
+		newPassword: newPassword,
+	}
+
+	return params, errList
+}
+
+//-----------------------------------------------------------------------------
+
+func validatePassword(password string) []error {
+	errList := make([]error, 0, 1)
+
+	if len(password) < PasswordRecommendedLength {
+		errList = append(errList, apperr.ErrTooShortPassword)
+	}
+
+	return errList
+}

@@ -11,6 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const loginOptionChangeAllPasswordsByUserId = `-- name: LoginOptionChangeAllPasswordsByUserId :exec
+UPDATE login_option
+SET hashed_pass = $2,
+    pass_salt = $3
+WHERE user_id = $1
+    AND hashed_pass IS NOT NULL
+`
+
+type LoginOptionChangeAllPasswordsByUserIdParams struct {
+	UserID     int32       `json:"user_id"`
+	HashedPass pgtype.Text `json:"hashed_pass"`
+	PassSalt   pgtype.Text `json:"pass_salt"`
+}
+
+// LoginOptionChangeAllPasswordsByUserId
+//
+//	UPDATE login_option
+//	SET hashed_pass = $2,
+//	    pass_salt = $3
+//	WHERE user_id = $1
+//	    AND hashed_pass IS NOT NULL
+func (q *Queries) LoginOptionChangeAllPasswordsByUserId(ctx context.Context, arg LoginOptionChangeAllPasswordsByUserIdParams) error {
+	_, err := q.db.Exec(ctx, loginOptionChangeAllPasswordsByUserId, arg.UserID, arg.HashedPass, arg.PassSalt)
+	return err
+}
+
 const loginOptionCreateNewLoginOption = `-- name: LoginOptionCreateNewLoginOption :one
 INSERT INTO login_option(
         login_method,
@@ -229,6 +255,153 @@ func (q *Queries) LoginOptionGetActiveLoginOptionWithUser(ctx context.Context, a
 	return i, err
 }
 
+const loginOptionGetAllActiveByUserId = `-- name: LoginOptionGetAllActiveByUserId :many
+SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+FROM login_option
+WHERE user_id = $1
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL
+`
+
+// LoginOptionGetAllActiveByUserId
+//
+//	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+//	FROM login_option
+//	WHERE user_id = $1
+//	    AND verified_at IS NOT NULL
+//	    AND deleted_at IS NULL
+func (q *Queries) LoginOptionGetAllActiveByUserId(ctx context.Context, userID int32) ([]LoginOption, error) {
+	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LoginOption{}
+	for rows.Next() {
+		var i LoginOption
+		if err := rows.Scan(
+			&i.ID,
+			&i.LoginMethod,
+			&i.AccessKey,
+			&i.HashedPass,
+			&i.PassSalt,
+			&i.VerifiedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const loginOptionGetAllActiveByUserIdAndLoginMethod = `-- name: LoginOptionGetAllActiveByUserIdAndLoginMethod :many
+SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+FROM login_option
+WHERE login_method = $1
+    AND user_id = $2
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL
+`
+
+type LoginOptionGetAllActiveByUserIdAndLoginMethodParams struct {
+	LoginMethod string `json:"login_method"`
+	UserID      int32  `json:"user_id"`
+}
+
+// LoginOptionGetAllActiveByUserIdAndLoginMethod
+//
+//	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+//	FROM login_option
+//	WHERE login_method = $1
+//	    AND user_id = $2
+//	    AND verified_at IS NOT NULL
+//	    AND deleted_at IS NULL
+func (q *Queries) LoginOptionGetAllActiveByUserIdAndLoginMethod(ctx context.Context, arg LoginOptionGetAllActiveByUserIdAndLoginMethodParams) ([]LoginOption, error) {
+	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserIdAndLoginMethod, arg.LoginMethod, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LoginOption{}
+	for rows.Next() {
+		var i LoginOption
+		if err := rows.Scan(
+			&i.ID,
+			&i.LoginMethod,
+			&i.AccessKey,
+			&i.HashedPass,
+			&i.PassSalt,
+			&i.VerifiedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const loginOptionGetAllActiveByUserIdAndSupportPassword = `-- name: LoginOptionGetAllActiveByUserIdAndSupportPassword :many
+SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+FROM login_option
+WHERE user_id = $1
+    AND hashed_pass IS NOT NULL
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL
+`
+
+// LoginOptionGetAllActiveByUserIdAndSupportPassword
+//
+//	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
+//	FROM login_option
+//	WHERE user_id = $1
+//	    AND hashed_pass IS NOT NULL
+//	    AND verified_at IS NOT NULL
+//	    AND deleted_at IS NULL
+func (q *Queries) LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx context.Context, userID int32) ([]LoginOption, error) {
+	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserIdAndSupportPassword, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LoginOption{}
+	for rows.Next() {
+		var i LoginOption
+		if err := rows.Scan(
+			&i.ID,
+			&i.LoginMethod,
+			&i.AccessKey,
+			&i.HashedPass,
+			&i.PassSalt,
+			&i.VerifiedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const loginOptionIsAccessKeyUsed = `-- name: LoginOptionIsAccessKeyUsed :one
 SELECT COUNT(*) FROM login_option
 WHERE access_key = $1
@@ -262,30 +435,6 @@ WHERE id = $1
 //	WHERE id = $1
 func (q *Queries) LoginOptionMarkUserLoginOptionAsVerified(ctx context.Context, id int32) error {
 	_, err := q.db.Exec(ctx, loginOptionMarkUserLoginOptionAsVerified, id)
-	return err
-}
-
-const loginOptionSetPasswordForUserLoginOption = `-- name: LoginOptionSetPasswordForUserLoginOption :exec
-UPDATE login_option
-SET hashed_pass = $2,
-    pass_salt = $3
-WHERE id = $1
-`
-
-type LoginOptionSetPasswordForUserLoginOptionParams struct {
-	ID         int32       `json:"id"`
-	HashedPass pgtype.Text `json:"hashed_pass"`
-	PassSalt   pgtype.Text `json:"pass_salt"`
-}
-
-// LoginOptionSetPasswordForUserLoginOption
-//
-//	UPDATE login_option
-//	SET hashed_pass = $2,
-//	    pass_salt = $3
-//	WHERE id = $1
-func (q *Queries) LoginOptionSetPasswordForUserLoginOption(ctx context.Context, arg LoginOptionSetPasswordForUserLoginOptionParams) error {
-	_, err := q.db.Exec(ctx, loginOptionSetPasswordForUserLoginOption, arg.ID, arg.HashedPass, arg.PassSalt)
 	return err
 }
 

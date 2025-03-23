@@ -11,5 +11,7 @@
   "too_short_name": "Too Short Name",
   "already_used_email": "Already Used Email",
   "already_used_phone_number": "Already Used Phone Number",
-  "too_short_password": "Too Short Password"
+  "too_short_password": "Too Short Password",
+  "operation_done_successfully": "Operation Done Successfully",
+  "old_password_does_not_match_current_one": "Old password does not match current one"
 }

@@ -69,21 +69,22 @@ func NewAppErrWithTr(err error, translationID string, errorCode string) error {
 // -------------------------------------------
 
 var (
-	ErrNoResult = NewAppErrWithTr(errors.New("error no result found"), "no_result_found", "res_1")
+	ErrNoResult = NewAppErrWithTr(errors.New("error no result found"), l10n.NoResultFoundTrId, "res_1")
 
-	ErrUnexpectedErrorOccurred = NewAppErrWithTr(errors.New("unexpected error occurred"), "unexpected_error_occurred", "res_2")
+	ErrUnexpectedErrorOccurred = NewAppErrWithTr(errors.New("unexpected error occurred"), l10n.UnexpectedErrorOccurredTrId, "res_2")
 
-	ErrTooManyRequests = NewAppErrWithTr(errors.New("too many requests"), "too_many_requests", "res_3")
+	ErrTooManyRequests = NewAppErrWithTr(errors.New("too many requests"), l10n.TooManyRequestsTrId, "res_3")
 
 	// auth
-	ErrInvalidEmail            = NewAppErrWithTr(errors.New("invalid email"), "invalid_email", "auth_1")
-	ErrInvalidPhoneNumber      = NewAppErrWithTr(errors.New("invalid phone number"), "invalid_phone_number", "auth_2")
-	ErrUnsupportedLoginMethod  = NewAppErrWithTr(errors.New("unsupported login method"), "unsupported_login_method", "auth_3")
-	ErrTooShortPassword        = NewAppErrWithTr(errors.New("too short password"), "too_short_password", "auth_4")
-	ErrTooShortName            = NewAppErrWithTr(errors.New("too short name"), "too_short_name", "auth_5")
-	ErrInvalidOtpCode          = NewAppErrWithTr(errors.New("error invalid otp code"), "invalid_otp_code", "auth_6")
-	ErrInvalidTempUserdata     = NewAppErrWithTr(errors.New("error invalid temp user data"), "invalid_data", "auth_7")
-	ErrInvalidLoginCredentials = NewAppErrWithTr(errors.New("error invalid login credentials"), "invalid_login_credentials", "auth_8")
-	ErrAlreadyUsedEmail        = NewAppErrWithTr(errors.New("error already used email"), "already_used_email", "auth_10")
-	ErrAlreadyUsedPhoneNumber  = NewAppErrWithTr(errors.New("error already used phone number"), "already_used_phone_number", "auth_11")
+	ErrInvalidEmail                      = NewAppErrWithTr(errors.New("invalid email"), l10n.InvalidEmailTrId, "auth_1")
+	ErrInvalidPhoneNumber                = NewAppErrWithTr(errors.New("invalid phone number"), l10n.InvalidPhoneNumberTrId, "auth_2")
+	ErrUnsupportedLoginMethod            = NewAppErrWithTr(errors.New("unsupported login method"), l10n.UnsupportedLoginMethodTrId, "auth_3")
+	ErrTooShortPassword                  = NewAppErrWithTr(errors.New("too short password"), l10n.TooShortPasswordTrId, "auth_4")
+	ErrTooShortName                      = NewAppErrWithTr(errors.New("too short name"), l10n.TooShortNameTrId, "auth_5")
+	ErrInvalidOtpCode                    = NewAppErrWithTr(errors.New("invalid otp code"), l10n.InvalidOtpCodeTrId, "auth_6")
+	ErrInvalidTempUserdata               = NewAppErrWithTr(errors.New("invalid temp user data"), l10n.InvalidDataTrId, "auth_7")
+	ErrInvalidLoginCredentials           = NewAppErrWithTr(errors.New("invalid login credentials"), l10n.InvalidLoginCredentialsTrId, "auth_8")
+	ErrAlreadyUsedEmail                  = NewAppErrWithTr(errors.New("already used email"), l10n.AlreadyUsedEmailTrId, "auth_10")
+	ErrAlreadyUsedPhoneNumber            = NewAppErrWithTr(errors.New("already used phone number"), l10n.AlreadyUsedPhoneNumberTrId, "auth_11")
+	ErrOldPasswordDoesNotMatchCurrentOne = NewAppErrWithTr(errors.New("old password noes not match current one"), l10n.OldPasswordDoesNotMatchCurrentOneTrId, "auth_12")
 )

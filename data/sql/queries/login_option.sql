@@ -19,6 +19,30 @@ WHERE login_method = $1
     AND deleted_at IS NULL
 LIMIT 1;
 
+-- name: LoginOptionGetAllActiveByUserId :many
+SELECT *
+FROM login_option
+WHERE user_id = $1
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL;
+
+-- name: LoginOptionGetAllActiveByUserIdAndLoginMethod :many
+SELECT *
+FROM login_option
+WHERE login_method = $1
+    AND user_id = $2
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL;
+
+
+-- name: LoginOptionGetAllActiveByUserIdAndSupportPassword :many
+SELECT *
+FROM login_option
+WHERE user_id = $1
+    AND hashed_pass IS NOT NULL
+    AND verified_at IS NOT NULL
+    AND deleted_at IS NULL;
+
 -- name: LoginOptionGetActiveLoginOptionWithUser :one
 SELECT lo.id as login_option_id,
     lo.login_method as login_option_login_method,
@@ -54,11 +78,12 @@ UPDATE login_option
 SET verified_at = NOW()
 WHERE id = $1;
 
--- name: LoginOptionSetPasswordForUserLoginOption :exec
+-- name: LoginOptionChangeAllPasswordsByUserId :exec
 UPDATE login_option
 SET hashed_pass = $2,
     pass_salt = $3
-WHERE id = $1;
+WHERE user_id = $1
+    AND hashed_pass IS NOT NULL;
 
 -- name: LoginOptionSoftDeleteUserLoginOption :exec
 UPDATE login_option

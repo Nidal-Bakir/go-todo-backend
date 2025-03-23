@@ -11,5 +11,7 @@
   "too_short_name": "الاسم قصير جداً",
   "already_used_email": "عنوان البريد مستخدم بالفعل",
   "already_used_phone_number": "رقم الهاف مستخدم بالفعل",
-  "too_short_password": "كلمة السر يجب ان تكون 6 محارف على الاقل"
+  "too_short_password": "كلمة السر يجب ان تكون 6 محارف على الاقل",
+  "operation_done_successfully": "تمت العملية بنجاح",
+  "old_password_does_not_match_current_one": "كلمة المرور القديمة لا تطابق كلمة المرور الحالية"
 }

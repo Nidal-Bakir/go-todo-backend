@@ -55,6 +55,17 @@ func (l LoginMethod) isUsingPhoneNumber() bool {
 	return l == LoginMethodPhoneNumber
 }
 
+func (l LoginMethod) SupportPassword() bool {
+	var supportPassword bool
+
+	l.Fold(
+		func() { supportPassword = true },
+		func() { supportPassword = true },
+	)
+
+	return supportPassword
+}
+
 func (l LoginMethod) String() string {
 	return string(l)
 }

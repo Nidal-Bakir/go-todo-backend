@@ -48,8 +48,10 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 				return
 			}
 
-			r = r.WithContext(auth.ContextWithUser(ctx, userModel))
-			next.ServeHTTP(w, r)
+			ctx = auth.ContextWithUser(ctx, userModel)
+			ctx = zlog.With().Int32("user_id", userModel.ID).Logger().WithContext(ctx)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}
 }
@@ -100,8 +102,10 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 				return
 			}
 
-			r = r.WithContext(auth.ContextWithInstallation(ctx, installation))
-			next.ServeHTTP(w, r)
+			ctx = auth.ContextWithInstallation(ctx, installation)
+			ctx = zlog.With().Int32("installation_id", installation.ID).Logger().WithContext(ctx)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
 		}
 	}
 }

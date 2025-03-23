@@ -35,6 +35,7 @@ type Repository interface {
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
 	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
 	GetInstallationUsingUuid(ctx context.Context, InstallationId uuid.UUID, attachedToUserId *int32) (database.Installation, error)
+	ChangePasswordForAllLoginOptions(ctx context.Context, user User, oldPassword, newPassword string) error
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher) Repository {
@@ -366,4 +367,41 @@ func (repo repositoryImpl) GetInstallationUsingUuid(ctx context.Context, Install
 	}
 
 	return installation, nil
+}
+
+func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context, user User, oldPassword, newPassword string) error {
+	zlog := zerolog.Ctx(ctx)
+
+	loginOptions, err := repo.dataSource.GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx, user.ID)
+
+	if err != nil {
+		zlog.Err(err).Msg("error while getting all the login options for a user")
+		return err
+	}
+
+	// all the login options should have the same password
+	for _, op := range loginOptions {
+		ok, err := repo.PasswordHasher.CompareHashAndPassword(op.HashedPass.String, op.PassSalt.String, oldPassword)
+		if err != nil {
+			zlog.Err(err).Msg("error while comparing password hash with salt and password to change a password for logged in user")
+			return err
+		}
+		if !ok {
+			return apperr.ErrOldPasswordDoesNotMatchCurrentOne
+		}
+	}
+
+	hashedPass, salt, err := repo.PasswordHasher.GeneratePasswordHashWithSalt(newPassword)
+	if err != nil {
+		zlog.Err(err).Msg("error while generating password hash with salt to change a password for logged in user")
+		return err
+	}
+
+	err = repo.dataSource.ChangeAllPasswordsForLoginOptions(ctx, user.ID, hashedPass, salt)
+	if err != nil {
+		zlog.Err(err).Msg("error while changing the password for login options to logged in user")
+		return err
+	}
+
+	return nil
 }

@@ -19,24 +19,34 @@ const (
 )
 
 type DataSource interface {
-	// Query
+	// Query ---
+
 	GetUserById(ctx context.Context, id int32) (database.User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
-	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
+
 	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
+
 	GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, InstallationId uuid.UUID, attachedToUser int32) (database.Installation, error)
 	GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error)
+
+	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
+	GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.LoginOption, error)
 	IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error)
 
-	// Create
+	// Create ---
+
 	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
 	CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
 
-	// Update
-	UpdateusernameForUser(ctx context.Context, id int32, newUsername string) error
+	// Update ---
 
-	// Delete
+	UpdateusernameForUser(ctx context.Context, userId int32, newUsername string) error
+
+	// change the all the passwords of all the login options that support password usage
+	ChangeAllPasswordsForLoginOptions(ctx context.Context, userId int32, HashedPass, PassSalt string) error
+
+	// Delete ---
 	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
 }
 
@@ -242,4 +252,24 @@ func (ds dataSourceImpl) IsAccessKeyUsedInAnyLoginOption(ctx context.Context, ac
 		isUsed = true
 	}
 	return isUsed, err
+}
+
+func (ds dataSourceImpl) ChangeAllPasswordsForLoginOptions(ctx context.Context, userId int32, HashedPass, PassSalt string) error {
+	return ds.db.Queries.LoginOptionChangeAllPasswordsByUserId(
+		ctx, database.LoginOptionChangeAllPasswordsByUserIdParams{
+			UserID:     userId,
+			HashedPass: pgtype.Text{String: HashedPass, Valid: true},
+			PassSalt:   pgtype.Text{String: PassSalt, Valid: true},
+		},
+	)
+}
+
+func (ds dataSourceImpl) GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.LoginOption, error) {
+	result, err := ds.db.Queries.LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx, userId)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	}
+
+	return result, err
 }
