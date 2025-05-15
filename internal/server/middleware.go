@@ -9,8 +9,6 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
@@ -22,15 +20,15 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 
 			token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
 			if token == "" {
-				WriteError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+				writeError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 				return
 			}
 
-			if _, err := appjwt.NewAppJWT().VerifyToken(token, "auth"); err != nil {
+			if _, err := authRepo.VerifyAuthToken(token); err != nil {
 				if appenv.IsStagOrLocal() {
 					zlog.Error().Err(err).Msg("Error from jwt verify function")
 				}
-				WriteError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+				writeError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 				return
 			}
 
@@ -44,7 +42,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 					err = fmt.Errorf("unauthorized")
 				}
 
-				WriteError(ctx, w, http.StatusUnauthorized, err)
+				writeError(ctx, w, http.StatusUnauthorized, err)
 				return
 			}
 
@@ -72,11 +70,14 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 
 			missingOrInvalidErr := errors.New("missing A-Installation in the request header, or the the installation id is invalid")
 			sendError := func() {
-				WriteError(ctx, w, http.StatusBadRequest, missingOrInvalidErr)
+				writeError(ctx, w, http.StatusBadRequest, missingOrInvalidErr)
 			}
 
-			installationId, err := uuid.Parse(r.Header.Get("A-Installation"))
-			if err != nil {
+			installationToken := r.Header.Get("A-Installation")
+			if _, err := authRepo.VerifyTokenForInstallation(installationToken); err != nil {
+				if appenv.IsStagOrLocal() {
+					zlog.Error().Err(err).Msg("Error from jwt verify function")
+				}
 				sendError()
 				return
 			}
@@ -87,7 +88,7 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 				attachedToUserId = &user.ID
 			}
 
-			installation, err := authRepo.GetInstallationUsingUuid(ctx, installationId, attachedToUserId)
+			installation, err := authRepo.GetInstallationUsingToken(ctx, installationToken, attachedToUserId)
 
 			if err != nil {
 				if errors.Is(err, apperr.ErrNoResult) {
@@ -98,7 +99,7 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 				if appenv.IsProd() {
 					err = missingOrInvalidErr
 				}
-				WriteError(ctx, w, http.StatusBadRequest, err)
+				writeError(ctx, w, http.StatusBadRequest, err)
 				return
 			}
 

@@ -1,6 +1,6 @@
 module github.com/Nidal-Bakir/go-todo-backend
 
-go 1.24.0
+go 1.24.3
 
 require (
 	github.com/Nidal-Bakir/username_r_gen v1.0.0
@@ -12,7 +12,10 @@ require (
 	golang.org/x/text v0.22.0
 )
 
-require github.com/rs/cors v1.11.1
+require (
+	github.com/Nidal-Bakir/go-semver v1.1.0
+	github.com/rs/cors v1.11.1
+)
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect

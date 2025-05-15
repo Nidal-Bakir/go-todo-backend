@@ -11,7 +11,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
+
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
 	usernaemgen "github.com/Nidal-Bakir/username_r_gen"
 	"github.com/google/uuid"
@@ -28,18 +28,39 @@ type PasswordLoginAccessKey struct {
 	Email string
 }
 
+type CreateInstallationData struct {
+	NotificationToken       string // e.g the FCM token
+	Locale                  string // e.g: en-US ...
+	TimezoneOffsetInMinutes int    // e.g: +180
+	DeviceManufacturer      string // e.g: samsung
+	DeviceOS                string // e.g: android
+	DeviceOSVersion         string // e.g: 14
+	AppVersion              string // e.g: 3.1.1
+}
+
+type UpdateInstallationData struct {
+	NotificationToken       string // e.g the FCM token
+	Locale                  string // e.g: en-US ...
+	TimezoneOffsetInMinutes int    // e.g: +180
+	AppVersion              string // e.g: 3.1.1
+}
+
 type Repository interface {
 	GetUserById(ctx context.Context, id int) (User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
 	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
 	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
-	GetInstallationUsingUuid(ctx context.Context, InstallationId uuid.UUID, attachedToUserId *int32) (database.Installation, error)
+	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToUserId *int32) (database.Installation, error)
 	ChangePasswordForAllLoginOptions(ctx context.Context, user User, oldPassword, newPassword string) error
+	VerifyAuthToken(token string) (*AuthClaims, error)
+	VerifyTokenForInstallation(token string) (*InstallationClaims, error)
+	CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error)
+	UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error
 }
 
-func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher) Repository {
-	return repositoryImpl{dataSource: ds, gatewaysProvider: gatewaysProvider, PasswordHasher: passwordHasher}
+func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
+	return repositoryImpl{dataSource: ds, gatewaysProvider: gatewaysProvider, passwordHasher: passwordHasher, authJWT: authJWT}
 }
 
 // ---------------------------------------------------------------------------------
@@ -47,7 +68,8 @@ func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHas
 type repositoryImpl struct {
 	dataSource       DataSource
 	gatewaysProvider gateway.Provider
-	PasswordHasher   password_hasher.PasswordHasher
+	passwordHasher   password_hasher.PasswordHasher
+	authJWT          *AuthJWT
 }
 
 func (repo repositoryImpl) GetUserById(ctx context.Context, id int) (User, error) {
@@ -205,7 +227,7 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 		return User{}, apperr.ErrInvalidTempUserdata
 	}
 
-	createUserArgs, err := generateUserArgsForCreateUser(tUser, repo.PasswordHasher)
+	createUserArgs, err := generateUserArgsForCreateUser(tUser, repo.passwordHasher)
 	if err != nil {
 		zlog.Err(err).Msg("error generating user args")
 		return User{}, err
@@ -299,7 +321,7 @@ func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAcces
 	checkPassword := func() error {
 		hashedPassword := userWithLoginOption.LoginOptionHashedPass.String
 		salt := userWithLoginOption.LoginOptionPassSalt.String
-		if ok, err := repo.PasswordHasher.CompareHashAndPassword(hashedPassword, salt, password); !ok || err != nil {
+		if ok, err := repo.passwordHasher.CompareHashAndPassword(hashedPassword, salt, password); !ok || err != nil {
 			if err != nil {
 				return err
 			}
@@ -321,13 +343,13 @@ func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAcces
 	}
 
 	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
-	token, err = appjwt.NewAppJWT().GenWithClaims(expiresAt, int(userWithLoginOption.UserID), "auth")
+	token, err = repo.authJWT.GenWithClaimsForUser(userWithLoginOption.UserID, expiresAt)
 	if err != nil {
 		zlog.Err(err).Msg("error while generating a new session token using jwt, for login")
 		return User{}, "", err
 	}
 
-	err = repo.dataSource.CreateNewSession(ctx, userWithLoginOption.LoginOptionID, installation.ID, token, expiresAt)
+	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginOption.UserID, userWithLoginOption.LoginOptionID, installation.ID, token, expiresAt)
 	if err != nil {
 		zlog.Err(err).Msg("error creating new session for user to login")
 		return User{}, "", err
@@ -350,13 +372,13 @@ func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAcces
 	return user, token, nil
 }
 
-func (repo repositoryImpl) GetInstallationUsingUuid(ctx context.Context, InstallationId uuid.UUID, attachedToUserId *int32) (installation database.Installation, err error) {
+func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToUserId *int32) (installation database.Installation, err error) {
 	zlog := zerolog.Ctx(ctx)
 
 	if attachedToUserId == nil {
-		installation, err = repo.dataSource.GetInstallationUsingUUID(ctx, InstallationId)
+		installation, err = repo.dataSource.GetInstallationUsingToken(ctx, installationToken)
 	} else {
-		installation, err = repo.dataSource.GetInstallationUsingUUIdAndWhereAttachTo(ctx, InstallationId, *attachedToUserId)
+		installation, err = repo.dataSource.GetInstallationUsingTokenAndWhereAttachTo(ctx, installationToken, *attachedToUserId)
 	}
 
 	if err != nil {
@@ -381,7 +403,7 @@ func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context,
 
 	// all the login options should have the same password
 	for _, op := range loginOptions {
-		ok, err := repo.PasswordHasher.CompareHashAndPassword(op.HashedPass.String, op.PassSalt.String, oldPassword)
+		ok, err := repo.passwordHasher.CompareHashAndPassword(op.HashedPass.String, op.PassSalt.String, oldPassword)
 		if err != nil {
 			zlog.Err(err).Msg("error while comparing password hash with salt and password to change a password for logged in user")
 			return err
@@ -391,7 +413,7 @@ func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context,
 		}
 	}
 
-	hashedPass, salt, err := repo.PasswordHasher.GeneratePasswordHashWithSalt(newPassword)
+	hashedPass, salt, err := repo.passwordHasher.GeneratePasswordHashWithSalt(newPassword)
 	if err != nil {
 		zlog.Err(err).Msg("error while generating password hash with salt to change a password for logged in user")
 		return err
@@ -404,4 +426,30 @@ func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context,
 	}
 
 	return nil
+}
+
+func (repo repositoryImpl) VerifyAuthToken(token string) (*AuthClaims, error) {
+	return repo.authJWT.VerifyTokenForUser(token)
+}
+
+func (repo repositoryImpl) VerifyTokenForInstallation(token string) (*InstallationClaims, error) {
+	return repo.authJWT.VerifyTokenForInstallation(token)
+}
+
+func (repo repositoryImpl) CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error) {
+	token, err := repo.authJWT.GenWithClaimsForInstallation()
+	if err != nil {
+		return "", err
+	}
+
+	err = repo.dataSource.CreateInstallation(ctx, data, token)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func (repo repositoryImpl) UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error {
+	return repo.dataSource.UpdateInstallation(ctx, installationToken, data)
 }

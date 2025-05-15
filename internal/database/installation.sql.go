@@ -8,98 +8,178 @@ package database
 import (
 	"context"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const installationCreateNewInstallation = `-- name: InstallationCreateNewInstallation :one
+const installationAttachUserToInstallationById = `-- name: InstallationAttachUserToInstallationById :exec
+UPDATE installation
+SET attach_to = $2,
+    last_attach_to= NULL
+WHERE id = $1
+    AND attach_to IS NULL
+`
+
+type InstallationAttachUserToInstallationByIdParams struct {
+	ID       int32       `json:"id"`
+	AttachTo pgtype.Int4 `json:"attach_to"`
+}
+
+// InstallationAttachUserToInstallationById
+//
+//	UPDATE installation
+//	SET attach_to = $2,
+//	    last_attach_to= NULL
+//	WHERE id = $1
+//	    AND attach_to IS NULL
+func (q *Queries) InstallationAttachUserToInstallationById(ctx context.Context, arg InstallationAttachUserToInstallationByIdParams) error {
+	_, err := q.db.Exec(ctx, installationAttachUserToInstallationById, arg.ID, arg.AttachTo)
+	return err
+}
+
+const installationAttachUserToInstallationByToken = `-- name: InstallationAttachUserToInstallationByToken :exec
+UPDATE installation
+SET attach_to = $2,
+    last_attach_to= NULL
+WHERE installation_token = $1
+    AND attach_to IS NULL
+`
+
+type InstallationAttachUserToInstallationByTokenParams struct {
+	InstallationToken string      `json:"installation_token"`
+	AttachTo          pgtype.Int4 `json:"attach_to"`
+}
+
+// InstallationAttachUserToInstallationByToken
+//
+//	UPDATE installation
+//	SET attach_to = $2,
+//	    last_attach_to= NULL
+//	WHERE installation_token = $1
+//	    AND attach_to IS NULL
+func (q *Queries) InstallationAttachUserToInstallationByToken(ctx context.Context, arg InstallationAttachUserToInstallationByTokenParams) error {
+	_, err := q.db.Exec(ctx, installationAttachUserToInstallationByToken, arg.InstallationToken, arg.AttachTo)
+	return err
+}
+
+const installationCreateNewInstallation = `-- name: InstallationCreateNewInstallation :exec
 INSERT INTO installation (
-        installation_id,
+        installation_token,
         notification_token,
         locale,
+        timezone_offset_in_minutes,
         device_manufacturer,
         device_os,
         device_os_version,
         app_version
     )
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type InstallationCreateNewInstallationParams struct {
-	InstallationID     uuid.UUID   `json:"installation_id"`
-	NotificationToken  pgtype.Text `json:"notification_token"`
-	Locale             string      `json:"locale"`
-	DeviceManufacturer string      `json:"device_manufacturer"`
-	DeviceOs           string      `json:"device_os"`
-	DeviceOsVersion    string      `json:"device_os_version"`
-	AppVersion         string      `json:"app_version"`
+	InstallationToken       string      `json:"installation_token"`
+	NotificationToken       pgtype.Text `json:"notification_token"`
+	Locale                  string      `json:"locale"`
+	TimezoneOffsetInMinutes int32       `json:"timezone_offset_in_minutes"`
+	DeviceManufacturer      pgtype.Text `json:"device_manufacturer"`
+	DeviceOs                pgtype.Text `json:"device_os"`
+	DeviceOsVersion         pgtype.Text `json:"device_os_version"`
+	AppVersion              string      `json:"app_version"`
 }
 
 // InstallationCreateNewInstallation
 //
 //	INSERT INTO installation (
-//	        installation_id,
+//	        installation_token,
 //	        notification_token,
 //	        locale,
+//	        timezone_offset_in_minutes,
 //	        device_manufacturer,
 //	        device_os,
 //	        device_os_version,
 //	        app_version
 //	    )
-//	VALUES ($1, $2, $3, $4, $5, $6, $7)
-//	RETURNING id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
-func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg InstallationCreateNewInstallationParams) (Installation, error) {
-	row := q.db.QueryRow(ctx, installationCreateNewInstallation,
-		arg.InstallationID,
+//	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg InstallationCreateNewInstallationParams) error {
+	_, err := q.db.Exec(ctx, installationCreateNewInstallation,
+		arg.InstallationToken,
 		arg.NotificationToken,
 		arg.Locale,
+		arg.TimezoneOffsetInMinutes,
 		arg.DeviceManufacturer,
 		arg.DeviceOs,
 		arg.DeviceOsVersion,
 		arg.AppVersion,
 	)
-	var i Installation
-	err := row.Scan(
-		&i.ID,
-		&i.InstallationID,
-		&i.NotificationToken,
-		&i.Locale,
-		&i.TimezoneOffsetInMinutes,
-		&i.DeviceManufacturer,
-		&i.DeviceOs,
-		&i.DeviceOsVersion,
-		&i.AppVersion,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-		&i.AttachTo,
-		&i.LastAttachTo,
-	)
-	return i, err
+	return err
 }
 
-const installationGetInstallationUsingUUID = `-- name: InstallationGetInstallationUsingUUID :one
-SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+const installationDetachUserFromInstallationById = `-- name: InstallationDetachUserFromInstallationById :exec
+UPDATE installation
+SET attach_to = NULL,
+    last_attach_to = $2
+WHERE id = $1
+`
+
+type InstallationDetachUserFromInstallationByIdParams struct {
+	ID           int32       `json:"id"`
+	LastAttachTo pgtype.Int4 `json:"last_attach_to"`
+}
+
+// InstallationDetachUserFromInstallationById
+//
+//	UPDATE installation
+//	SET attach_to = NULL,
+//	    last_attach_to = $2
+//	WHERE id = $1
+func (q *Queries) InstallationDetachUserFromInstallationById(ctx context.Context, arg InstallationDetachUserFromInstallationByIdParams) error {
+	_, err := q.db.Exec(ctx, installationDetachUserFromInstallationById, arg.ID, arg.LastAttachTo)
+	return err
+}
+
+const installationDetachUserFromInstallationByToken = `-- name: InstallationDetachUserFromInstallationByToken :exec
+UPDATE installation
+SET attach_to = NULL,
+        last_attach_to = $2
+WHERE installation_token = $1
+`
+
+type InstallationDetachUserFromInstallationByTokenParams struct {
+	InstallationToken string      `json:"installation_token"`
+	LastAttachTo      pgtype.Int4 `json:"last_attach_to"`
+}
+
+// InstallationDetachUserFromInstallationByToken
+//
+//	UPDATE installation
+//	SET attach_to = NULL,
+//	        last_attach_to = $2
+//	WHERE installation_token = $1
+func (q *Queries) InstallationDetachUserFromInstallationByToken(ctx context.Context, arg InstallationDetachUserFromInstallationByTokenParams) error {
+	_, err := q.db.Exec(ctx, installationDetachUserFromInstallationByToken, arg.InstallationToken, arg.LastAttachTo)
+	return err
+}
+
+const installationGetInstallationUsingToken = `-- name: InstallationGetInstallationUsingToken :one
+SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 FROM installation
-WHERE installation_id = $1
+WHERE installation_token = $1
     AND deleted_at IS NULL
 LIMIT 1
 `
 
-// InstallationGetInstallationUsingUUID
+// InstallationGetInstallationUsingToken
 //
-//	SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+//	SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 //	FROM installation
-//	WHERE installation_id = $1
+//	WHERE installation_token = $1
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) InstallationGetInstallationUsingUUID(ctx context.Context, installationID uuid.UUID) (Installation, error) {
-	row := q.db.QueryRow(ctx, installationGetInstallationUsingUUID, installationID)
+func (q *Queries) InstallationGetInstallationUsingToken(ctx context.Context, installationToken string) (Installation, error) {
+	row := q.db.QueryRow(ctx, installationGetInstallationUsingToken, installationToken)
 	var i Installation
 	err := row.Scan(
 		&i.ID,
-		&i.InstallationID,
+		&i.InstallationToken,
 		&i.NotificationToken,
 		&i.Locale,
 		&i.TimezoneOffsetInMinutes,
@@ -116,34 +196,34 @@ func (q *Queries) InstallationGetInstallationUsingUUID(ctx context.Context, inst
 	return i, err
 }
 
-const installationGetInstallationUsingUUIdAndWhereAttachTo = `-- name: InstallationGetInstallationUsingUUIdAndWhereAttachTo :one
-SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+const installationGetInstallationUsingTokenAndWhereAttachTo = `-- name: InstallationGetInstallationUsingTokenAndWhereAttachTo :one
+SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 FROM installation
-WHERE installation_id = $1
+WHERE installation_token = $1
     AND attach_to = $2
     AND deleted_at IS NULL
 LIMIT 1
 `
 
-type InstallationGetInstallationUsingUUIdAndWhereAttachToParams struct {
-	InstallationID uuid.UUID   `json:"installation_id"`
-	AttachTo       pgtype.Int4 `json:"attach_to"`
+type InstallationGetInstallationUsingTokenAndWhereAttachToParams struct {
+	InstallationToken string      `json:"installation_token"`
+	AttachTo          pgtype.Int4 `json:"attach_to"`
 }
 
-// InstallationGetInstallationUsingUUIdAndWhereAttachTo
+// InstallationGetInstallationUsingTokenAndWhereAttachTo
 //
-//	SELECT id, installation_id, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+//	SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 //	FROM installation
-//	WHERE installation_id = $1
+//	WHERE installation_token = $1
 //	    AND attach_to = $2
 //	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) InstallationGetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, arg InstallationGetInstallationUsingUUIdAndWhereAttachToParams) (Installation, error) {
-	row := q.db.QueryRow(ctx, installationGetInstallationUsingUUIdAndWhereAttachTo, arg.InstallationID, arg.AttachTo)
+func (q *Queries) InstallationGetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, arg InstallationGetInstallationUsingTokenAndWhereAttachToParams) (Installation, error) {
+	row := q.db.QueryRow(ctx, installationGetInstallationUsingTokenAndWhereAttachTo, arg.InstallationToken, arg.AttachTo)
 	var i Installation
 	err := row.Scan(
 		&i.ID,
-		&i.InstallationID,
+		&i.InstallationToken,
 		&i.NotificationToken,
 		&i.Locale,
 		&i.TimezoneOffsetInMinutes,
@@ -178,38 +258,38 @@ func (q *Queries) InstallationSoftDeleteInstallation(ctx context.Context, id int
 
 const installationUpdateInstallation = `-- name: InstallationUpdateInstallation :exec
 UPDATE installation
-SET notification_token = $3,
-    locale = $4,
-    timezone_Offset_in_minutes = $5
-WHERE id = $1
-    AND installation_id = $2
+SET notification_token = $2,
+    locale = $3,
+    timezone_Offset_in_minutes = $4,
+    app_version = $5
+WHERE installation_token = $1
     AND deleted_at IS NULL
 `
 
 type InstallationUpdateInstallationParams struct {
-	ID                      int32       `json:"id"`
-	InstallationID          uuid.UUID   `json:"installation_id"`
+	InstallationToken       string      `json:"installation_token"`
 	NotificationToken       pgtype.Text `json:"notification_token"`
 	Locale                  string      `json:"locale"`
 	TimezoneOffsetInMinutes int32       `json:"timezone_offset_in_minutes"`
+	AppVersion              string      `json:"app_version"`
 }
 
 // InstallationUpdateInstallation
 //
 //	UPDATE installation
-//	SET notification_token = $3,
-//	    locale = $4,
-//	    timezone_Offset_in_minutes = $5
-//	WHERE id = $1
-//	    AND installation_id = $2
+//	SET notification_token = $2,
+//	    locale = $3,
+//	    timezone_Offset_in_minutes = $4,
+//	    app_version = $5
+//	WHERE installation_token = $1
 //	    AND deleted_at IS NULL
 func (q *Queries) InstallationUpdateInstallation(ctx context.Context, arg InstallationUpdateInstallationParams) error {
 	_, err := q.db.Exec(ctx, installationUpdateInstallation,
-		arg.ID,
-		arg.InstallationID,
+		arg.InstallationToken,
 		arg.NotificationToken,
 		arg.Locale,
 		arg.TimezoneOffsetInMinutes,
+		arg.AppVersion,
 	)
 	return err
 }

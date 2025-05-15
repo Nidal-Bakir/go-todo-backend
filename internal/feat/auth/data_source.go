@@ -26,8 +26,8 @@ type DataSource interface {
 
 	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
 
-	GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, InstallationId uuid.UUID, attachedToUser int32) (database.Installation, error)
-	GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error)
+	GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToUser int32) (database.Installation, error)
+	GetInstallationUsingToken(ctx context.Context, installationToken string) (database.Installation, error)
 
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
 	GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.LoginOption, error)
@@ -37,11 +37,13 @@ type DataSource interface {
 
 	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
-	CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, userId, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+	CreateInstallation(ctx context.Context, data CreateInstallationData, installationToken string) error
 
 	// Update ---
 
 	UpdateusernameForUser(ctx context.Context, userId int32, newUsername string) error
+	UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error
 
 	// change the all the passwords of all the login options that support password usage
 	ChangeAllPasswordsForLoginOptions(ctx context.Context, userId int32, HashedPass, PassSalt string) error
@@ -205,8 +207,37 @@ func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, acces
 	return userWithLoginOption, err
 }
 
-func (ds dataSourceImpl) CreateNewSession(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error {
-	return ds.db.Queries.SessionCreateNewSession(
+func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, userId, loginOptionId, installationId int32, token string, expiresAt time.Time) (err error) {
+	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		rolbackFn := func() {
+			rollBackErr := tx.Rollback(ctx)
+			err = errors.Join(rollBackErr, ctx.Err(), err)
+		}
+		commitFn := func() {
+			commitErr := tx.Commit(ctx)
+			err = errors.Join(commitErr, err)
+		}
+
+		select {
+		case <-ctx.Done():
+			rolbackFn()
+		default:
+			if err != nil {
+				rolbackFn()
+			} else {
+				commitFn()
+			}
+		}
+	}()
+
+	queries := ds.db.Queries.WithTx(tx)
+
+	err = queries.SessionCreateNewSession(
 		ctx,
 		database.SessionCreateNewSessionParams{
 			Token:            token,
@@ -215,14 +246,23 @@ func (ds dataSourceImpl) CreateNewSession(ctx context.Context, loginOptionId, in
 			ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
 		},
 	)
+
+	err = queries.InstallationAttachUserToInstallationById(
+		ctx,
+		database.InstallationAttachUserToInstallationByIdParams{
+			ID:       installationId,
+			AttachTo: pgtype.Int4{Int32: userId, Valid: true}},
+	)
+
+	return err
 }
 
-func (ds dataSourceImpl) GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Context, InstallationId uuid.UUID, attachedToUser int32) (database.Installation, error) {
-	installation, err := ds.db.Queries.InstallationGetInstallationUsingUUIdAndWhereAttachTo(
+func (ds dataSourceImpl) GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToUser int32) (database.Installation, error) {
+	installation, err := ds.db.Queries.InstallationGetInstallationUsingTokenAndWhereAttachTo(
 		ctx,
-		database.InstallationGetInstallationUsingUUIdAndWhereAttachToParams{
-			InstallationID: InstallationId,
-			AttachTo:       pgtype.Int4{Int32: attachedToUser, Valid: true},
+		database.InstallationGetInstallationUsingTokenAndWhereAttachToParams{
+			InstallationToken: installationToken,
+			AttachTo:          pgtype.Int4{Int32: attachedToUser, Valid: true},
 		},
 	)
 
@@ -233,10 +273,10 @@ func (ds dataSourceImpl) GetInstallationUsingUUIdAndWhereAttachTo(ctx context.Co
 	return installation, err
 }
 
-func (ds dataSourceImpl) GetInstallationUsingUUID(ctx context.Context, InstallationId uuid.UUID) (database.Installation, error) {
-	installation, err := ds.db.Queries.InstallationGetInstallationUsingUUID(
+func (ds dataSourceImpl) GetInstallationUsingToken(ctx context.Context, installationToken string) (database.Installation, error) {
+	installation, err := ds.db.Queries.InstallationGetInstallationUsingToken(
 		ctx,
-		InstallationId,
+		installationToken,
 	)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -272,4 +312,36 @@ func (ds dataSourceImpl) GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx c
 	}
 
 	return result, err
+}
+
+func (ds dataSourceImpl) CreateInstallation(ctx context.Context, data CreateInstallationData, installationToken string) error {
+	return ds.db.Queries.InstallationCreateNewInstallation(
+		ctx,
+		database.InstallationCreateNewInstallationParams{
+			InstallationToken:       installationToken,
+			NotificationToken:       ds.toPgTypeText(data.NotificationToken),
+			AppVersion:              data.AppVersion,
+			Locale:                  data.Locale,
+			DeviceOsVersion:         ds.toPgTypeText(data.DeviceOSVersion),
+			DeviceOs:                ds.toPgTypeText(data.DeviceOS),
+			DeviceManufacturer:      ds.toPgTypeText(data.DeviceManufacturer),
+			TimezoneOffsetInMinutes: int32(data.TimezoneOffsetInMinutes),
+		},
+	)
+}
+
+func (ds dataSourceImpl) UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error {
+	return ds.db.Queries.InstallationUpdateInstallation(
+		ctx, database.InstallationUpdateInstallationParams{
+			InstallationToken:       installationToken,
+			NotificationToken:       ds.toPgTypeText(data.NotificationToken),
+			Locale:                  data.Locale,
+			TimezoneOffsetInMinutes: int32(data.TimezoneOffsetInMinutes),
+			AppVersion:              data.AppVersion,
+		},
+	)
+}
+
+func (dataSourceImpl) toPgTypeText(str string) pgtype.Text {
+	return pgtype.Text{String: str, Valid: len(str) != 0}
 }

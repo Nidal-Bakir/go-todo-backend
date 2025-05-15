@@ -27,27 +27,33 @@ func init() {
 	key = privateKey
 }
 
-func NewAppJWT() *appJWT {
-	return &appJWT{key: key, signingMethod: jwt.SigningMethodRS512, issuer: appName}
+func NewAppJWT() *AppJWT {
+	return &AppJWT{key: key, signingMethod: jwt.SigningMethodRS512, issuer: appName}
 }
 
-type appJWT struct {
+type AppJWT struct {
 	key           *rsa.PrivateKey
 	signingMethod *jwt.SigningMethodRSA
 	issuer        string
 }
 
-type userClaims struct {
-	UserId int `json:"user_id"`
+type CustomClaims struct {
+	Claims map[string]string `json:"claims"`
 	jwt.RegisteredClaims
 }
 
-func (a appJWT) GenWithClaims(tokenExpAt time.Time, userId int, subject string) (token string, err error) {
+func (a AppJWT) GenWithClaims(tokenExpAt *time.Time, claims map[string]string, subject string) (token string, err error) {
 	timeNow := time.Now()
-	claims := userClaims{
-		userId,
+
+	var ExpiresAt *jwt.NumericDate
+	if tokenExpAt != nil {
+		ExpiresAt = jwt.NewNumericDate(*tokenExpAt)
+	}
+
+	customClaims := CustomClaims{
+		claims,
 		jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(tokenExpAt),
+			ExpiresAt: ExpiresAt,
 			IssuedAt:  jwt.NewNumericDate(timeNow),
 			NotBefore: jwt.NewNumericDate(timeNow),
 			Issuer:    a.issuer,
@@ -56,7 +62,7 @@ func (a appJWT) GenWithClaims(tokenExpAt time.Time, userId int, subject string) 
 		},
 	}
 
-	jwtToken := jwt.NewWithClaims(a.signingMethod, claims)
+	jwtToken := jwt.NewWithClaims(a.signingMethod, customClaims)
 
 	sToken, err := jwtToken.SignedString(a.key)
 	if err != nil {
@@ -67,7 +73,7 @@ func (a appJWT) GenWithClaims(tokenExpAt time.Time, userId int, subject string) 
 }
 
 // be carfull the subject shuold match from the signing phase, use "" to skip it
-func (a appJWT) VerifyToken(token, subject string) (*userClaims, error) {
+func (a AppJWT) VerifyToken(token, subject string) (*CustomClaims, error) {
 	keyFn := func(t *jwt.Token) (any, error) {
 		return &a.key.PublicKey, nil
 	}
@@ -80,16 +86,15 @@ func (a appJWT) VerifyToken(token, subject string) (*userClaims, error) {
 		jwt.WithIssuedAt(),
 	}
 
-	jwtToken, err := jwt.ParseWithClaims(token, &userClaims{}, keyFn, parserOptions...)
+	jwtToken, err := jwt.ParseWithClaims(token, &CustomClaims{}, keyFn, parserOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	userClamis, ok := jwtToken.Claims.(*userClaims)
+	userClamis, ok := jwtToken.Claims.(*CustomClaims)
 	if !ok {
 		return nil, jwt.ErrTokenInvalidClaims
 	}
 
 	return userClamis, nil
-
 }

@@ -8,7 +8,6 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
@@ -208,13 +207,13 @@ func createTempAccount(authRepo auth.Repository) http.HandlerFunc {
 
 		err := r.ParseForm()
 		if err != nil {
-			WriteError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, http.StatusBadRequest, err)
 			return
 		}
 
 		createAccountParam, errList := validateCreateAccountParam(r)
 		if len(errList) != 0 {
-			WriteError(ctx, w, http.StatusBadRequest, errList...)
+			writeError(ctx, w, http.StatusBadRequest, errList...)
 			return
 		}
 
@@ -228,7 +227,7 @@ func createTempAccount(authRepo auth.Repository) http.HandlerFunc {
 
 		tuser, err = authRepo.CreateTempUser(ctx, tuser)
 		if err != nil {
-			WriteError(ctx, w, http.StatusInternalServerError, err)
+			writeError(ctx, w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -238,7 +237,7 @@ func createTempAccount(authRepo auth.Repository) http.HandlerFunc {
 			Id: tuser.Id.String(),
 		}
 
-		WriteJson(ctx, w, http.StatusCreated, response)
+		writeJson(ctx, w, http.StatusCreated, response)
 	}
 }
 
@@ -318,13 +317,13 @@ func vareifyAccount(authRepo auth.Repository) http.HandlerFunc {
 
 		err := r.ParseForm()
 		if err != nil {
-			WriteError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, http.StatusBadRequest, err)
 			return
 		}
 
 		vareifyAccountParam, errList := validateVareifyAccountParams(r)
 		if len(errList) != 0 {
-			WriteError(ctx, w, http.StatusBadRequest, errList...)
+			writeError(ctx, w, http.StatusBadRequest, errList...)
 			return
 		}
 
@@ -335,7 +334,7 @@ func vareifyAccount(authRepo auth.Repository) http.HandlerFunc {
 			if errors.Is(err, apperr.ErrInvalidOtpCode) || errors.Is(err, apperr.ErrNoResult) {
 				statusCode = http.StatusBadRequest
 			}
-			WriteError(ctx, w, statusCode, err)
+			writeError(ctx, w, statusCode, err)
 			return
 		}
 
@@ -345,7 +344,7 @@ func vareifyAccount(authRepo auth.Repository) http.HandlerFunc {
 			User: user,
 		}
 
-		WriteJson(ctx, w, http.StatusCreated, response)
+		writeJson(ctx, w, http.StatusCreated, response)
 	}
 }
 
@@ -391,13 +390,13 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 
 		err := r.ParseForm()
 		if err != nil {
-			WriteError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, http.StatusBadRequest, err)
 			return
 		}
 
 		loginParam, errList := validateLoginParam(r)
 		if len(errList) != 0 {
-			WriteError(ctx, w, http.StatusBadRequest, errList...)
+			writeError(ctx, w, http.StatusBadRequest, errList...)
 			return
 		}
 
@@ -412,7 +411,7 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 			installation,
 		)
 		if err != nil {
-			WriteError(ctx, w, http.StatusInternalServerError, err)
+			writeError(ctx, w, http.StatusInternalServerError, err)
 			return
 		}
 
@@ -423,7 +422,7 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 			User:  user,
 			Token: token,
 		}
-		WriteJson(ctx, w, http.StatusCreated, response)
+		writeJson(ctx, w, http.StatusCreated, response)
 	}
 }
 
@@ -492,13 +491,13 @@ func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
 
 		err := r.ParseForm()
 		if err != nil {
-			WriteError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, http.StatusBadRequest, err)
 			return
 		}
 
 		params, errList := validateChangePasswordParam(r)
 		if len(errList) != 0 {
-			WriteError(ctx, w, http.StatusBadRequest, errList...)
+			writeError(ctx, w, http.StatusBadRequest, errList...)
 			return
 		}
 
@@ -507,14 +506,11 @@ func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
 
 		err = authRepo.ChangePasswordForAllLoginOptions(ctx, user, params.oldPassword, params.newPassword)
 		if err != nil {
-			WriteError(ctx, w, http.StatusInternalServerError, err)
+			writeError(ctx, w, http.StatusInternalServerError, err)
 			return
 		}
 
-		localizer, ok := l10n.LocalizerFromContext(ctx)
-		utils.Assert(ok, "we should find the localizer in the context tree, but we did not. something is wrong.")
-
-		WriteJson(ctx, w, http.StatusOK, map[string]string{"msg": localizer.GetWithId(l10n.OperationDoneSuccessfullyTrId)})
+		writeOperationDoneSuccessfullyJson(ctx, w)
 	}
 }
 

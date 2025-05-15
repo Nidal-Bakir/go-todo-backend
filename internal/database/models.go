@@ -5,19 +5,18 @@
 package database
 
 import (
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Installation struct {
 	ID                      int32              `json:"id"`
-	InstallationID          uuid.UUID          `json:"installation_id"`
+	InstallationToken       string             `json:"installation_token"`
 	NotificationToken       pgtype.Text        `json:"notification_token"`
 	Locale                  string             `json:"locale"`
 	TimezoneOffsetInMinutes int32              `json:"timezone_offset_in_minutes"`
-	DeviceManufacturer      string             `json:"device_manufacturer"`
-	DeviceOs                string             `json:"device_os"`
-	DeviceOsVersion         string             `json:"device_os_version"`
+	DeviceManufacturer      pgtype.Text        `json:"device_manufacturer"`
+	DeviceOs                pgtype.Text        `json:"device_os"`
+	DeviceOsVersion         pgtype.Text        `json:"device_os_version"`
 	AppVersion              string             `json:"app_version"`
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`

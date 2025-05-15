@@ -4,6 +4,8 @@ import (
 	"expvar"
 	"net/http"
 	"net/http/pprof"
+
+	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 )
 
 func devToolsRouter(s *Server) http.Handler {
@@ -24,9 +26,12 @@ func devToolsRouter(s *Server) http.Handler {
 	mux.Handle("/pprof/block", pprof.Handler("block"))
 	mux.Handle("/pprof/allocs", pprof.Handler("allocs"))
 
-	return mux
+	return middleware.MiddlewareChain(
+		mux.ServeHTTP,
+		middleware.NoCache,
+	)
 }
 
 func (s *Server) dbHealthHandler(w http.ResponseWriter, r *http.Request) {
-	WriteJson(r.Context(), w, http.StatusOK, s.db.Health(r.Context()))
+	writeJson(r.Context(), w, http.StatusOK, s.db.Health(r.Context()))
 }
