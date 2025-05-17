@@ -14,11 +14,8 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
-)
-
-const (
-	PasswordRecommendedLength = 8
 )
 
 func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
@@ -52,6 +49,7 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		),
 	)
 
+	// for logged-in user
 	mux.HandleFunc(
 		"POST /change-password",
 		middleware.MiddlewareChain(
@@ -161,7 +159,7 @@ func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Han
 			rdb,
 			ratelimiter.Config{
 				PerTimeFrame: 10,
-				TimeFrame:    time.Hour * 24,
+				TimeFrame:    time.Hour * 12,
 				KeyPrefix:    "auth:login",
 			},
 		),
@@ -339,9 +337,9 @@ func vareifyAccount(authRepo auth.Repository) http.HandlerFunc {
 		}
 
 		response := struct {
-			User auth.User `json:"user"`
+			User publicUser `json:"user"`
 		}{
-			User: user,
+			User: NewPublicUserFromAuthUser(user),
 		}
 
 		writeJson(ctx, w, http.StatusCreated, response)
@@ -411,15 +409,19 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 			installation,
 		)
 		if err != nil {
-			writeError(ctx, w, http.StatusInternalServerError, err)
+			statusCode := http.StatusInternalServerError
+			if errors.Is(err, apperr.ErrInvalidLoginCredentials) {
+				statusCode = http.StatusUnauthorized
+			}
+			writeError(ctx, w, statusCode, err)
 			return
 		}
 
 		response := struct {
-			User  auth.User `json:"user"`
-			Token string    `json:"token"`
+			User  publicUser `json:"user"`
+			Token string     `json:"token"`
 		}{
-			User:  user,
+			User:  NewPublicUserFromAuthUser(user),
 			Token: token,
 		}
 		writeJson(ctx, w, http.StatusCreated, response)
@@ -506,7 +508,11 @@ func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
 
 		err = authRepo.ChangePasswordForAllLoginOptions(ctx, user, params.oldPassword, params.newPassword)
 		if err != nil {
-			writeError(ctx, w, http.StatusInternalServerError, err)
+			code := http.StatusInternalServerError
+			if _, ok := err.(*apperr.AppErr); ok {
+				code = http.StatusBadRequest
+			}
+			writeError(ctx, w, code, err)
 			return
 		}
 
@@ -539,9 +545,31 @@ func validateChangePasswordParam(r *http.Request) (changePasswordParams, []error
 func validatePassword(password string) []error {
 	errList := make([]error, 0, 1)
 
-	if len(password) < PasswordRecommendedLength {
+	if len(password) < auth.PasswordRecommendedLength {
 		errList = append(errList, apperr.ErrTooShortPassword)
 	}
 
 	return errList
+}
+
+// -----------------------------------------------------------------------------
+
+type publicUser struct {
+	ID           int32       `json:"id"`
+	Username     string      `json:"username"`
+	ProfileImage pgtype.Text `json:"profile_image"`
+	FirstName    string      `json:"first_name"`
+	MiddleName   pgtype.Text `json:"middle_name"`
+	LastName     pgtype.Text `json:"last_name"`
+}
+
+func NewPublicUserFromAuthUser(u auth.User) publicUser {
+	return publicUser{
+		ID:           u.ID,
+		Username:     u.Username,
+		ProfileImage: u.ProfileImage,
+		FirstName:    u.FirstName,
+		MiddleName:   u.MiddleName,
+		LastName:     u.LastName,
+	}
 }

@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	OtpCodeLength = 6
+	OtpCodeLength             = 6
+	PasswordRecommendedLength = 8
 )
 
 type PasswordLoginAccessKey struct {
@@ -177,6 +178,9 @@ func sendOtpToTempUser(ctx context.Context, gatewaysProvider gateway.Provider, t
 func (repo repositoryImpl) CreateUser(ctx context.Context, tempUserId uuid.UUID, providedOTP string) (User, error) {
 	tUser, err := repo.getTempUser(ctx, tempUserId)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNoResult) {
+			return User{}, apperr.ErrInvalidId
+		}
 		return User{}, err
 	}
 
@@ -254,7 +258,6 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 }
 
 func generateUserArgsForCreateUser(user *TempUser, passwordHasher password_hasher.PasswordHasher) (CreateUserArgs, error) {
-	var loginMethod LoginMethod
 	var accessKey, hashedPass, passSalt string
 	var supportPassword bool
 
@@ -280,7 +283,7 @@ func generateUserArgsForCreateUser(user *TempUser, passwordHasher password_hashe
 		Username:    user.Username,
 		Fname:       user.Fname,
 		Lname:       user.Lname,
-		LoginMethod: loginMethod,
+		LoginMethod: user.LoginMethod,
 		AccessKey:   accessKey,
 		HashedPass:  hashedPass,
 		PassSalt:    passSalt,
@@ -437,7 +440,8 @@ func (repo repositoryImpl) VerifyTokenForInstallation(token string) (*Installati
 }
 
 func (repo repositoryImpl) CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error) {
-	token, err := repo.authJWT.GenWithClaimsForInstallation()
+	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
+	token, err := repo.authJWT.GenWithClaimsForInstallation(expiresAt)
 	if err != nil {
 		return "", err
 	}

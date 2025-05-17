@@ -156,7 +156,7 @@ func (tu TempUser) ValidateForStore() (ok bool) {
 
 	ok = ok && len(tu.Fname) != 0
 	ok = ok && len(tu.Lname) != 0
-	ok = ok && len(tu.Password) >= 6
+	ok = ok && len(tu.Password) >= PasswordRecommendedLength
 
 	return ok
 }

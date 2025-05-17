@@ -70,10 +70,10 @@ func NewAppErrWithTr(err error, translationID string, errorCode string) error {
 
 var (
 	ErrNoResult = NewAppErrWithTr(errors.New("error no result found"), l10n.NoResultFoundTrId, "res_1")
-
 	ErrUnexpectedErrorOccurred = NewAppErrWithTr(errors.New("unexpected error occurred"), l10n.UnexpectedErrorOccurredTrId, "res_2")
-
 	ErrTooManyRequests = NewAppErrWithTr(errors.New("too many requests"), l10n.TooManyRequestsTrId, "res_3")
+	ErrInvalidId = NewAppErrWithTr(errors.New("invalid id"), l10n.InvalidId, "res_4")
+	
 
 	// auth
 	ErrInvalidEmail                      = NewAppErrWithTr(errors.New("invalid email"), l10n.InvalidEmailTrId, "auth_1")
@@ -87,4 +87,8 @@ var (
 	ErrAlreadyUsedEmail                  = NewAppErrWithTr(errors.New("already used email"), l10n.AlreadyUsedEmailTrId, "auth_10")
 	ErrAlreadyUsedPhoneNumber            = NewAppErrWithTr(errors.New("already used phone number"), l10n.AlreadyUsedPhoneNumberTrId, "auth_11")
 	ErrOldPasswordDoesNotMatchCurrentOne = NewAppErrWithTr(errors.New("old password noes not match current one"), l10n.OldPasswordDoesNotMatchCurrentOneTrId, "auth_12")
+
+	// jwt
+	ErrExpiredSessionToken             = NewAppErrWithTr(errors.New("expired session token"), l10n.ExpiredSessionToken, "auth_13")
+	ErrExpiredInstallationSessionToken = NewAppErrWithTr(errors.New("expired installation session token"), "", "auth_14")
 )

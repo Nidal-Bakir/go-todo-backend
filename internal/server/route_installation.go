@@ -57,18 +57,14 @@ func validateCreateInstallationParams(r *http.Request) (param auth.CreateInstall
 
 	param.NotificationToken = r.FormValue("notification_token")
 
-	l, err := parseLocale(r.FormValue("locale"))
+	param.Locale, err = parseLocale(r.FormValue("locale"))
 	if err != nil {
 		errs = append(errs, err)
-	} else {
-		param.Locale = l
 	}
 
-	t, err := parseTimeZoneInMinutes(r.FormValue("timezone_offset_in_minutes"))
+	param.TimezoneOffsetInMinutes, err = parseTimeZoneInMinutes(r.FormValue("timezone_offset_in_minutes"))
 	if err != nil {
 		errs = append(errs, errors.New("invalid timezone offset"))
-	} else {
-		param.TimezoneOffsetInMinutes = t
 	}
 
 	deviceManufacturer := r.FormValue("device_manufacturer")
@@ -92,8 +88,10 @@ func validateCreateInstallationParams(r *http.Request) (param auth.CreateInstall
 		errs = append(errs, errors.New("too long device OS version"))
 	}
 
-	appVersion := r.FormValue("app_version")
-	param.AppVersion = appVersion
+	param.AppVersion, err = parseAppVersion(r.FormValue("app_version"))
+	if err != nil {
+		errs = append(errs, err)
+	}
 
 	return param, errs
 }
@@ -129,25 +127,19 @@ func validateUpdateInstallationParams(r *http.Request) (param auth.UpdateInstall
 		return param, errs
 	}
 
-	appVersionStr := r.FormValue("app_version")
-	if semver.IsValid(appVersionStr) {
-		param.AppVersion = appVersionStr
-	} else {
-		errs = append(errs, errors.New("invalid app version. it should in the form x.y.z"))
-	}
-
-	t, err := parseTimeZoneInMinutes(r.FormValue("timezone_offset_in_minutes"))
-	if err != nil {
-		errs = append(errs, errors.New("invalid timezone offset"))
-	} else {
-		param.TimezoneOffsetInMinutes = t
-	}
-
-	l, err := parseLocale(r.FormValue("locale"))
+	param.AppVersion, err = parseAppVersion(r.FormValue("app_version"))
 	if err != nil {
 		errs = append(errs, err)
-	} else {
-		param.Locale = l
+	}
+
+	param.TimezoneOffsetInMinutes, err = parseTimeZoneInMinutes(r.FormValue("timezone_offset_in_minutes"))
+	if err != nil {
+		errs = append(errs, errors.New("invalid timezone offset"))
+	}
+
+	param.Locale, err = parseLocale(r.FormValue("locale"))
+	if err != nil {
+		errs = append(errs, err)
 	}
 
 	param.NotificationToken = r.FormValue("notification_token")
@@ -172,7 +164,14 @@ func parseTimeZoneInMinutes(timezoneOffsetInMinutesStr string) (int, error) {
 func parseLocale(localeStr string) (string, error) {
 	tag, err := language.Parse(localeStr)
 	if err != nil {
-		return "", err
+		return "", errors.New("invalid locale")
 	}
 	return tag.String(), nil
+}
+
+func parseAppVersion(appVersionStr string) (string, error) {
+	if semver.IsValid(appVersionStr) {
+		return appVersionStr, nil
+	}
+	return "", errors.New("invalid app version. it should in the form x.y.z")
 }

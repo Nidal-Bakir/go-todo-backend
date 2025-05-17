@@ -13,5 +13,7 @@
   "already_used_phone_number": "رقم الهاف مستخدم بالفعل",
   "too_short_password": "كلمة السر يجب ان تكون 6 محارف على الاقل",
   "operation_done_successfully": "تمت العملية بنجاح",
-  "old_password_does_not_match_current_one": "كلمة المرور القديمة لا تطابق كلمة المرور الحالية"
+  "old_password_does_not_match_current_one": "كلمة المرور القديمة لا تطابق كلمة المرور الحالية",
+  "expired_session_token": "انتهت صلاحية الجلسة",
+  "invalid_id": "رقم معرف غير صالح"
 }

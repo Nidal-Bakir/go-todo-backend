@@ -39,7 +39,7 @@ func (a AuthClaims) toMap() map[string]string {
 
 func (authJWT AuthJWT) GenWithClaimsForUser(userId int32, expiresAt time.Time) (string, error) {
 	authClaims := AuthClaims{UserId: userId}
-	return authJWT.appjwt.GenWithClaims(&expiresAt, authClaims.toMap(), authSubject)
+	return authJWT.appjwt.GenWithClaims(expiresAt, authClaims.toMap(), authSubject)
 }
 
 func (authJWT AuthJWT) VerifyTokenForUser(token string) (*AuthClaims, error) {
@@ -67,9 +67,9 @@ func (a InstallationClaims) toMap() map[string]string {
 	return m
 }
 
-func (authJWT AuthJWT) GenWithClaimsForInstallation() (string, error) {
+func (authJWT AuthJWT) GenWithClaimsForInstallation( expiresAt time.Time) (string, error) {
 	installationClaims := InstallationClaims{}
-	return authJWT.appjwt.GenWithClaims(nil, installationClaims.toMap(), installationSubject)
+	return authJWT.appjwt.GenWithClaims(expiresAt, installationClaims.toMap(), installationSubject)
 }
 
 func (authJWT AuthJWT) VerifyTokenForInstallation(token string) (*InstallationClaims, error) {

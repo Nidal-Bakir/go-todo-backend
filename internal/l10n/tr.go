@@ -4,6 +4,7 @@ const (
 	NoResultFoundTrId           = "no_result_found"
 	UnexpectedErrorOccurredTrId = "unexpected_error_occurred"
 	TooManyRequestsTrId         = "too_many_requests"
+	InvalidId                   = "invalid_id"
 
 	// auth
 	InvalidEmailTrId                      = "invalid_email"
@@ -18,4 +19,5 @@ const (
 	AlreadyUsedPhoneNumberTrId            = "already_used_phone_number"
 	OperationDoneSuccessfullyTrId         = "operation_done_successfully"
 	OldPasswordDoesNotMatchCurrentOneTrId = "old_password_does_not_match_current_one"
+	ExpiredSessionToken                   = "expired_session_token"
 )
