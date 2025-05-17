@@ -12,6 +12,23 @@ services:
     volumes:
       - psql_volume:/var/lib/postgresql/data
 
+  pgadmin:
+    build: ./docker/pgadmin
+    profiles: ["tools"]
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "80:80"
+
+  redisinsight:
+    build: ./docker/redisinsight
+    profiles: ["tools"]
+    restart: always
+    ports:
+      - "5540:5540"
+
   redis:
     build: ./docker/redis
     restart: always
