@@ -1,9 +1,11 @@
 include .env
 .DEFAULT_GOAL := build
 
+.PHONY: build test clean
+
 build:
 	@echo "Building..."
-	@go build -o main cmd/api/main.go
+	@go build -o ./bin/api/main cmd/api/main.go
 
 # Run the application
 run:
@@ -35,7 +37,7 @@ fmt:
 
 # Live Reload
 watch:
-	air; \
+	air --build.cmd "make" --build.bin "./bin/api/main";\
 	echo "Watching...";\
 
 # Live Reload
@@ -92,5 +94,6 @@ goose-fix:
 # Clean the binary
 clean:
 	@echo "Cleaning..."
-	@rm -f main
+	@rm -rf ./bin
+	@rm -rf ./tmp
 	@echo "Done"
