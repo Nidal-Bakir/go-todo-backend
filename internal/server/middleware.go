@@ -74,11 +74,20 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 			}
 
 			installationToken := r.Header.Get("A-Installation")
+			if len(installationToken) == 0 {
+				sendError()
+				return
+			}
+
 			if _, err := authRepo.VerifyTokenForInstallation(installationToken); err != nil {
 				if appenv.IsStagOrLocal() {
 					zlog.Error().Err(err).Msg("Error from jwt verify function")
 				}
-				sendError()
+				if errors.Is(err, apperr.ErrExpiredSessionToken) {
+					writeError(ctx, w, http.StatusBadRequest, apperr.ErrExpiredInstallationSessionToken)
+				} else {
+					sendError()
+				}
 				return
 			}
 
