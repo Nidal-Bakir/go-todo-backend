@@ -124,6 +124,7 @@ func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uu
 
 	tUser := new(TempUser)
 	tUser.FromMap(result)
+	tUser.Id = tempUserId
 
 	return tUser, err
 }
