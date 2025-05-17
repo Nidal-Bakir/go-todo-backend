@@ -3,7 +3,6 @@ package apiutils
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
@@ -35,9 +34,7 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
 	for i, e := range errs {
-		appError := new(apperr.AppErr)
-		ok := errors.As(e, appError)
-		if ok {
+		if appError, ok := e.(*apperr.AppErr); ok {
 			appError.SetTranslation(ctx)
 			errs[i] = appError
 		}
