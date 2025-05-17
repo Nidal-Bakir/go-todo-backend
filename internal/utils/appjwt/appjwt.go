@@ -2,9 +2,11 @@ package appjwt
 
 import (
 	"crypto/rsa"
+	"errors"
 	"os"
 	"time"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -42,18 +44,13 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func (a AppJWT) GenWithClaims(tokenExpAt *time.Time, claims map[string]string, subject string) (token string, err error) {
+func (a AppJWT) GenWithClaims(tokenExpAt time.Time, claims map[string]string, subject string) (token string, err error) {
 	timeNow := time.Now()
-
-	var ExpiresAt *jwt.NumericDate
-	if tokenExpAt != nil {
-		ExpiresAt = jwt.NewNumericDate(*tokenExpAt)
-	}
 
 	customClaims := CustomClaims{
 		claims,
 		jwt.RegisteredClaims{
-			ExpiresAt: ExpiresAt,
+			ExpiresAt: jwt.NewNumericDate(tokenExpAt),
 			IssuedAt:  jwt.NewNumericDate(timeNow),
 			NotBefore: jwt.NewNumericDate(timeNow),
 			Issuer:    a.issuer,
@@ -88,6 +85,9 @@ func (a AppJWT) VerifyToken(token, subject string) (*CustomClaims, error) {
 
 	jwtToken, err := jwt.ParseWithClaims(token, &CustomClaims{}, keyFn, parserOptions...)
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, apperr.ErrExpiredSessionToken
+		}
 		return nil, err
 	}
 
