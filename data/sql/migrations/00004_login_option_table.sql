@@ -2,7 +2,7 @@
 CREATE TABLE login_option (
     id SERIAL PRIMARY KEY NOT NULL,
     -- email, phone, guest, Oauth, etc ...
-    login_method VARCHAR(25) NOT NULL,
+    login_method VARCHAR(25) NOT NULL CHECK (length (login_method) >= 2),
     access_key VARCHAR(200) UNIQUE NOT NULL CHECK (length (access_key) >= 5),
     hashed_pass VARCHAR(200),
     pass_salt VARCHAR(200),
