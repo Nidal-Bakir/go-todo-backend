@@ -14,7 +14,7 @@ services:
 
   pgadmin:
     build: ./docker/pgadmin
-    profiles: ["tools"]
+    profiles: ["dev"]
     restart: always
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
@@ -24,7 +24,7 @@ services:
 
   redisinsight:
     build: ./docker/redisinsight
-    profiles: ["tools"]
+    profiles: ["dev"]
     restart: always
     ports:
       - "5540:5540"

@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const sessionCreateNewSession = `-- name: SessionCreateNewSession :exec
+const sessionCreateNewSession = `-- name: SessionCreateNewSession :one
 INSERT INTO session (
         token,
         originated_from,
@@ -19,6 +19,7 @@ INSERT INTO session (
         expires_at
     )
 VALUES ($1, $2, $3, $4)
+RETURNING id
 `
 
 type SessionCreateNewSessionParams struct {
@@ -37,14 +38,17 @@ type SessionCreateNewSessionParams struct {
 //	        expires_at
 //	    )
 //	VALUES ($1, $2, $3, $4)
-func (q *Queries) SessionCreateNewSession(ctx context.Context, arg SessionCreateNewSessionParams) error {
-	_, err := q.db.Exec(ctx, sessionCreateNewSession,
+//	RETURNING id
+func (q *Queries) SessionCreateNewSession(ctx context.Context, arg SessionCreateNewSessionParams) (int32, error) {
+	row := q.db.QueryRow(ctx, sessionCreateNewSession,
 		arg.Token,
 		arg.OriginatedFrom,
 		arg.UsedInstallation,
 		arg.ExpiresAt,
 	)
-	return err
+	var id int32
+	err := row.Scan(&id)
+	return id, err
 }
 
 const sessionGetActiveSessionById = `-- name: SessionGetActiveSessionById :one

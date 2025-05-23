@@ -42,12 +42,17 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 		middleware.RealIp(),
 		middleware.RequestUUIDMiddleware,
 		middleware.LocalizerInjector,
-		middleware.RequestLoggerWithHeaderSkipFn(func(headerName string) bool {
-			if headerName == "A-Installation" && appenv.IsStagOrLocal() {
-				return false
-			}
-			return true
-		}),
+		middleware.RequestLoggerWithHeaderSkipFn(
+			func(headerName string) bool {
+				if (headerName == "A-Installation" ||
+					headerName == "Authorization" ||
+					headerName == "Postman-Token") &&
+					appenv.IsStagOrLocal() {
+					return false
+				}
+				return true
+			},
+		),
 		middleware.StripSlashes,
 		rateLimitGlobal,
 		middleware.Heartbeat,

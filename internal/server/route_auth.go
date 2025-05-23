@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
@@ -45,7 +46,18 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		middleware.MiddlewareChain(
 			login(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
+			Installation(authRepo),
 			loginRateLimiter(ctx, s.rdb),
+		),
+	)
+
+	mux.HandleFunc(
+		"POST /logout",
+		middleware.MiddlewareChain(
+			logout(authRepo),
+			middleware.ACT_app_x_www_form_urlencoded,
+			Auth(authRepo),
+			Installation(authRepo),
 		),
 	)
 
@@ -61,7 +73,6 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
-		Installation(authRepo),
 	)
 }
 
@@ -481,6 +492,56 @@ func validateLoginParam(r *http.Request) (loginParams, []error) {
 
 //-----------------------------------------------------------------------------
 
+type logoutParams struct {
+	terminateAllOtherSessions bool
+}
+
+func logout(authRepo auth.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		err := r.ParseForm()
+		if err != nil {
+			writeError(ctx, w, http.StatusBadRequest, err)
+			return
+		}
+
+		logoutParam, errList := validateLogoutParam(r)
+		if len(errList) != 0 {
+			writeError(ctx, w, http.StatusBadRequest, errList...)
+			return
+		}
+
+		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
+		utils.Assert(ok, "the user should be in the ctx")
+
+		installation, ok := auth.InstallationFromContext(ctx)
+		utils.Assert(ok, "the installation should be in the ctx")
+
+		err = authRepo.Logout(ctx, int(userAndSession.UserID), int(installation.ID), userAndSession.SessionToken, logoutParam.terminateAllOtherSessions)
+		if err != nil {
+			writeError(ctx, w, http.StatusBadRequest, err)
+			return
+		}
+	}
+}
+
+func validateLogoutParam(r *http.Request) (logoutParams, []error) {
+	params := logoutParams{}
+	errList := make([]error, 0, 1)
+
+	if t, err := strconv.ParseBool(r.FormValue("terminate_all_other_sessions")); err != nil {
+		params.terminateAllOtherSessions = t
+	} else {
+		errList = append(errList, err)
+	}
+
+	return params, errList
+
+}
+
+//-----------------------------------------------------------------------------
+
 type changePasswordParams struct {
 	LoginMethod auth.LoginMethod
 	oldPassword string
@@ -503,10 +564,10 @@ func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		user, ok := auth.UserFromContext(ctx)
+		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
 		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
 
-		err = authRepo.ChangePasswordForAllLoginOptions(ctx, user, params.oldPassword, params.newPassword)
+		err = authRepo.ChangePasswordForAllLoginOptions(ctx, int(userAndSession.UserID), params.oldPassword, params.newPassword)
 		if err != nil {
 			code := http.StatusInternalServerError
 			if _, ok := err.(*apperr.AppErr); ok {

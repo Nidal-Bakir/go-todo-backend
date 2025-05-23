@@ -13,13 +13,13 @@ const (
 	currentInstallationCtxKey userCtxKeysType = iota
 )
 
-func ContextWithUser(ctx context.Context, user User) context.Context {
-	return context.WithValue(ctx, currentUserCtxKey, user)
+func ContextWithUserAndSession(ctx context.Context, userAndSession UserAndSession) context.Context {
+	return context.WithValue(ctx, currentUserCtxKey, userAndSession)
 }
 
-func UserFromContext(ctx context.Context) (User, bool) {
-	user, ok := ctx.Value(currentUserCtxKey).(User)
-	return user, ok
+func UserAndSessionFromContext(ctx context.Context) (UserAndSession, bool) {
+	userAndSession, ok := ctx.Value(currentUserCtxKey).(UserAndSession)
+	return userAndSession, ok
 }
 
 func ContextWithInstallation(ctx context.Context, installation database.Installation) context.Context {

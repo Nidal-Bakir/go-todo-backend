@@ -11,36 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type User struct {
-	ID           int32              `json:"id"`
-	Username     string             `json:"username"`
-	ProfileImage pgtype.Text        `json:"profile_image"`
-	FirstName    string             `json:"first_name"`
-	MiddleName   pgtype.Text        `json:"middle_name"`
-	LastName     pgtype.Text        `json:"last_name"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
-	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
-}
-
-func NewUserFromDatabaseUser(u database.User) User {
-	return User{
-		ID:           u.ID,
-		Username:     u.Username,
-		ProfileImage: u.ProfileImage,
-		FirstName:    u.FirstName,
-		MiddleName:   u.MiddleName,
-		LastName:     u.LastName,
-		CreatedAt:    u.CreatedAt,
-		UpdatedAt:    u.UpdatedAt,
-		BlockedAt:    u.BlockedAt,
-		DeletedAt:    u.DeletedAt,
-		RoleID:       u.RoleID,
-	}
-}
-
 type LoginMethod string
 
 const (
@@ -171,4 +141,82 @@ type CreateUserArgs struct {
 	PassSalt         string
 	ProfileImagePath string
 	RoleID           int32
+}
+
+type User struct {
+	ID           int32              `json:"id"`
+	Username     string             `json:"username"`
+	ProfileImage pgtype.Text        `json:"profile_image"`
+	FirstName    string             `json:"first_name"`
+	MiddleName   pgtype.Text        `json:"middle_name"`
+	LastName     pgtype.Text        `json:"last_name"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
+	RoleID       pgtype.Int4        `json:"role_id"`
+}
+
+func NewUserFromDatabaseUser(u database.User) User {
+	return User{
+		ID:           u.ID,
+		Username:     u.Username,
+		ProfileImage: u.ProfileImage,
+		FirstName:    u.FirstName,
+		MiddleName:   u.MiddleName,
+		LastName:     u.LastName,
+		CreatedAt:    u.CreatedAt,
+		UpdatedAt:    u.UpdatedAt,
+		BlockedAt:    u.BlockedAt,
+		DeletedAt:    u.DeletedAt,
+		RoleID:       u.RoleID,
+	}
+}
+
+type UserAndSession struct {
+	UserID           int32              `json:"user_id"`
+	UserUsername     string             `json:"user_username"`
+	UserProfileImage pgtype.Text        `json:"user_profile_image"`
+	UserFirstName    string             `json:"user_first_name"`
+	UserMiddleName   pgtype.Text        `json:"user_middle_name"`
+	UserLastName     pgtype.Text        `json:"user_last_name"`
+	UserCreatedAt    pgtype.Timestamptz `json:"user_created_at"`
+	UserUpdatedAt    pgtype.Timestamptz `json:"user_updated_at"`
+	UserBlockedAt    pgtype.Timestamptz `json:"user_blocked_at"`
+	UserDeletedAt    pgtype.Timestamptz `json:"user_deleted_at"`
+	UserRoleID       pgtype.Int4        `json:"user_role_id"`
+
+	SessionID               int32              `json:"session_id"`
+	SessionToken            string             `json:"session_token"`
+	SessionCreatedAt        pgtype.Timestamptz `json:"session_created_at"`
+	SessionUpdatedAt        pgtype.Timestamptz `json:"session_updated_at"`
+	SessionExpiresAt        pgtype.Timestamptz `json:"session_expires_at"`
+	SessionDeletedAt        pgtype.Timestamptz `json:"session_deleted_at"`
+	SessionOriginatedFrom   int32              `json:"session_originated_from"`
+	SessionUsedInstallation int32              `json:"session_used_installation"`
+}
+
+func NewUserAndSessionFromDatabaseUserAndSessionRow(u database.UsersGetUserAndSessionDataBySessionTokenRow) UserAndSession {
+	return UserAndSession{
+		UserID:           u.UserID,
+		UserUsername:     u.UserUsername,
+		UserProfileImage: u.UserProfileImage,
+		UserFirstName:    u.UserFirstName,
+		UserMiddleName:   u.UserMiddleName,
+		UserLastName:     u.UserLastName,
+		UserCreatedAt:    u.UserCreatedAt,
+		UserUpdatedAt:    u.UserUpdatedAt,
+		UserBlockedAt:    u.UserBlockedAt,
+		UserDeletedAt:    u.UserDeletedAt,
+		UserRoleID:       u.UserRoleID,
+
+		SessionID:               u.SessionID,
+		SessionToken:            u.SessionToken,
+		SessionCreatedAt:        u.SessionCreatedAt,
+		SessionUpdatedAt:        u.SessionUpdatedAt,
+		SessionExpiresAt:        u.SessionExpiresAt,
+		SessionDeletedAt:        u.SessionDeletedAt,
+		SessionOriginatedFrom:   u.SessionOriginatedFrom,
+		SessionUsedInstallation: u.SessionUsedInstallation,
+	}
 }

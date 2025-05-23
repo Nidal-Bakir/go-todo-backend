@@ -11,13 +11,21 @@ build:
 run:
 	@go run cmd/api/main.go
 
-# Create DB container
-docker-run:
-	@docker compose up
+# Create the docker containers
+docker-up:
+	@sudo docker compose up
 
-# Shutdown DB container
+# Create and build the docker containers
+docker-up-build:
+	@sudo docker compose up	--build
+
+# Create and build the development docker containers
+docker-dev-up-build:
+	@sudo docker compose --profile dev up --build
+
+# Shutdown the containers
 docker-down:
-	@docker compose down
+	@sudo docker compose down
 
 # Test the application
 test:
@@ -37,7 +45,7 @@ fmt:
 
 # Live Reload
 watch:
-	air --build.cmd "make" --build.bin "./bin/api/main";\
+	air;\
 	echo "Watching...";\
 
 # Live Reload

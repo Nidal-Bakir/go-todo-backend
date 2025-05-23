@@ -48,16 +48,18 @@ type UpdateInstallationData struct {
 
 type Repository interface {
 	GetUserById(ctx context.Context, id int) (User, error)
-	GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
+	// GetUserBySessionToken(ctx context.Context, sessionToken string) (User, error)
+	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (UserAndSession, error)
 	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
 	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, loginMethod LoginMethod, installation database.Installation) (user User, token string, err error)
-	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToUserId *int32) (database.Installation, error)
-	ChangePasswordForAllLoginOptions(ctx context.Context, user User, oldPassword, newPassword string) error
+	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (database.Installation, error)
+	ChangePasswordForAllLoginOptions(ctx context.Context, userID int, oldPassword, newPassword string) error
 	VerifyAuthToken(token string) (*AuthClaims, error)
 	VerifyTokenForInstallation(token string) (*InstallationClaims, error)
 	CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error)
 	UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error
+	Logout(ctx context.Context, userId, installationId int, token string, terminateAllOtherSessions bool) error
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
@@ -106,6 +108,21 @@ func (repo repositoryImpl) GetUserBySessionToken(ctx context.Context, sessionTok
 
 	user := NewUserFromDatabaseUser(dbUser)
 	return user, nil
+}
+
+func (repo repositoryImpl) GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (UserAndSession, error) {
+	zlog := zerolog.Ctx(ctx)
+
+	userAndSessionDataFromDB, err := repo.dataSource.GetUserAndSessionDataBySessionToken(ctx, sessionToken)
+	if err != nil {
+		if !errors.Is(err, apperr.ErrNoResult) {
+			zlog.Err(err).Msg("error geting the user by session token")
+		}
+		return UserAndSession{}, err
+	}
+
+	userAndSession := NewUserAndSessionFromDatabaseUserAndSessionRow(userAndSessionDataFromDB)
+	return userAndSession, nil
 }
 
 func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error) {
@@ -352,7 +369,7 @@ func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAcces
 		return User{}, "", err
 	}
 
-	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginOption.UserID, userWithLoginOption.LoginOptionID, installation.ID, token, expiresAt)
+	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginOption.LoginOptionID, installation.ID, token, expiresAt)
 	if err != nil {
 		zlog.Err(err).Msg("error creating new session for user to login")
 		return User{}, "", err
@@ -375,13 +392,13 @@ func (repo repositoryImpl) PasswordLogin(ctx context.Context, passwordLoginAcces
 	return user, token, nil
 }
 
-func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToUserId *int32) (installation database.Installation, err error) {
+func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (installation database.Installation, err error) {
 	zlog := zerolog.Ctx(ctx)
 
-	if attachedToUserId == nil {
+	if attachedToSessionId == nil {
 		installation, err = repo.dataSource.GetInstallationUsingToken(ctx, installationToken)
 	} else {
-		installation, err = repo.dataSource.GetInstallationUsingTokenAndWhereAttachTo(ctx, installationToken, *attachedToUserId)
+		installation, err = repo.dataSource.GetInstallationUsingTokenAndWhereAttachTo(ctx, installationToken, *attachedToSessionId)
 	}
 
 	if err != nil {
@@ -394,10 +411,10 @@ func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, instal
 	return installation, nil
 }
 
-func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context, user User, oldPassword, newPassword string) error {
+func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context, userID int, oldPassword, newPassword string) error {
 	zlog := zerolog.Ctx(ctx)
 
-	loginOptions, err := repo.dataSource.GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx, user.ID)
+	loginOptions, err := repo.dataSource.GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx, int32(userID))
 
 	if err != nil {
 		zlog.Err(err).Msg("error while getting all the login options for a user")
@@ -422,7 +439,7 @@ func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context,
 		return err
 	}
 
-	err = repo.dataSource.ChangeAllPasswordsForLoginOptions(ctx, user.ID, hashedPass, salt)
+	err = repo.dataSource.ChangeAllPasswordsForLoginOptions(ctx, int32(userID), hashedPass, salt)
 	if err != nil {
 		zlog.Err(err).Msg("error while changing the password for login options to logged in user")
 		return err
@@ -456,4 +473,10 @@ func (repo repositoryImpl) CreateInstallation(ctx context.Context, data CreateIn
 
 func (repo repositoryImpl) UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error {
 	return repo.dataSource.UpdateInstallation(ctx, installationToken, data)
+}
+
+func (repo repositoryImpl) Logout(ctx context.Context, userId, installationId int, token string, terminateAllOtherSessions bool) error {
+	// repo.dataSource.
+	// TODO: implent this
+	panic("not implemented")
 }

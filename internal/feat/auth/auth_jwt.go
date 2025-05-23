@@ -67,7 +67,7 @@ func (a InstallationClaims) toMap() map[string]string {
 	return m
 }
 
-func (authJWT AuthJWT) GenWithClaimsForInstallation( expiresAt time.Time) (string, error) {
+func (authJWT AuthJWT) GenWithClaimsForInstallation(expiresAt time.Time) (string, error) {
 	installationClaims := InstallationClaims{}
 	return authJWT.appjwt.GenWithClaims(expiresAt, installationClaims.toMap(), installationSubject)
 }

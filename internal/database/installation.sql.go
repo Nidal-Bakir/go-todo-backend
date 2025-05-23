@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const installationAttachUserToInstallationById = `-- name: InstallationAttachUserToInstallationById :exec
+const installationAttachSessionToInstallationById = `-- name: InstallationAttachSessionToInstallationById :exec
 UPDATE installation
 SET attach_to = $2,
     last_attach_to= NULL
@@ -19,24 +19,24 @@ WHERE id = $1
     AND attach_to IS NULL
 `
 
-type InstallationAttachUserToInstallationByIdParams struct {
+type InstallationAttachSessionToInstallationByIdParams struct {
 	ID       int32       `json:"id"`
 	AttachTo pgtype.Int4 `json:"attach_to"`
 }
 
-// InstallationAttachUserToInstallationById
+// InstallationAttachSessionToInstallationById
 //
 //	UPDATE installation
 //	SET attach_to = $2,
 //	    last_attach_to= NULL
 //	WHERE id = $1
 //	    AND attach_to IS NULL
-func (q *Queries) InstallationAttachUserToInstallationById(ctx context.Context, arg InstallationAttachUserToInstallationByIdParams) error {
-	_, err := q.db.Exec(ctx, installationAttachUserToInstallationById, arg.ID, arg.AttachTo)
+func (q *Queries) InstallationAttachSessionToInstallationById(ctx context.Context, arg InstallationAttachSessionToInstallationByIdParams) error {
+	_, err := q.db.Exec(ctx, installationAttachSessionToInstallationById, arg.ID, arg.AttachTo)
 	return err
 }
 
-const installationAttachUserToInstallationByToken = `-- name: InstallationAttachUserToInstallationByToken :exec
+const installationAttachSessionToInstallationByToken = `-- name: InstallationAttachSessionToInstallationByToken :exec
 UPDATE installation
 SET attach_to = $2,
     last_attach_to= NULL
@@ -44,20 +44,20 @@ WHERE installation_token = $1
     AND attach_to IS NULL
 `
 
-type InstallationAttachUserToInstallationByTokenParams struct {
+type InstallationAttachSessionToInstallationByTokenParams struct {
 	InstallationToken string      `json:"installation_token"`
 	AttachTo          pgtype.Int4 `json:"attach_to"`
 }
 
-// InstallationAttachUserToInstallationByToken
+// InstallationAttachSessionToInstallationByToken
 //
 //	UPDATE installation
 //	SET attach_to = $2,
 //	    last_attach_to= NULL
 //	WHERE installation_token = $1
 //	    AND attach_to IS NULL
-func (q *Queries) InstallationAttachUserToInstallationByToken(ctx context.Context, arg InstallationAttachUserToInstallationByTokenParams) error {
-	_, err := q.db.Exec(ctx, installationAttachUserToInstallationByToken, arg.InstallationToken, arg.AttachTo)
+func (q *Queries) InstallationAttachSessionToInstallationByToken(ctx context.Context, arg InstallationAttachSessionToInstallationByTokenParams) error {
+	_, err := q.db.Exec(ctx, installationAttachSessionToInstallationByToken, arg.InstallationToken, arg.AttachTo)
 	return err
 }
 
@@ -113,49 +113,49 @@ func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg Ins
 	return err
 }
 
-const installationDetachUserFromInstallationById = `-- name: InstallationDetachUserFromInstallationById :exec
+const installationDetachSessionFromInstallationById = `-- name: InstallationDetachSessionFromInstallationById :exec
 UPDATE installation
 SET attach_to = NULL,
     last_attach_to = $2
 WHERE id = $1
 `
 
-type InstallationDetachUserFromInstallationByIdParams struct {
+type InstallationDetachSessionFromInstallationByIdParams struct {
 	ID           int32       `json:"id"`
 	LastAttachTo pgtype.Int4 `json:"last_attach_to"`
 }
 
-// InstallationDetachUserFromInstallationById
+// InstallationDetachSessionFromInstallationById
 //
 //	UPDATE installation
 //	SET attach_to = NULL,
 //	    last_attach_to = $2
 //	WHERE id = $1
-func (q *Queries) InstallationDetachUserFromInstallationById(ctx context.Context, arg InstallationDetachUserFromInstallationByIdParams) error {
-	_, err := q.db.Exec(ctx, installationDetachUserFromInstallationById, arg.ID, arg.LastAttachTo)
+func (q *Queries) InstallationDetachSessionFromInstallationById(ctx context.Context, arg InstallationDetachSessionFromInstallationByIdParams) error {
+	_, err := q.db.Exec(ctx, installationDetachSessionFromInstallationById, arg.ID, arg.LastAttachTo)
 	return err
 }
 
-const installationDetachUserFromInstallationByToken = `-- name: InstallationDetachUserFromInstallationByToken :exec
+const installationDetachSessionFromInstallationByToken = `-- name: InstallationDetachSessionFromInstallationByToken :exec
 UPDATE installation
 SET attach_to = NULL,
         last_attach_to = $2
 WHERE installation_token = $1
 `
 
-type InstallationDetachUserFromInstallationByTokenParams struct {
+type InstallationDetachSessionFromInstallationByTokenParams struct {
 	InstallationToken string      `json:"installation_token"`
 	LastAttachTo      pgtype.Int4 `json:"last_attach_to"`
 }
 
-// InstallationDetachUserFromInstallationByToken
+// InstallationDetachSessionFromInstallationByToken
 //
 //	UPDATE installation
 //	SET attach_to = NULL,
 //	        last_attach_to = $2
 //	WHERE installation_token = $1
-func (q *Queries) InstallationDetachUserFromInstallationByToken(ctx context.Context, arg InstallationDetachUserFromInstallationByTokenParams) error {
-	_, err := q.db.Exec(ctx, installationDetachUserFromInstallationByToken, arg.InstallationToken, arg.LastAttachTo)
+func (q *Queries) InstallationDetachSessionFromInstallationByToken(ctx context.Context, arg InstallationDetachSessionFromInstallationByTokenParams) error {
+	_, err := q.db.Exec(ctx, installationDetachSessionFromInstallationByToken, arg.InstallationToken, arg.LastAttachTo)
 	return err
 }
 

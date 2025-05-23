@@ -69,11 +69,10 @@ func NewAppErrWithTr(err error, translationID string, errorCode string) error {
 // -------------------------------------------
 
 var (
-	ErrNoResult = NewAppErrWithTr(errors.New("error no result found"), l10n.NoResultFoundTrId, "res_1")
+	ErrNoResult                = NewAppErrWithTr(errors.New("error no result found"), l10n.NoResultFoundTrId, "res_1")
 	ErrUnexpectedErrorOccurred = NewAppErrWithTr(errors.New("unexpected error occurred"), l10n.UnexpectedErrorOccurredTrId, "res_2")
-	ErrTooManyRequests = NewAppErrWithTr(errors.New("too many requests"), l10n.TooManyRequestsTrId, "res_3")
-	ErrInvalidId = NewAppErrWithTr(errors.New("invalid id"), l10n.InvalidId, "res_4")
-	
+	ErrTooManyRequests         = NewAppErrWithTr(errors.New("too many requests"), l10n.TooManyRequestsTrId, "res_3")
+	ErrInvalidId               = NewAppErrWithTr(errors.New("invalid id"), l10n.InvalidId, "res_4")
 
 	// auth
 	ErrInvalidEmail                      = NewAppErrWithTr(errors.New("invalid email"), l10n.InvalidEmailTrId, "auth_1")

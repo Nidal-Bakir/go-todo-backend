@@ -17,7 +17,7 @@ func Maybe(mw func(http.Handler) http.HandlerFunc, maybeFn func(r *http.Request)
 	}
 }
 
-func If(con bool, mw func(http.Handler) http.HandlerFunc) func(http.Handler) http.HandlerFunc {	
+func If(con bool, mw func(http.Handler) http.HandlerFunc) func(http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		if con {
 			return mw(next).ServeHTTP

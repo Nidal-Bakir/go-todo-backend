@@ -1,11 +1,12 @@
--- name: SessionCreateNewSession :exec
+-- name: SessionCreateNewSession :one
 INSERT INTO session (
         token,
         originated_from,
         used_installation,
         expires_at
     )
-VALUES ($1, $2, $3, $4);
+VALUES ($1, $2, $3, $4)
+RETURNING id;
 
 -- name: SessionGetActiveSessionById :one
 SELECT *

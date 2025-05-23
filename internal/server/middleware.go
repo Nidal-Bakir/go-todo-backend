@@ -32,7 +32,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 				return
 			}
 
-			userModel, err := authRepo.GetUserBySessionToken(ctx, token)
+			userAndSessionData, err := authRepo.GetUserAndSessionDataBySessionToken(ctx, token)
 
 			if err != nil {
 				if errors.Is(err, apperr.ErrNoResult) {
@@ -46,8 +46,8 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 				return
 			}
 
-			ctx = auth.ContextWithUser(ctx, userModel)
-			ctx = zlog.With().Int32("user_id", userModel.ID).Logger().WithContext(ctx)
+			ctx = auth.ContextWithUserAndSession(ctx, userAndSessionData)
+			ctx = zlog.With().Int32("user_id", userAndSessionData.UserID).Int32("session_id", userAndSessionData.SessionID).Logger().WithContext(ctx)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		}
@@ -91,13 +91,13 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 				return
 			}
 
-			var attachedToUserId *int32
-			user, ok := auth.UserFromContext(ctx)
+			var attachedToSessionId *int32
+			userAndSession, ok := auth.UserAndSessionFromContext(ctx)
 			if ok {
-				attachedToUserId = &user.ID
+				attachedToSessionId = &userAndSession.SessionID
 			}
 
-			installation, err := authRepo.GetInstallationUsingToken(ctx, installationToken, attachedToUserId)
+			installation, err := authRepo.GetInstallationUsingToken(ctx, installationToken, attachedToSessionId)
 
 			if err != nil {
 				if errors.Is(err, apperr.ErrNoResult) {

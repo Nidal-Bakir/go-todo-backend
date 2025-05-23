@@ -24,7 +24,7 @@ func RequestLoggerWithHeaderSkipFn(keepHeader func(headerName string) bool) func
 
 			headersSubDict := zerolog.Dict()
 			for k, v := range r.Header {
-				if keepHeader(k){
+				if keepHeader(k) {
 					headersSubDict.Str(k, strings.Join(v, ";"))
 				}
 			}

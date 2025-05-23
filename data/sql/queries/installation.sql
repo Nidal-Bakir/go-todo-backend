@@ -41,27 +41,27 @@ WHERE installation_token = $1
     AND deleted_at IS NULL
 LIMIT 1;
 
--- name: InstallationAttachUserToInstallationByToken :exec
+-- name: InstallationAttachSessionToInstallationByToken :exec
 UPDATE installation
 SET attach_to = $2,
     last_attach_to= NULL
 WHERE installation_token = $1
     AND attach_to IS NULL;
 
--- name: InstallationAttachUserToInstallationById :exec
+-- name: InstallationAttachSessionToInstallationById :exec
 UPDATE installation
 SET attach_to = $2,
     last_attach_to= NULL
 WHERE id = $1
     AND attach_to IS NULL;
 
--- name: InstallationDetachUserFromInstallationByToken :exec
+-- name: InstallationDetachSessionFromInstallationByToken :exec
 UPDATE installation
 SET attach_to = NULL,
         last_attach_to = $2
 WHERE installation_token = $1;
 
--- name: InstallationDetachUserFromInstallationById :exec
+-- name: InstallationDetachSessionFromInstallationById :exec
 UPDATE installation
 SET attach_to = NULL,
     last_attach_to = $2

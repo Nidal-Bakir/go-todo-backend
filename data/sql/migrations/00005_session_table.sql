@@ -6,8 +6,7 @@ CREATE TABLE session (
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     deleted_at TIMESTAMPTZ,
-    originated_from INTEGER NOT NULL REFERENCES login_option(id),
-    used_installation INTEGER NOT NULL REFERENCES installation(id)
+    originated_from INTEGER NOT NULL REFERENCES login_option(id)
 );
 
 CREATE TRIGGER update_session_updated_at_column BEFORE

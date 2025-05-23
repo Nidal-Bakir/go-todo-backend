@@ -23,10 +23,11 @@ type DataSource interface {
 
 	GetUserById(ctx context.Context, id int32) (database.User, error)
 	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
+	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (database.UsersGetUserAndSessionDataBySessionTokenRow, error)
 
 	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
 
-	GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToUser int32) (database.Installation, error)
+	GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToSession int32) (database.Installation, error)
 	GetInstallationUsingToken(ctx context.Context, installationToken string) (database.Installation, error)
 
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
@@ -37,7 +38,7 @@ type DataSource interface {
 
 	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
 	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
-	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, userId, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
 	CreateInstallation(ctx context.Context, data CreateInstallationData, installationToken string) error
 
 	// Update ---
@@ -82,6 +83,18 @@ func (ds dataSourceImpl) GetUserBySessionToken(ctx context.Context, sessionToken
 	}
 
 	return dbUser, err
+}
+
+func (ds dataSourceImpl) GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (database.UsersGetUserAndSessionDataBySessionTokenRow, error) {
+	userWithSessionData, err := ds.db.Queries.UsersGetUserAndSessionDataBySessionToken(ctx, sessionToken)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return userWithSessionData, apperr.ErrNoResult
+		}
+		return userWithSessionData, err
+	}
+
+	return userWithSessionData, err
 }
 
 func genTempUserId(id uuid.UUID) string {
@@ -208,7 +221,7 @@ func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, acces
 	return userWithLoginOption, err
 }
 
-func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, userId, loginOptionId, installationId int32, token string, expiresAt time.Time) (err error) {
+func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) (err error) {
 	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return err
@@ -238,7 +251,7 @@ func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context
 
 	queries := ds.db.Queries.WithTx(tx)
 
-	err = queries.SessionCreateNewSession(
+	sessionId, err := queries.SessionCreateNewSession(
 		ctx,
 		database.SessionCreateNewSessionParams{
 			Token:            token,
@@ -248,22 +261,22 @@ func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context
 		},
 	)
 
-	err = queries.InstallationAttachUserToInstallationById(
+	err = queries.InstallationAttachSessionToInstallationById(
 		ctx,
-		database.InstallationAttachUserToInstallationByIdParams{
+		database.InstallationAttachSessionToInstallationByIdParams{
 			ID:       installationId,
-			AttachTo: pgtype.Int4{Int32: userId, Valid: true}},
+			AttachTo: pgtype.Int4{Int32: sessionId, Valid: true}},
 	)
 
 	return err
 }
 
-func (ds dataSourceImpl) GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToUser int32) (database.Installation, error) {
+func (ds dataSourceImpl) GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToSessionId int32) (database.Installation, error) {
 	installation, err := ds.db.Queries.InstallationGetInstallationUsingTokenAndWhereAttachTo(
 		ctx,
 		database.InstallationGetInstallationUsingTokenAndWhereAttachToParams{
 			InstallationToken: installationToken,
-			AttachTo:          pgtype.Int4{Int32: attachedToUser, Valid: true},
+			AttachTo:          pgtype.Int4{Int32: attachedToSessionId, Valid: true},
 		},
 	)
 
