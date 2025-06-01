@@ -8,6 +8,36 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 )
 
+func IsAppErr(err error) bool {
+	return UnwrapAppErr(err) != nil
+}
+
+func UnwrapAppErr(err error) *AppErr {
+	for {
+		appErr, ok := err.(*AppErr)
+		if ok {
+			return appErr
+		}
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+			if err == nil {
+				return nil
+			}
+		case interface{ Unwrap() []error }:
+			for _, err := range x.Unwrap() {
+				e := UnwrapAppErr(err)
+				if e != nil {
+					return e
+				}
+			}
+			return nil
+		default:
+			return nil
+		}
+	}
+}
+
 type AppErr struct {
 	err           error
 	translationID string
@@ -86,6 +116,7 @@ var (
 	ErrAlreadyUsedEmail                  = NewAppErrWithTr(errors.New("already used email"), l10n.AlreadyUsedEmailTrId, "auth_10")
 	ErrAlreadyUsedPhoneNumber            = NewAppErrWithTr(errors.New("already used phone number"), l10n.AlreadyUsedPhoneNumberTrId, "auth_11")
 	ErrOldPasswordDoesNotMatchCurrentOne = NewAppErrWithTr(errors.New("old password noes not match current one"), l10n.OldPasswordDoesNotMatchCurrentOneTrId, "auth_12")
+	ErrInstallationTokenInUse            = NewAppErrWithTr(errors.New("cannot link with the provided installation token — it is already linked to another user"), "", "auth_13")
 
 	// jwt
 	ErrExpiredSessionToken             = NewAppErrWithTr(errors.New("expired session token"), l10n.ExpiredSessionToken, "auth_13")

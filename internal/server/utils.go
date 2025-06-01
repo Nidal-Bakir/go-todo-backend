@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
@@ -21,4 +22,11 @@ func writeOperationDoneSuccessfullyJson(ctx context.Context, w http.ResponseWrit
 	localizer, ok := l10n.LocalizerFromContext(ctx)
 	utils.Assert(ok, "we should find the localizer in the context tree, but we did not. something is wrong.")
 	writeJson(ctx, w, http.StatusOK, map[string]string{"msg": localizer.GetWithId(l10n.OperationDoneSuccessfullyTrId)})
+}
+
+func return400IfAppErrOr500(err error) int {
+	if apperr.IsAppErr(err) {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
 }

@@ -406,7 +406,7 @@ const loginOptionIsAccessKeyUsed = `-- name: LoginOptionIsAccessKeyUsed :one
 SELECT COUNT(*) FROM login_option
 WHERE access_key = $1
     AND deleted_at IS NULL
-    AND verified_at IS NULL
+    AND verified_at IS NOT NULL
 `
 
 // LoginOptionIsAccessKeyUsed
@@ -414,7 +414,7 @@ WHERE access_key = $1
 //	SELECT COUNT(*) FROM login_option
 //	WHERE access_key = $1
 //	    AND deleted_at IS NULL
-//	    AND verified_at IS NULL
+//	    AND verified_at IS NOT NULL
 func (q *Queries) LoginOptionIsAccessKeyUsed(ctx context.Context, accessKey string) (int64, error) {
 	row := q.db.QueryRow(ctx, loginOptionIsAccessKeyUsed, accessKey)
 	var count int64

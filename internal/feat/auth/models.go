@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
@@ -91,6 +92,7 @@ type TempUser struct {
 
 func (tu TempUser) ToMap() map[string]string {
 	m := make(map[string]string, 8)
+	m["id"] = tu.Id.String()
 	m["username"] = tu.Username
 	m["login_method"] = tu.LoginMethod.String()
 	m["f_name"] = tu.Fname
@@ -103,7 +105,8 @@ func (tu TempUser) ToMap() map[string]string {
 	return m
 }
 
-func (tu *TempUser) FromMap(m map[string]string) {
+func (tu *TempUser) FromMap(m map[string]string) *TempUser {
+	tu.Id = uuid.MustParse(m["id"])
 	tu.Username = m["username"]
 	tu.LoginMethod = LoginMethod(m["login_method"])
 	tu.Fname = m["f_name"]
@@ -113,6 +116,8 @@ func (tu *TempUser) FromMap(m map[string]string) {
 	tu.Phone.CountryCode = m["phone_country_code"]
 	tu.SentOTP = m["sent_otp"]
 	tu.Password = m["password"]
+
+	return tu
 }
 
 func (tu TempUser) ValidateForStore() (ok bool) {
@@ -219,4 +224,28 @@ func NewUserAndSessionFromDatabaseUserAndSessionRow(u database.UsersGetUserAndSe
 		SessionOriginatedFrom:   u.SessionOriginatedFrom,
 		SessionUsedInstallation: u.SessionUsedInstallation,
 	}
+}
+
+type ForgetPasswordTmpDataStore struct {
+	Id            uuid.UUID // used as a key
+	LoginOptionId int
+	UserId        int
+	SentOTP       string
+}
+
+func (f ForgetPasswordTmpDataStore) ToMap() map[string]string {
+	m := make(map[string]string, 8)
+	m["id"] = f.Id.String()
+	m["login_option_id"] = strconv.Itoa(f.LoginOptionId)
+	m["user_id"] = strconv.Itoa(f.UserId)
+	m["sent_otp"] = f.SentOTP
+	return m
+}
+
+func (f *ForgetPasswordTmpDataStore) FromMap(m map[string]string) *ForgetPasswordTmpDataStore {
+	f.Id = uuid.MustParse(m["id"])
+	f.LoginOptionId = utils.Must(strconv.Atoi(m["login_option_id"]))
+	f.UserId = utils.Must(strconv.Atoi(m["user_id"]))
+	f.SentOTP = m["sent_otp"]
+	return f
 }

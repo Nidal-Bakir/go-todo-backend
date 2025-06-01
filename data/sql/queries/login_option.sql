@@ -95,4 +95,4 @@ WHERE id = $1;
 SELECT COUNT(*) FROM login_option
 WHERE access_key = $1
     AND deleted_at IS NULL
-    AND verified_at IS NULL;
+    AND verified_at IS NOT NULL;

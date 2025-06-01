@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	expirationForTempUser = time.Minute * 30
+	expirationForTempUser               = time.Minute * 30
+	expirationForForgetPasswordTempData = time.Minute * 15
 )
 
 type DataSource interface {
@@ -26,17 +27,20 @@ type DataSource interface {
 	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (database.UsersGetUserAndSessionDataBySessionTokenRow, error)
 
 	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
+	GetForgetPasswordDataFromTempCache(ctx context.Context, dataId uuid.UUID) (*ForgetPasswordTmpDataStore, error)
 
 	GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToSession int32) (database.Installation, error)
 	GetInstallationUsingToken(ctx context.Context, installationToken string) (database.Installation, error)
 
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
+	GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOption, error)
 	GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.LoginOption, error)
 	IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error)
 
 	// Create ---
 
-	StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error)
+	StoreUserInTempCache(ctx context.Context, tUser TempUser) error
+	StoreForgetPasswordDataInTempCache(ctx context.Context, forgetPassData ForgetPasswordTmpDataStore) error
 	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
 	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
 	CreateInstallation(ctx context.Context, data CreateInstallationData, installationToken string) error
@@ -51,6 +55,7 @@ type DataSource interface {
 
 	// Delete ---
 	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
+	DeleteForgetPasswordDataFromTempCache(ctx context.Context, dataId uuid.UUID) error
 }
 
 type dataSourceImpl struct {
@@ -101,7 +106,7 @@ func genTempUserId(id uuid.UUID) string {
 	return fmt.Sprint("user:tmp:", id.String())
 }
 
-func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser *TempUser) (*TempUser, error) {
+func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser TempUser) error {
 	key := genTempUserId(tUser.Id)
 
 	pip := ds.redis.TxPipeline()
@@ -111,16 +116,16 @@ func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser *TempUs
 	resultArray, err := pip.Exec(ctx)
 
 	if err != nil {
-		return tUser, err
+		return err
 	}
 
 	for _, cmdResult := range resultArray {
 		if cmdResult.Err() != nil {
-			return tUser, err
+			return err
 		}
 	}
 
-	return tUser, nil
+	return nil
 }
 
 func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error) {
@@ -135,9 +140,7 @@ func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uu
 		return nil, apperr.ErrNoResult
 	}
 
-	tUser := new(TempUser)
-	tUser.FromMap(result)
-	tUser.Id = tempUserId
+	tUser := new(TempUser).FromMap(result)
 
 	return tUser, err
 }
@@ -221,6 +224,22 @@ func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, acces
 	return userWithLoginOption, err
 }
 
+func (ds dataSourceImpl) GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOption, error) {
+	loginOption, err := ds.db.Queries.LoginOptionGetActiveLoginOption(
+		ctx,
+		database.LoginOptionGetActiveLoginOptionParams{
+			LoginMethod: loginMethod.String(),
+			AccessKey:   accessKey,
+		},
+	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	}
+
+	return loginOption, err
+}
+
 func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) (err error) {
 	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -261,12 +280,17 @@ func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context
 		},
 	)
 
-	err = queries.InstallationAttachSessionToInstallationById(
+	affectedRows, err := queries.InstallationAttachSessionToInstallationById(
 		ctx,
 		database.InstallationAttachSessionToInstallationByIdParams{
 			ID:       installationId,
-			AttachTo: pgtype.Int4{Int32: sessionId, Valid: true}},
+			AttachTo: pgtype.Int4{Int32: sessionId, Valid: true},
+		},
 	)
+
+	if affectedRows == 0 {
+		err = apperr.ErrInstallationTokenInUse
+	}
 
 	return err
 }
@@ -358,4 +382,50 @@ func (ds dataSourceImpl) UpdateInstallation(ctx context.Context, installationTok
 
 func (dataSourceImpl) toPgTypeText(str string) pgtype.Text {
 	return pgtype.Text{String: str, Valid: len(str) != 0}
+}
+
+func genTempForgetPasswordTmpDataStorId(id uuid.UUID) string {
+	return fmt.Sprint("user:forget:password:", id.String())
+}
+
+func (ds dataSourceImpl) StoreForgetPasswordDataInTempCache(ctx context.Context, forgetPassData ForgetPasswordTmpDataStore) error {
+	key := genTempForgetPasswordTmpDataStorId(forgetPassData.Id)
+
+	pip := ds.redis.TxPipeline()
+	pip.Del(ctx, key)
+	pip.HSet(ctx, key, forgetPassData.ToMap())
+	pip.Expire(ctx, key, expirationForForgetPasswordTempData)
+	resultArray, err := pip.Exec(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for _, cmdResult := range resultArray {
+		if cmdResult.Err() != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ds dataSourceImpl) GetForgetPasswordDataFromTempCache(ctx context.Context, dataId uuid.UUID) (*ForgetPasswordTmpDataStore, error) {
+	key := genTempForgetPasswordTmpDataStorId(dataId)
+
+	result, err := ds.redis.HGetAll(ctx, key).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(result) == 0 {
+		return nil, apperr.ErrNoResult
+	}
+
+	data := new(ForgetPasswordTmpDataStore).FromMap(result)
+	return data, err
+}
+
+func (ds dataSourceImpl) DeleteForgetPasswordDataFromTempCache(ctx context.Context, dataId uuid.UUID) error {
+	return ds.redis.Del(ctx, genTempForgetPasswordTmpDataStorId(dataId)).Err()
 }

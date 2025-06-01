@@ -34,7 +34,7 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 
 func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
 	for i, e := range errs {
-		if appError, ok := e.(*apperr.AppErr); ok {
+		if appError := apperr.UnwrapAppErr(e); appError != nil {
 			appError.SetTranslation(ctx)
 			errs[i] = appError
 		}

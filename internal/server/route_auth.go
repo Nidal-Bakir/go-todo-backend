@@ -37,7 +37,7 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		middleware.MiddlewareChain(
 			vareifyAccount(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
-			verifyAccountRateLimiter(ctx, s.rdb),
+			verifyAccountRateLimiterById(ctx, s.rdb),
 		),
 	)
 
@@ -68,6 +68,24 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 			changeUserPassword(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
 			Auth(authRepo),
+		),
+	)
+
+	mux.HandleFunc(
+		"POST /forget-password",
+		middleware.MiddlewareChain(
+			forgetPassword(authRepo),
+			middleware.ACT_app_x_www_form_urlencoded,
+			forgetPasswordRateLimiterByIP(ctx, s.rdb),
+			forgetPasswordRateLimiterByAccessKey(ctx, s.rdb),
+		),
+	)
+	mux.HandleFunc(
+		"POST /reset-password",
+		middleware.MiddlewareChain(
+			resetPassword(authRepo),
+			middleware.ACT_app_x_www_form_urlencoded,
+			resetPasswordRateLimiterById(ctx, s.rdb),
 		),
 	)
 
@@ -177,7 +195,7 @@ func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Han
 	)
 }
 
-func verifyAccountRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+func verifyAccountRateLimiterById(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
 	return middleware.RateLimiter(
 		func(r *http.Request) (string, error) {
 			err := r.ParseForm()
@@ -193,7 +211,88 @@ func verifyAccountRateLimiter(ctx context.Context, rdb *redis.Client) func(next 
 			ratelimiter.Config{
 				PerTimeFrame: 5,
 				TimeFrame:    time.Minute * 15,
-				KeyPrefix:    "auth:verify:account",
+				KeyPrefix:    "auth:verify:account:id",
+			},
+		),
+	)
+}
+
+func resetPasswordRateLimiterById(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiter(
+		func(r *http.Request) (string, error) {
+			err := r.ParseForm()
+			if err != nil {
+				return "", err
+			}
+			param, _ := validateResetPasswordParams(r)
+			return param.Id.String(), nil
+		},
+		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+			ctx,
+			rdb,
+			ratelimiter.Config{
+				PerTimeFrame: 5,
+				TimeFrame:    time.Minute * 15,
+				KeyPrefix:    "auth:reset:password:id",
+			},
+		),
+	)
+}
+
+func forgetPasswordRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiter(
+		func(r *http.Request) (string, error) {
+			return r.RemoteAddr, nil
+		},
+		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+			ctx,
+			rdb,
+			ratelimiter.Config{
+				Disabled:     true,
+				PerTimeFrame: 100,
+				TimeFrame:    time.Hour * 24,
+				KeyPrefix:    "auth:forget:password:ip",
+			},
+		),
+	)
+}
+
+func forgetPasswordRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiter(
+		func(r *http.Request) (string, error) {
+			err := r.ParseForm()
+			if err != nil {
+				return "", err
+			}
+
+			param, _ := validateForgetPasswordParam(r)
+
+			key := ""
+			param.LoginMethod.FoldOr(
+				func() {
+					key = param.Email
+				},
+				func() {
+					key = param.PhoneNumber.ToAppStanderdForm()
+				},
+				func() {
+					// Even if the validation has errors, do not return an error.
+					// Instead, set the key to the string "unknown_login_method"
+					// and allow the misbehaving user to be rate-limited along with other
+					// misbehaving users.
+					key = "unknown_login_method"
+				},
+			)
+			return key, nil
+		},
+		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+			ctx,
+			rdb,
+			ratelimiter.Config{
+				Disabled:     true,
+				PerTimeFrame: 10,
+				TimeFrame:    time.Hour * 24,
+				KeyPrefix:    "auth:forget:password:access_key",
 			},
 		),
 	)
@@ -236,7 +335,7 @@ func createTempAccount(authRepo auth.Repository) http.HandlerFunc {
 
 		tuser, err = authRepo.CreateTempUser(ctx, tuser)
 		if err != nil {
-			writeError(ctx, w, http.StatusInternalServerError, err)
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 
@@ -339,11 +438,7 @@ func vareifyAccount(authRepo auth.Repository) http.HandlerFunc {
 		user, err := authRepo.CreateUser(ctx, vareifyAccountParam.Id, vareifyAccountParam.Code)
 
 		if err != nil {
-			statusCode := http.StatusInternalServerError
-			if errors.Is(err, apperr.ErrInvalidOtpCode) || errors.Is(err, apperr.ErrNoResult) {
-				statusCode = http.StatusBadRequest
-			}
-			writeError(ctx, w, statusCode, err)
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 
@@ -414,13 +509,12 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 
 		user, token, err := authRepo.PasswordLogin(
 			ctx,
-			auth.PasswordLoginAccessKey{Phone: loginParam.PhoneNumber, Email: loginParam.Email},
+			auth.PasswordLoginAccessKey{Phone: loginParam.PhoneNumber, Email: loginParam.Email, LoginMethod: loginParam.LoginMethod},
 			loginParam.Password,
-			loginParam.LoginMethod,
 			installation,
 		)
 		if err != nil {
-			statusCode := http.StatusInternalServerError
+			statusCode := return400IfAppErrOr500(err)
 			if errors.Is(err, apperr.ErrInvalidLoginCredentials) {
 				statusCode = http.StatusUnauthorized
 			}
@@ -520,7 +614,7 @@ func logout(authRepo auth.Repository) http.HandlerFunc {
 
 		err = authRepo.Logout(ctx, int(userAndSession.UserID), int(installation.ID), userAndSession.SessionToken, logoutParam.terminateAllOtherSessions)
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 	}
@@ -543,7 +637,6 @@ func validateLogoutParam(r *http.Request) (logoutParams, []error) {
 //-----------------------------------------------------------------------------
 
 type changePasswordParams struct {
-	LoginMethod auth.LoginMethod
 	oldPassword string
 	newPassword string
 }
@@ -569,11 +662,7 @@ func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
 
 		err = authRepo.ChangePasswordForAllLoginOptions(ctx, int(userAndSession.UserID), params.oldPassword, params.newPassword)
 		if err != nil {
-			code := http.StatusInternalServerError
-			if _, ok := err.(*apperr.AppErr); ok {
-				code = http.StatusBadRequest
-			}
-			writeError(ctx, w, code, err)
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 
@@ -585,9 +674,10 @@ func validateChangePasswordParam(r *http.Request) (changePasswordParams, []error
 	oldPassword := r.FormValue("old_password")
 	newPassword := r.FormValue("new_password")
 
-	errList := make([]error, 0, 1)
+	errList := make([]error, 0, 2)
 
 	errList = append(errList, validatePassword(newPassword)...)
+	errList = append(errList, validatePassword(oldPassword)...)
 
 	if len(errList) != 0 {
 		return changePasswordParams{}, errList
@@ -633,4 +723,163 @@ func NewPublicUserFromAuthUser(u auth.User) publicUser {
 		MiddleName:   u.MiddleName,
 		LastName:     u.LastName,
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+type forgetPasswordParams struct {
+	LoginMethod auth.LoginMethod
+	Email       string
+	PhoneNumber utils.PhoneNumber
+}
+
+func forgetPassword(authRepo auth.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		err := r.ParseForm()
+		if err != nil {
+			writeError(ctx, w, http.StatusBadRequest, err)
+			return
+		}
+
+		params, errList := validateForgetPasswordParam(r)
+		if len(errList) != 0 {
+			writeError(ctx, w, http.StatusBadRequest, errList...)
+			return
+		}
+
+		id, err := authRepo.ForgetPassword(
+			ctx,
+			auth.PasswordLoginAccessKey{Email: params.Email, Phone: params.PhoneNumber, LoginMethod: params.LoginMethod},
+		)
+		if err != nil {
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			return
+		}
+
+		response := struct {
+			Id string `json:"id"`
+		}{
+			Id: id.String(),
+		}
+
+		writeJson(ctx, w, http.StatusOK, response)
+	}
+}
+
+func validateForgetPasswordParam(r *http.Request) (forgetPasswordParams, []error) {
+	errList := make([]error, 0, 2)
+
+	loginMethodFormStr := r.FormValue("login_method")
+
+	emailFormStr := r.FormValue("email")
+
+	phone := utils.PhoneNumber{
+		CountryCode: r.FormValue("country_code"),
+		Number:      r.FormValue("phone_number"),
+	}
+
+	loginMethod, err := new(auth.LoginMethod).FromString(loginMethodFormStr)
+	if err != nil {
+		errList = append(errList, err)
+	}
+
+	loginMethod.FoldOr(
+		func() {
+			if !emailvalidator.IsValidEmail(emailFormStr) {
+				errList = append(errList, apperr.ErrInvalidEmail)
+			}
+		},
+		func() {
+			if !phone.IsValid() {
+				errList = append(errList, apperr.ErrInvalidPhoneNumber)
+			}
+		},
+		func() {
+			// no op
+		},
+	)
+
+	if len(errList) != 0 {
+		return forgetPasswordParams{}, errList
+	}
+
+	params := forgetPasswordParams{
+		LoginMethod: *loginMethod,
+		PhoneNumber: phone,
+		Email:       emailFormStr,
+	}
+
+	return params, errList
+}
+
+//-----------------------------------------------------------------------------
+
+type resetPasswordParams struct {
+	Id          uuid.UUID
+	Code        string
+	newPassword string
+}
+
+func resetPassword(authRepo auth.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		err := r.ParseForm()
+		if err != nil {
+			writeError(ctx, w, http.StatusBadRequest, err)
+			return
+		}
+
+		params, errList := validateResetPasswordParams(r)
+		if len(errList) != 0 {
+			writeError(ctx, w, http.StatusBadRequest, errList...)
+			return
+		}
+
+		err = authRepo.ResetPassword(
+			ctx,
+			params.Id,
+			params.Code,
+			params.newPassword,
+		)
+		if err != nil {
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			return
+		}
+
+		writeOperationDoneSuccessfullyJson(ctx, w)
+	}
+}
+
+func validateResetPasswordParams(r *http.Request) (resetPasswordParams, []error) {
+	idFormStr := r.FormValue("id")
+	code := r.FormValue("code")
+	newPassword := r.FormValue("new_password")
+
+	errList := make([]error, 0, 3)
+
+	errList = append(errList, validatePassword(newPassword)...)
+
+	id, err := uuid.Parse(idFormStr)
+	if err != nil {
+		errList = append(errList, errors.New("invalid id"))
+	}
+
+	if len(code) != auth.OtpCodeLength {
+		errList = append(errList, errors.New("invalid code"))
+	}
+
+	if len(errList) != 0 {
+		return resetPasswordParams{}, errList
+	}
+
+	params := resetPasswordParams{
+		Id:          id,
+		Code:        code,
+		newPassword: newPassword,
+	}
+
+	return params, errList
 }

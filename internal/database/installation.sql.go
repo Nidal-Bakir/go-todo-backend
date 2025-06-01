@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const installationAttachSessionToInstallationById = `-- name: InstallationAttachSessionToInstallationById :exec
+const installationAttachSessionToInstallationById = `-- name: InstallationAttachSessionToInstallationById :execrows
 UPDATE installation
 SET attach_to = $2,
     last_attach_to= NULL
@@ -31,9 +31,12 @@ type InstallationAttachSessionToInstallationByIdParams struct {
 //	    last_attach_to= NULL
 //	WHERE id = $1
 //	    AND attach_to IS NULL
-func (q *Queries) InstallationAttachSessionToInstallationById(ctx context.Context, arg InstallationAttachSessionToInstallationByIdParams) error {
-	_, err := q.db.Exec(ctx, installationAttachSessionToInstallationById, arg.ID, arg.AttachTo)
-	return err
+func (q *Queries) InstallationAttachSessionToInstallationById(ctx context.Context, arg InstallationAttachSessionToInstallationByIdParams) (int64, error) {
+	result, err := q.db.Exec(ctx, installationAttachSessionToInstallationById, arg.ID, arg.AttachTo)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const installationAttachSessionToInstallationByToken = `-- name: InstallationAttachSessionToInstallationByToken :exec

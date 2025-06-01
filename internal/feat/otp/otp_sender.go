@@ -18,21 +18,41 @@ type OTPSender struct {
 	otpLength uint8
 }
 
-func NewOTPSender(provider gateway.Provider, otpLength uint8) *OTPSender {
+func NewOTPSender(_ context.Context, provider gateway.Provider, otpLength uint8) *OTPSender {
 	utils.Assert(otpLength >= 3, "you can not have otp with length less then 2. What are you doing?")
 	return &OTPSender{provider: provider, otpLength: otpLength}
 }
 
-func (o OTPSender) SendSMSOTP(ctx context.Context, target utils.PhoneNumber) (otp string, err error) {
+func (o OTPSender) SendSmsOtpForAccountVerification(ctx context.Context, target utils.PhoneNumber) (otp string, err error) {
 	otp = o.genRandOTP()
-	err = o.provider.GetSMSProvider(ctx, target.CountryCode).Send(ctx, target.ToString(), otp)
+	err = o.sendSmsOtp(ctx, target, otp)
 	return otp, err
 }
 
-func (o OTPSender) SendEmailOTP(ctx context.Context, target string) (otp string, err error) {
+func (o OTPSender) SendEmailOtpForAccountVerification(ctx context.Context, target string) (otp string, err error) {
 	otp = o.genRandOTP()
-	err = o.provider.GetEmailProvider(ctx).Send(ctx, target, otp)
+	err = o.sendEmailOtp(ctx, target, otp)
 	return otp, err
+}
+
+func (o OTPSender) SendSmsOtpForForgetPassword(ctx context.Context, target utils.PhoneNumber) (otp string, err error) {
+	otp = o.genRandOTP()
+	err = o.sendSmsOtp(ctx, target, otp)
+	return otp, err
+}
+
+func (o OTPSender) SendEmailOtpForForgetPassword(ctx context.Context, target string) (otp string, err error) {
+	otp = o.genRandOTP()
+	err = o.sendEmailOtp(ctx, target, otp)
+	return otp, err
+}
+
+func (o OTPSender) sendSmsOtp(ctx context.Context, target utils.PhoneNumber, content string) (err error) {
+	return o.provider.NewSMSProvider(ctx, target.CountryCode).Send(ctx, target.ToString(), content)
+}
+
+func (o OTPSender) sendEmailOtp(ctx context.Context, target string, content string) (err error) {
+	return o.provider.NewEmailProvider(ctx).Send(ctx, target, content)
 }
 
 func (o OTPSender) genRandOTP() string {

@@ -48,7 +48,7 @@ SET attach_to = $2,
 WHERE installation_token = $1
     AND attach_to IS NULL;
 
--- name: InstallationAttachSessionToInstallationById :exec
+-- name: InstallationAttachSessionToInstallationById :execrows
 UPDATE installation
 SET attach_to = $2,
     last_attach_to= NULL
