@@ -116,9 +116,9 @@ var (
 	ErrAlreadyUsedEmail                  = NewAppErrWithTr(errors.New("already used email"), l10n.AlreadyUsedEmailTrId, "auth_10")
 	ErrAlreadyUsedPhoneNumber            = NewAppErrWithTr(errors.New("already used phone number"), l10n.AlreadyUsedPhoneNumberTrId, "auth_11")
 	ErrOldPasswordDoesNotMatchCurrentOne = NewAppErrWithTr(errors.New("old password noes not match current one"), l10n.OldPasswordDoesNotMatchCurrentOneTrId, "auth_12")
-	ErrInstallationTokenInUse            = NewAppErrWithTr(errors.New("cannot link with the provided installation token — it is already linked to another user"), "", "auth_13")
+	ErrInstallationTokenInUse            = NewAppErrWithErrorCode(errors.New("cannot link with the provided installation token — it is already linked to another user, or the current user if you did not unlinked(logout) yet"), "auth_13")
 
 	// jwt
 	ErrExpiredSessionToken             = NewAppErrWithTr(errors.New("expired session token"), l10n.ExpiredSessionToken, "auth_13")
-	ErrExpiredInstallationSessionToken = NewAppErrWithTr(errors.New("expired installation session token"), "", "auth_14")
+	ErrExpiredInstallationSessionToken = NewAppErrWithErrorCode(errors.New("expired installation session token"), "auth_14")
 )
