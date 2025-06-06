@@ -105,7 +105,7 @@ func createAcccountRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(
 			ctx,
 			rdb,
 			ratelimiter.Config{
-				Disabled:     true,
+
 				PerTimeFrame: 100,
 				TimeFrame:    time.Hour * 24,
 				KeyPrefix:    "auth:create:account:ip",
@@ -146,7 +146,7 @@ func createAcccountRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 			ctx,
 			rdb,
 			ratelimiter.Config{
-				Disabled:     true,
+
 				PerTimeFrame: 20,
 				TimeFrame:    time.Hour * 24,
 				KeyPrefix:    "auth:create:account:access_key",
@@ -248,7 +248,6 @@ func forgetPasswordRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(
 			ctx,
 			rdb,
 			ratelimiter.Config{
-				Disabled:     true,
 				PerTimeFrame: 100,
 				TimeFrame:    time.Hour * 24,
 				KeyPrefix:    "auth:forget:password:ip",
@@ -289,7 +288,7 @@ func forgetPasswordRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 			ctx,
 			rdb,
 			ratelimiter.Config{
-				Disabled:     true,
+
 				PerTimeFrame: 10,
 				TimeFrame:    time.Hour * 24,
 				KeyPrefix:    "auth:forget:password:access_key",
