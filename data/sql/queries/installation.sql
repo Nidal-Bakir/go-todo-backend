@@ -66,3 +66,18 @@ UPDATE installation
 SET attach_to = NULL,
     last_attach_to = $2
 WHERE id = $1;
+
+
+-- name: InstallationDetachSessionFromInstallationByUserId :exec
+UPDATE installation AS i
+SET
+    attach_to      = NULL,
+    last_attach_to = s.id
+FROM active_session AS s
+JOIN active_login_option AS lo
+    ON s.originated_from = lo.id
+WHERE
+    lo.user_id            = $1
+    AND i.attach_to       = s.id
+    AND i.last_attach_to IS NULL
+    AND i.deleted_at     IS NULL;

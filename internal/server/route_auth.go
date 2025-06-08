@@ -551,8 +551,6 @@ func validateLoginParam(r *http.Request) (loginParams, []error) {
 		errList = append(errList, err)
 	}
 
-	errList = append(errList, validatePassword(passwordFormStr)...)
-
 	loginMethod.FoldOr(
 		func() {
 			if !emailvalidator.IsValidEmail(emailFormStr) {
@@ -568,6 +566,8 @@ func validateLoginParam(r *http.Request) (loginParams, []error) {
 			// no op
 		},
 	)
+
+	errList = append(errList, validatePassword(passwordFormStr)...)
 
 	if len(errList) != 0 {
 		return loginParams{}, errList
@@ -611,11 +611,19 @@ func logout(authRepo auth.Repository) http.HandlerFunc {
 		installation, ok := auth.InstallationFromContext(ctx)
 		utils.Assert(ok, "the installation should be in the ctx")
 
-		err = authRepo.Logout(ctx, int(userAndSession.UserID), int(installation.ID), userAndSession.SessionToken, logoutParam.terminateAllOtherSessions)
+		err = authRepo.Logout(
+			ctx,
+			int(userAndSession.UserID),
+			int(installation.ID),
+			int(userAndSession.SessionID),
+			logoutParam.terminateAllOtherSessions,
+		)
 		if err != nil {
 			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
+
+		writeOperationDoneSuccessfullyJson(ctx, w)
 	}
 }
 
@@ -624,9 +632,9 @@ func validateLogoutParam(r *http.Request) (logoutParams, []error) {
 	errList := make([]error, 0, 1)
 
 	if t, err := strconv.ParseBool(r.FormValue("terminate_all_other_sessions")); err != nil {
-		params.terminateAllOtherSessions = t
-	} else {
 		errList = append(errList, err)
+	} else {
+		params.terminateAllOtherSessions = t
 	}
 
 	return params, errList

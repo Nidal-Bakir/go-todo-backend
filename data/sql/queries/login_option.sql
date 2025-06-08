@@ -12,36 +12,28 @@ RETURNING *;
 
 -- name: LoginOptionGetActiveLoginOption :one
 SELECT *
-FROM login_option
+FROM active_login_option
 WHERE login_method = $1
     AND access_key = $2
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL
 LIMIT 1;
 
 -- name: LoginOptionGetAllActiveByUserId :many
 SELECT *
-FROM login_option
-WHERE user_id = $1
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL;
+FROM active_login_option
+WHERE user_id = $1;
 
 -- name: LoginOptionGetAllActiveByUserIdAndLoginMethod :many
 SELECT *
-FROM login_option
+FROM active_login_option
 WHERE login_method = $1
-    AND user_id = $2
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL;
+    AND user_id = $2;
 
 
 -- name: LoginOptionGetAllActiveByUserIdAndSupportPassword :many
 SELECT *
-FROM login_option
+FROM active_login_option
 WHERE user_id = $1
-    AND hashed_pass IS NOT NULL
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL;
+    AND hashed_pass IS NOT NULL;
 
 -- name: LoginOptionGetActiveLoginOptionWithUser :one
 SELECT lo.id as login_option_id,
@@ -64,12 +56,10 @@ SELECT lo.id as login_option_id,
     u.blocked_at as user_blocked_at,
     u.deleted_at as user_deleted_at,
     u.role_id as user_role_id
-FROM login_option AS lo
+FROM active_login_option AS lo
     JOIN users AS u ON lo.user_id = u.id
 WHERE lo.login_method = $1
     AND lo.access_key = $2
-    AND lo.verified_at IS NOT NULL
-    AND lo.deleted_at IS NULL
     AND u.deleted_at IS NULL
 LIMIT 1;
 
@@ -92,7 +82,5 @@ WHERE id = $1;
 
 
 -- name: LoginOptionIsAccessKeyUsed :one
-SELECT COUNT(*) FROM login_option
-WHERE access_key = $1
-    AND deleted_at IS NULL
-    AND verified_at IS NOT NULL;
+SELECT COUNT(*) FROM active_login_option
+WHERE access_key = $1;

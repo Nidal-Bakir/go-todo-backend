@@ -19,10 +19,10 @@ const (
 	LoginMethodPhoneNumber LoginMethod = "phone"
 )
 
-func (l LoginMethod) isUsingEmail() bool {
+func (l LoginMethod) IsUsingEmail() bool {
 	return l == LoginMethodEmail
 }
-func (l LoginMethod) isUsingPhoneNumber() bool {
+func (l LoginMethod) IsUsingPhoneNumber() bool {
 	return l == LoginMethodPhoneNumber
 }
 
@@ -57,18 +57,30 @@ func (l *LoginMethod) FromString(str string) (*LoginMethod, error) {
 	return l, nil
 }
 
-func (l LoginMethod) Fold(onEmail func(), onPhone func()) {
+func (l *LoginMethod) Fold(onEmail func(), onPhone func()) {
+	panicFn := func() {
+		panic(fmt.Sprintf("Not supported login method %s", l.String()))
+	}
+
+	if l == nil {
+		panicFn()
+		return
+	}
+
 	l.FoldOr(
 		onEmail,
 		onPhone,
-		func() {
-			panic(fmt.Sprintf("Not supported login method %s", l.String()))
-		},
+		panicFn,
 	)
 }
 
-func (l LoginMethod) FoldOr(onEmail func(), onPhone func(), orElse func()) {
-	switch l {
+func (l *LoginMethod) FoldOr(onEmail func(), onPhone func(), orElse func()) {
+	if l == nil {
+		orElse()
+		return
+	}
+
+	switch *l {
 	case LoginMethodEmail:
 		onEmail()
 	case LoginMethodPhoneNumber:

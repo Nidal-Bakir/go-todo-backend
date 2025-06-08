@@ -8,6 +8,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ActiveLoginOption struct {
+	ID          int32              `json:"id"`
+	LoginMethod string             `json:"login_method"`
+	AccessKey   string             `json:"access_key"`
+	HashedPass  pgtype.Text        `json:"hashed_pass"`
+	PassSalt    pgtype.Text        `json:"pass_salt"`
+	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
+	UserID      int32              `json:"user_id"`
+}
+
+type ActiveSession struct {
+	ID             int32              `json:"id"`
+	Token          string             `json:"token"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	OriginatedFrom int32              `json:"originated_from"`
+}
+
 type Installation struct {
 	ID                      int32              `json:"id"`
 	InstallationToken       string             `json:"installation_token"`

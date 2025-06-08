@@ -98,11 +98,9 @@ func (q *Queries) LoginOptionCreateNewLoginOption(ctx context.Context, arg Login
 
 const loginOptionGetActiveLoginOption = `-- name: LoginOptionGetActiveLoginOption :one
 SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-FROM login_option
+FROM active_login_option
 WHERE login_method = $1
     AND access_key = $2
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL
 LIMIT 1
 `
 
@@ -114,15 +112,13 @@ type LoginOptionGetActiveLoginOptionParams struct {
 // LoginOptionGetActiveLoginOption
 //
 //	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-//	FROM login_option
+//	FROM active_login_option
 //	WHERE login_method = $1
 //	    AND access_key = $2
-//	    AND verified_at IS NOT NULL
-//	    AND deleted_at IS NULL
 //	LIMIT 1
-func (q *Queries) LoginOptionGetActiveLoginOption(ctx context.Context, arg LoginOptionGetActiveLoginOptionParams) (LoginOption, error) {
+func (q *Queries) LoginOptionGetActiveLoginOption(ctx context.Context, arg LoginOptionGetActiveLoginOptionParams) (ActiveLoginOption, error) {
 	row := q.db.QueryRow(ctx, loginOptionGetActiveLoginOption, arg.LoginMethod, arg.AccessKey)
-	var i LoginOption
+	var i ActiveLoginOption
 	err := row.Scan(
 		&i.ID,
 		&i.LoginMethod,
@@ -159,12 +155,10 @@ SELECT lo.id as login_option_id,
     u.blocked_at as user_blocked_at,
     u.deleted_at as user_deleted_at,
     u.role_id as user_role_id
-FROM login_option AS lo
+FROM active_login_option AS lo
     JOIN users AS u ON lo.user_id = u.id
 WHERE lo.login_method = $1
     AND lo.access_key = $2
-    AND lo.verified_at IS NOT NULL
-    AND lo.deleted_at IS NULL
     AND u.deleted_at IS NULL
 LIMIT 1
 `
@@ -219,12 +213,10 @@ type LoginOptionGetActiveLoginOptionWithUserRow struct {
 //	    u.blocked_at as user_blocked_at,
 //	    u.deleted_at as user_deleted_at,
 //	    u.role_id as user_role_id
-//	FROM login_option AS lo
+//	FROM active_login_option AS lo
 //	    JOIN users AS u ON lo.user_id = u.id
 //	WHERE lo.login_method = $1
 //	    AND lo.access_key = $2
-//	    AND lo.verified_at IS NOT NULL
-//	    AND lo.deleted_at IS NULL
 //	    AND u.deleted_at IS NULL
 //	LIMIT 1
 func (q *Queries) LoginOptionGetActiveLoginOptionWithUser(ctx context.Context, arg LoginOptionGetActiveLoginOptionWithUserParams) (LoginOptionGetActiveLoginOptionWithUserRow, error) {
@@ -257,28 +249,24 @@ func (q *Queries) LoginOptionGetActiveLoginOptionWithUser(ctx context.Context, a
 
 const loginOptionGetAllActiveByUserId = `-- name: LoginOptionGetAllActiveByUserId :many
 SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-FROM login_option
+FROM active_login_option
 WHERE user_id = $1
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL
 `
 
 // LoginOptionGetAllActiveByUserId
 //
 //	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-//	FROM login_option
+//	FROM active_login_option
 //	WHERE user_id = $1
-//	    AND verified_at IS NOT NULL
-//	    AND deleted_at IS NULL
-func (q *Queries) LoginOptionGetAllActiveByUserId(ctx context.Context, userID int32) ([]LoginOption, error) {
+func (q *Queries) LoginOptionGetAllActiveByUserId(ctx context.Context, userID int32) ([]ActiveLoginOption, error) {
 	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserId, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []LoginOption{}
+	items := []ActiveLoginOption{}
 	for rows.Next() {
-		var i LoginOption
+		var i ActiveLoginOption
 		if err := rows.Scan(
 			&i.ID,
 			&i.LoginMethod,
@@ -303,11 +291,9 @@ func (q *Queries) LoginOptionGetAllActiveByUserId(ctx context.Context, userID in
 
 const loginOptionGetAllActiveByUserIdAndLoginMethod = `-- name: LoginOptionGetAllActiveByUserIdAndLoginMethod :many
 SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-FROM login_option
+FROM active_login_option
 WHERE login_method = $1
     AND user_id = $2
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL
 `
 
 type LoginOptionGetAllActiveByUserIdAndLoginMethodParams struct {
@@ -318,20 +304,18 @@ type LoginOptionGetAllActiveByUserIdAndLoginMethodParams struct {
 // LoginOptionGetAllActiveByUserIdAndLoginMethod
 //
 //	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-//	FROM login_option
+//	FROM active_login_option
 //	WHERE login_method = $1
 //	    AND user_id = $2
-//	    AND verified_at IS NOT NULL
-//	    AND deleted_at IS NULL
-func (q *Queries) LoginOptionGetAllActiveByUserIdAndLoginMethod(ctx context.Context, arg LoginOptionGetAllActiveByUserIdAndLoginMethodParams) ([]LoginOption, error) {
+func (q *Queries) LoginOptionGetAllActiveByUserIdAndLoginMethod(ctx context.Context, arg LoginOptionGetAllActiveByUserIdAndLoginMethodParams) ([]ActiveLoginOption, error) {
 	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserIdAndLoginMethod, arg.LoginMethod, arg.UserID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []LoginOption{}
+	items := []ActiveLoginOption{}
 	for rows.Next() {
-		var i LoginOption
+		var i ActiveLoginOption
 		if err := rows.Scan(
 			&i.ID,
 			&i.LoginMethod,
@@ -356,30 +340,26 @@ func (q *Queries) LoginOptionGetAllActiveByUserIdAndLoginMethod(ctx context.Cont
 
 const loginOptionGetAllActiveByUserIdAndSupportPassword = `-- name: LoginOptionGetAllActiveByUserIdAndSupportPassword :many
 SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-FROM login_option
+FROM active_login_option
 WHERE user_id = $1
     AND hashed_pass IS NOT NULL
-    AND verified_at IS NOT NULL
-    AND deleted_at IS NULL
 `
 
 // LoginOptionGetAllActiveByUserIdAndSupportPassword
 //
 //	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
-//	FROM login_option
+//	FROM active_login_option
 //	WHERE user_id = $1
 //	    AND hashed_pass IS NOT NULL
-//	    AND verified_at IS NOT NULL
-//	    AND deleted_at IS NULL
-func (q *Queries) LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx context.Context, userID int32) ([]LoginOption, error) {
+func (q *Queries) LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx context.Context, userID int32) ([]ActiveLoginOption, error) {
 	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserIdAndSupportPassword, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []LoginOption{}
+	items := []ActiveLoginOption{}
 	for rows.Next() {
-		var i LoginOption
+		var i ActiveLoginOption
 		if err := rows.Scan(
 			&i.ID,
 			&i.LoginMethod,
@@ -403,18 +383,14 @@ func (q *Queries) LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx context.
 }
 
 const loginOptionIsAccessKeyUsed = `-- name: LoginOptionIsAccessKeyUsed :one
-SELECT COUNT(*) FROM login_option
+SELECT COUNT(*) FROM active_login_option
 WHERE access_key = $1
-    AND deleted_at IS NULL
-    AND verified_at IS NOT NULL
 `
 
 // LoginOptionIsAccessKeyUsed
 //
-//	SELECT COUNT(*) FROM login_option
+//	SELECT COUNT(*) FROM active_login_option
 //	WHERE access_key = $1
-//	    AND deleted_at IS NULL
-//	    AND verified_at IS NOT NULL
 func (q *Queries) LoginOptionIsAccessKeyUsed(ctx context.Context, accessKey string) (int64, error) {
 	row := q.db.QueryRow(ctx, loginOptionIsAccessKeyUsed, accessKey)
 	var count int64

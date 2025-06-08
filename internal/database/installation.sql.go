@@ -162,6 +162,40 @@ func (q *Queries) InstallationDetachSessionFromInstallationByToken(ctx context.C
 	return err
 }
 
+const installationDetachSessionFromInstallationByUserId = `-- name: InstallationDetachSessionFromInstallationByUserId :exec
+UPDATE installation AS i
+SET
+    attach_to      = NULL,
+    last_attach_to = s.id
+FROM active_session AS s
+JOIN active_login_option AS lo
+    ON s.originated_from = lo.id
+WHERE
+    lo.user_id            = $1
+    AND i.attach_to       = s.id
+    AND i.last_attach_to IS NULL
+    AND i.deleted_at     IS NULL
+`
+
+// InstallationDetachSessionFromInstallationByUserId
+//
+//	UPDATE installation AS i
+//	SET
+//	    attach_to      = NULL,
+//	    last_attach_to = s.id
+//	FROM active_session AS s
+//	JOIN active_login_option AS lo
+//	    ON s.originated_from = lo.id
+//	WHERE
+//	    lo.user_id            = $1
+//	    AND i.attach_to       = s.id
+//	    AND i.last_attach_to IS NULL
+//	    AND i.deleted_at     IS NULL
+func (q *Queries) InstallationDetachSessionFromInstallationByUserId(ctx context.Context, userID int32) error {
+	_, err := q.db.Exec(ctx, installationDetachSessionFromInstallationByUserId, userID)
+	return err
+}
+
 const installationGetInstallationUsingToken = `-- name: InstallationGetInstallationUsingToken :one
 SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 FROM installation

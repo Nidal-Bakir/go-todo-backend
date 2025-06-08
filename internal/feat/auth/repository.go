@@ -67,7 +67,7 @@ type Repository interface {
 	VerifyTokenForInstallation(token string) (*InstallationClaims, error)
 	CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error)
 	UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error
-	Logout(ctx context.Context, userId, installationId int, token string, terminateAllOtherSessions bool) error
+	Logout(ctx context.Context, userId, installationId, tokenId int, terminateAllOtherSessions bool) error
 	ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error)
 	ResetPassword(ctx context.Context, id uuid.UUID, providedOTP, newPassword string) error
 }
@@ -498,10 +498,20 @@ func (repo repositoryImpl) UpdateInstallation(ctx context.Context, installationT
 	return repo.dataSource.UpdateInstallation(ctx, installationToken, data)
 }
 
-func (repo repositoryImpl) Logout(ctx context.Context, userId, installationId int, token string, terminateAllOtherSessions bool) error {
-	// repo.dataSource.
-	// TODO: implent this
-	panic("not implemented")
+func (repo repositoryImpl) Logout(ctx context.Context, userId, installationId, tokenId int, terminateAllOtherSessions bool) error {
+	zlog := zerolog.Ctx(ctx).With().Bool("terminate_all_other_sessions", terminateAllOtherSessions).Logger()
+
+	var err error
+	if terminateAllOtherSessions {
+		err = repo.dataSource.ExpAllTokensAndUnlinkThemFromInstallation(ctx, userId)
+	} else {
+		err = repo.dataSource.ExpTokenAndUnlinkFromInstallation(ctx, installationId, tokenId)
+	}
+	if err != nil {
+		zlog.Err(err).Msg("error while loging out the user")
+	}
+
+	return err
 }
 
 func (repo repositoryImpl) ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error) {

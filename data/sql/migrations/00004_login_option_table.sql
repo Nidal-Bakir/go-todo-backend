@@ -16,5 +16,15 @@ CREATE TABLE login_option (
 CREATE TRIGGER update_login_option_updated_at_column BEFORE
 UPDATE ON login_option FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column ();
 
+CREATE VIEW active_login_option AS
+SELECT
+    *
+FROM
+    login_option
+WHERE
+    verified_at IS NOT NULL
+    AND deleted_at IS NULL;
+
 -- +goose Down
+DROP VIEW active_login_option;
 DROP TABLE login_option;

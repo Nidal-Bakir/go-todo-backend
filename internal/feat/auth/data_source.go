@@ -33,8 +33,8 @@ type DataSource interface {
 	GetInstallationUsingToken(ctx context.Context, installationToken string) (database.Installation, error)
 
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
-	GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOption, error)
-	GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.LoginOption, error)
+	GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.ActiveLoginOption, error)
+	GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error)
 	IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error)
 
 	// Create ---
@@ -49,6 +49,8 @@ type DataSource interface {
 
 	UpdateusernameForUser(ctx context.Context, userId int32, newUsername string) error
 	UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error
+	ExpTokenAndUnlinkFromInstallation(ctx context.Context, installationId, tokenId int) error
+	ExpAllTokensAndUnlinkThemFromInstallation(ctx context.Context, userId int) error
 
 	// change the all the passwords of all the login options that support password usage
 	ChangeAllPasswordsForLoginOptions(ctx context.Context, userId int32, HashedPass, PassSalt string) error
@@ -224,7 +226,7 @@ func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, acces
 	return userWithLoginOption, err
 }
 
-func (ds dataSourceImpl) GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOption, error) {
+func (ds dataSourceImpl) GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.ActiveLoginOption, error) {
 	loginOption, err := ds.db.Queries.LoginOptionGetActiveLoginOption(
 		ctx,
 		database.LoginOptionGetActiveLoginOptionParams{
@@ -279,6 +281,9 @@ func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context
 			ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
 		},
 	)
+	if err != nil {
+		return err
+	}
 
 	affectedRows, err := queries.InstallationAttachSessionToInstallationById(
 		ctx,
@@ -287,12 +292,16 @@ func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context
 			AttachTo: pgtype.Int4{Int32: sessionId, Valid: true},
 		},
 	)
+	if err != nil {
+		return err
+	}
 
 	if affectedRows == 0 {
 		err = apperr.ErrInstallationTokenInUse
+		return err
 	}
 
-	return err
+	return nil
 }
 
 func (ds dataSourceImpl) GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToSessionId int32) (database.Installation, error) {
@@ -342,7 +351,7 @@ func (ds dataSourceImpl) ChangeAllPasswordsForLoginOptions(ctx context.Context, 
 	)
 }
 
-func (ds dataSourceImpl) GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.LoginOption, error) {
+func (ds dataSourceImpl) GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error) {
 	result, err := ds.db.Queries.LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx, userId)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -428,4 +437,96 @@ func (ds dataSourceImpl) GetForgetPasswordDataFromTempCache(ctx context.Context,
 
 func (ds dataSourceImpl) DeleteForgetPasswordDataFromTempCache(ctx context.Context, dataId uuid.UUID) error {
 	return ds.redis.Del(ctx, genTempForgetPasswordTmpDataStorId(dataId)).Err()
+}
+
+func (ds dataSourceImpl) ExpTokenAndUnlinkFromInstallation(ctx context.Context, installationId, tokenId int) (err error) {
+	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		rolbackFn := func() {
+			rollBackErr := tx.Rollback(ctx)
+			err = errors.Join(rollBackErr, ctx.Err(), err)
+		}
+		commitFn := func() {
+			commitErr := tx.Commit(ctx)
+			err = errors.Join(commitErr, err)
+		}
+
+		select {
+		case <-ctx.Done():
+			rolbackFn()
+		default:
+			if err != nil {
+				rolbackFn()
+			} else {
+				commitFn()
+			}
+		}
+	}()
+
+	queries := ds.db.Queries.WithTx(tx)
+
+	err = queries.SessionSoftDeleteSession(ctx, int32(tokenId))
+	if err != nil {
+		return err
+	}
+
+	err = queries.InstallationDetachSessionFromInstallationById(
+		ctx,
+		database.InstallationDetachSessionFromInstallationByIdParams{
+			ID:           int32(installationId),
+			LastAttachTo: pgtype.Int4{Int32: int32(tokenId), Valid: true},
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ds dataSourceImpl) ExpAllTokensAndUnlinkThemFromInstallation(ctx context.Context, userId int) (err error) {
+	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		rolbackFn := func() {
+			rollBackErr := tx.Rollback(ctx)
+			err = errors.Join(rollBackErr, ctx.Err(), err)
+		}
+		commitFn := func() {
+			commitErr := tx.Commit(ctx)
+			err = errors.Join(commitErr, err)
+		}
+
+		select {
+		case <-ctx.Done():
+			rolbackFn()
+		default:
+			if err != nil {
+				rolbackFn()
+			} else {
+				commitFn()
+			}
+		}
+	}()
+
+	queries := ds.db.Queries.WithTx(tx)
+
+	err = queries.InstallationDetachSessionFromInstallationByUserId(ctx, int32(userId))
+	if err != nil {
+		return err
+	}
+
+	err = queries.SessionSoftDeleteAllActiveSessionsForUser(ctx, int32(userId))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

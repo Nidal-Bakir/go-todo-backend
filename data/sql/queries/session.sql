@@ -10,21 +10,26 @@ RETURNING id;
 
 -- name: SessionGetActiveSessionById :one
 SELECT *
-FROM session
+FROM active_session
 WHERE id = $1
-    AND expires_at > NOW()
-    AND deleted_at IS NULL
 LIMIT 1;
 
 -- name: SessionGetActiveSessionByToken :one
 SELECT *
-FROM session
+FROM active_session
 WHERE token = $1
-    AND expires_at > NOW()
-    AND deleted_at IS NULL
 LIMIT 1;
 
 -- name: SessionSoftDeleteSession :exec
 UPDATE session
 SET deleted_at = NOW()
 WHERE id = $1;
+
+
+-- name: SessionSoftDeleteAllActiveSessionsForUser :exec
+UPDATE active_session AS s
+SET deleted_at = NOW()
+FROM active_login_option AS lo
+WHERE
+    s.originated_from = lo.id
+    AND lo.user_id    = $1;
