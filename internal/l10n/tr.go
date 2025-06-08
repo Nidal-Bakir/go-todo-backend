@@ -20,4 +20,7 @@ const (
 	OperationDoneSuccessfullyTrId         = "operation_done_successfully"
 	OldPasswordDoesNotMatchCurrentOneTrId = "old_password_does_not_match_current_one"
 	ExpiredSessionToken                   = "expired_session_token"
+
+	// user
+	BlockedUser = "blocked_user"
 )

@@ -35,6 +35,7 @@ SELECT s.id as session_id,
     u.created_at as user_created_at,
     u.updated_at as user_updated_at,
     u.blocked_at as user_blocked_at,
+    u.blocked_until as user_blocked_until,
     u.deleted_at as user_deleted_at,
     u.role_id as user_role_id
 FROM session AS s

@@ -200,6 +200,7 @@ type UserAndSession struct {
 	UserCreatedAt    pgtype.Timestamptz `json:"user_created_at"`
 	UserUpdatedAt    pgtype.Timestamptz `json:"user_updated_at"`
 	UserBlockedAt    pgtype.Timestamptz `json:"user_blocked_at"`
+	UserBlockedUntil pgtype.Timestamptz `json:"user_blocked_until"`
 	UserDeletedAt    pgtype.Timestamptz `json:"user_deleted_at"`
 	UserRoleID       pgtype.Int4        `json:"user_role_id"`
 
@@ -225,6 +226,7 @@ func NewUserAndSessionFromDatabaseUserAndSessionRow(u database.UsersGetUserAndSe
 		UserUpdatedAt:    u.UserUpdatedAt,
 		UserBlockedAt:    u.UserBlockedAt,
 		UserDeletedAt:    u.UserDeletedAt,
+		UserBlockedUntil: u.UserBlockedUntil,
 		UserRoleID:       u.UserRoleID,
 
 		SessionID:               u.SessionID,

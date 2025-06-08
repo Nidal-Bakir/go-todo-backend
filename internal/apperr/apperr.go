@@ -121,4 +121,7 @@ var (
 	// jwt
 	ErrExpiredSessionToken             = NewAppErrWithTr(errors.New("expired session token"), l10n.ExpiredSessionToken, "auth_13")
 	ErrExpiredInstallationSessionToken = NewAppErrWithErrorCode(errors.New("expired installation session token"), "auth_14")
+
+	// user
+	ErrBlockedUser = NewAppErrWithTr(errors.New("blocked user"), l10n.BlockedUser, "user_1")
 )

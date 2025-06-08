@@ -15,5 +15,6 @@
   "operation_done_successfully": "Operation Done Successfully",
   "old_password_does_not_match_current_one": "Old password does not match current one",
   "expired_session_token": "Expired session token",
-  "invalid_id": "Invalid Id"
+  "invalid_id": "Invalid Id",
+  "blocked_user": "Blocked user"
 }

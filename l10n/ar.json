@@ -15,5 +15,6 @@
   "operation_done_successfully": "تمت العملية بنجاح",
   "old_password_does_not_match_current_one": "كلمة المرور القديمة لا تطابق كلمة المرور الحالية",
   "expired_session_token": "انتهت صلاحية الجلسة",
-  "invalid_id": "رقم معرف غير صالح"
+  "invalid_id": "رقم معرف غير صالح",
+  "blocked_user": "مستخدم محظور"
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
@@ -16,6 +17,14 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
+
+			// Skip re-injecting Auth middleware if user/session info already exists in the context
+			_, ok := auth.UserAndSessionFromContext(ctx)
+			if ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			zlog := zerolog.Ctx(ctx)
 
 			token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
@@ -46,6 +55,14 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 				return
 			}
 
+			// check blocking status
+			blockedAt := userAndSessionData.UserBlockedAt
+			blockedUntil := userAndSessionData.UserBlockedUntil
+			if blockedAt.Valid || (blockedUntil.Valid && blockedUntil.Time.After(time.Now())) {
+				writeError(ctx, w, http.StatusUnauthorized, apperr.ErrBlockedUser)
+				return
+			}
+
 			ctx = auth.ContextWithUserAndSession(ctx, userAndSessionData)
 			ctx = zlog.With().Int32("user_id", userAndSessionData.UserID).Int32("session_id", userAndSessionData.SessionID).Logger().WithContext(ctx)
 
@@ -66,6 +83,14 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
+
+			// Skip re-injecting Installation middleware if the Installation info already exists in the context
+			_, ok := auth.InstallationFromContext(ctx)
+			if ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			zlog := zerolog.Ctx(ctx)
 
 			missingOrInvalidErr := errors.New("missing A-Installation in the request header, or the the installation id is invalid")
