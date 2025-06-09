@@ -12,6 +12,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
+	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
 	usernaemgen "github.com/Nidal-Bakir/username_r_gen"
 	"github.com/google/uuid"
 
@@ -22,38 +23,6 @@ const (
 	OtpCodeLength             = 6
 	PasswordRecommendedLength = 8
 )
-
-type PasswordLoginAccessKey struct {
-	Phone       utils.PhoneNumber
-	Email       string
-	LoginMethod LoginMethod
-}
-
-func (p PasswordLoginAccessKey) accessKeyStr() string {
-	a := ""
-	p.LoginMethod.Fold(
-		func() { a = p.Email },
-		func() { a = p.Phone.ToAppStanderdForm() },
-	)
-	return a
-}
-
-type CreateInstallationData struct {
-	NotificationToken       string // e.g the FCM token
-	Locale                  string // e.g: en-US ...
-	TimezoneOffsetInMinutes int    // e.g: +180
-	DeviceManufacturer      string // e.g: samsung
-	DeviceOS                string // e.g: android
-	DeviceOSVersion         string // e.g: 14
-	AppVersion              string // e.g: 3.1.1
-}
-
-type UpdateInstallationData struct {
-	NotificationToken       string // e.g the FCM token
-	Locale                  string // e.g: en-US ...
-	TimezoneOffsetInMinutes int    // e.g: +180
-	AppVersion              string // e.g: 3.1.1
-}
 
 type Repository interface {
 	GetUserById(ctx context.Context, id int) (User, error)
@@ -70,6 +39,7 @@ type Repository interface {
 	Logout(ctx context.Context, userId, installationId, tokenId int, terminateAllOtherSessions bool) error
 	ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error)
 	ResetPassword(ctx context.Context, id uuid.UUID, providedOTP, newPassword string) error
+	GetAllActiveLoginOptionForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
@@ -167,7 +137,7 @@ func (repo repositoryImpl) isUsedCredentials(ctx context.Context, tUser TempUser
 	var accessKey string
 	tUser.LoginMethod.Fold(
 		func() { accessKey = tUser.Email },
-		func() { accessKey = tUser.Phone.ToAppStanderdForm() },
+		func() { accessKey = tUser.Phone.ToAppStdForm() },
 	)
 	return repo.isAccessKeyUsedInAnyLoginOption(ctx, accessKey)
 }
@@ -304,7 +274,7 @@ func generateUserArgsForCreateUser(user *TempUser, passwordHasher password_hashe
 			accessKey = user.Email
 		}, func() {
 			supportPassword = true
-			accessKey = user.Phone.ToAppStanderdForm()
+			accessKey = user.Phone.ToAppStdForm()
 		},
 	)
 
@@ -435,7 +405,7 @@ func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context,
 func (repo repositoryImpl) changePasswordForAllLoginOptions(ctx context.Context, userID int, oldPassword, newPassword string, shouldCheckOldPasswordWithCurrentOne bool) error {
 	zlog := zerolog.Ctx(ctx)
 
-	loginOptions, err := repo.dataSource.GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx, int32(userID))
+	loginOptions, err := repo.dataSource.GetAllActiveLoginOptionForUserAndSupportPassword(ctx, int32(userID))
 
 	if err != nil {
 		zlog.Err(err).Msg("error while getting all the login options for a user")
@@ -590,4 +560,47 @@ func (repo repositoryImpl) deleteForgetPasswordDataFromTempCache(ctx context.Con
 	if err := repo.dataSource.DeleteForgetPasswordDataFromTempCache(ctx, forgetPassData.Id); err != nil {
 		zlog.Err(err).Msg("error while deleting forget password temp data form temp cache. igonoring this error")
 	}
+}
+
+func (repo repositoryImpl) GetAllActiveLoginOptionForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error) {
+	zlog := zerolog.Ctx(ctx)
+
+	res, err := repo.dataSource.GetAllActiveLoginOptionForUser(ctx, int32(userId))
+	if err != nil {
+		zlog.Err(err).Msg("error while getting all the active login option for user")
+		return nil, err
+	}
+
+	loginOptionSlice := make([]PublicLoginOptionForProfile, len(res))
+
+	for i, v := range res {
+		method, err := new(LoginMethod).FromString(v.LoginMethod)
+		if err != nil {
+			zlog.Err(err).Msg("error can not extract the login method from the str")
+			return []PublicLoginOptionForProfile{}, err
+		}
+
+		var email string
+		var phone phonenumber.PhoneNumber
+		method.Fold(
+			func() { email = v.AccessKey },
+			func() {
+				phone, err = phonenumber.NewPhoneNumberFromStdForm(v.AccessKey)
+			},
+		)
+		if err != nil {
+			zlog.Err(err).Msg("error can not extract the phone number")
+			return []PublicLoginOptionForProfile{}, err
+		}
+
+		loginOptionSlice[i] = PublicLoginOptionForProfile{
+			ID:          v.ID,
+			Email:       email,
+			Phone:       phone,
+			LoginMethod: *method,
+			IsVerified:  v.VerifiedAt.Valid,
+		}
+	}
+
+	return loginOptionSlice, nil
 }

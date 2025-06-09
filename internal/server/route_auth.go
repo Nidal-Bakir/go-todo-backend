@@ -14,6 +14,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
+	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
@@ -89,6 +90,14 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		),
 	)
 
+	mux.HandleFunc(
+		"GET /me",
+		middleware.MiddlewareChain(
+			userProfile(authRepo),
+			Auth(authRepo),
+		),
+	)
+
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 	)
@@ -130,7 +139,7 @@ func createAcccountRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 					key = createAccountParam.Email
 				},
 				func() {
-					key = createAccountParam.PhoneNumber.ToAppStanderdForm()
+					key = createAccountParam.PhoneNumber.ToAppStdForm()
 				},
 				func() {
 					// Even if the validation has errors, do not return an error.
@@ -171,7 +180,7 @@ func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Han
 					key = loginParam.Email
 				},
 				func() {
-					key = loginParam.PhoneNumber.ToAppStanderdForm()
+					key = loginParam.PhoneNumber.ToAppStdForm()
 				},
 				func() {
 					// Even if the validation has errors, do not return an error.
@@ -272,7 +281,7 @@ func forgetPasswordRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 					key = param.Email
 				},
 				func() {
-					key = param.PhoneNumber.ToAppStanderdForm()
+					key = param.PhoneNumber.ToAppStdForm()
 				},
 				func() {
 					// Even if the validation has errors, do not return an error.
@@ -302,7 +311,7 @@ func forgetPasswordRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 type createAccountParams struct {
 	LoginMethod auth.LoginMethod
 	Email       string
-	PhoneNumber utils.PhoneNumber
+	PhoneNumber phonenumber.PhoneNumber
 	Password    string
 	FirstName   string
 	LastName    string
@@ -353,7 +362,7 @@ func validateCreateAccountParam(r *http.Request) (createAccountParams, []error) 
 
 	emailFormStr := r.FormValue("email")
 
-	phone := utils.PhoneNumber{
+	phone := phonenumber.PhoneNumber{
 		CountryCode: r.FormValue("country_code"),
 		Number:      r.FormValue("phone_number"),
 	}
@@ -483,7 +492,7 @@ func validateVareifyAccountParams(r *http.Request) (vareifyAccountParams, []erro
 type loginParams struct {
 	LoginMethod auth.LoginMethod
 	Email       string
-	PhoneNumber utils.PhoneNumber
+	PhoneNumber phonenumber.PhoneNumber
 	Password    string
 }
 
@@ -537,7 +546,7 @@ func validateLoginParam(r *http.Request) (loginParams, []error) {
 
 	emailFormStr := r.FormValue("email")
 
-	phone := utils.PhoneNumber{
+	phone := phonenumber.PhoneNumber{
 		CountryCode: r.FormValue("country_code"),
 		Number:      r.FormValue("phone_number"),
 	}
@@ -737,7 +746,7 @@ func NewPublicUserFromAuthUser(u auth.User) publicUser {
 type forgetPasswordParams struct {
 	LoginMethod auth.LoginMethod
 	Email       string
-	PhoneNumber utils.PhoneNumber
+	PhoneNumber phonenumber.PhoneNumber
 }
 
 func forgetPassword(authRepo auth.Repository) http.HandlerFunc {
@@ -782,7 +791,7 @@ func validateForgetPasswordParam(r *http.Request) (forgetPasswordParams, []error
 
 	emailFormStr := r.FormValue("email")
 
-	phone := utils.PhoneNumber{
+	phone := phonenumber.PhoneNumber{
 		CountryCode: r.FormValue("country_code"),
 		Number:      r.FormValue("phone_number"),
 	}
@@ -889,4 +898,65 @@ func validateResetPasswordParams(r *http.Request) (resetPasswordParams, []error)
 	}
 
 	return params, errList
+}
+
+//-----------------------------------------------------------------------------
+
+func userProfile(authRepo auth.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
+		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+
+		loginOptions, err := authRepo.GetAllActiveLoginOptionForUser(ctx, int(userAndSession.UserID))
+		if err != nil {
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			return
+		}
+
+		type PublicAPI struct {
+			ID          int32  `json:"id"`
+			Email       string `json:"email,omitzero"`
+			CountryCode string `json:"country_code,omitzero"`
+			Number      string `json:"number,omitzero"`
+			IsVerified  bool   `json:"is_verified"`
+			LoginMethod string `json:"login_method"`
+		}
+
+		loginOptionsPublicApi := make([]PublicAPI, len(loginOptions))
+
+		for i, lo := range loginOptions {
+			loginOptionsPublicApi[i] = PublicAPI{
+				ID:          lo.ID,
+				Email:       lo.Email,
+				CountryCode: lo.Phone.CountryCode,
+				Number:      lo.Phone.Number,
+				IsVerified:  lo.IsVerified,
+				LoginMethod: lo.LoginMethod.String(),
+			}
+		}
+
+		type PublicUser struct {
+			ID           int32       `json:"id"`
+			Username     string      `json:"username"`
+			ProfileImage pgtype.Text `json:"profile_image"`
+			FirstName    string      `json:"first_name"`
+			MiddleName   pgtype.Text `json:"middle_name"`
+			LastName     pgtype.Text `json:"last_name"`
+			LoginOptions []PublicAPI `json:"login_options"`
+		}
+
+		publicUser := PublicUser{
+			ID:           userAndSession.UserID,
+			Username:     userAndSession.UserUsername,
+			ProfileImage: userAndSession.UserProfileImage,
+			FirstName:    userAndSession.UserFirstName,
+			MiddleName:   userAndSession.UserMiddleName,
+			LastName:     userAndSession.UserLastName,
+			LoginOptions: loginOptionsPublicApi,
+		}
+
+		writeJson(ctx, w, http.StatusAccepted, publicUser)
+	}
 }

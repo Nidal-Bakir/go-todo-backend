@@ -338,21 +338,21 @@ func (q *Queries) LoginOptionGetAllActiveByUserIdAndLoginMethod(ctx context.Cont
 	return items, nil
 }
 
-const loginOptionGetAllActiveByUserIdAndSupportPassword = `-- name: LoginOptionGetAllActiveByUserIdAndSupportPassword :many
+const loginOptionGetAllActiveForUserAndSupportPassword = `-- name: LoginOptionGetAllActiveForUserAndSupportPassword :many
 SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 FROM active_login_option
 WHERE user_id = $1
     AND hashed_pass IS NOT NULL
 `
 
-// LoginOptionGetAllActiveByUserIdAndSupportPassword
+// LoginOptionGetAllActiveForUserAndSupportPassword
 //
 //	SELECT id, login_method, access_key, hashed_pass, pass_salt, verified_at, created_at, updated_at, deleted_at, user_id
 //	FROM active_login_option
 //	WHERE user_id = $1
 //	    AND hashed_pass IS NOT NULL
-func (q *Queries) LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx context.Context, userID int32) ([]ActiveLoginOption, error) {
-	rows, err := q.db.Query(ctx, loginOptionGetAllActiveByUserIdAndSupportPassword, userID)
+func (q *Queries) LoginOptionGetAllActiveForUserAndSupportPassword(ctx context.Context, userID int32) ([]ActiveLoginOption, error) {
+	rows, err := q.db.Query(ctx, loginOptionGetAllActiveForUserAndSupportPassword, userID)
 	if err != nil {
 		return nil, err
 	}

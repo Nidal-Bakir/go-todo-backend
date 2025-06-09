@@ -29,7 +29,7 @@ WHERE login_method = $1
     AND user_id = $2;
 
 
--- name: LoginOptionGetAllActiveByUserIdAndSupportPassword :many
+-- name: LoginOptionGetAllActiveForUserAndSupportPassword :many
 SELECT *
 FROM active_login_option
 WHERE user_id = $1

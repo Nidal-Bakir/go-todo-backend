@@ -34,7 +34,8 @@ type DataSource interface {
 
 	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
 	GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.ActiveLoginOption, error)
-	GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error)
+	GetAllActiveLoginOptionForUserAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error)
+	GetAllActiveLoginOptionForUser(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error)
 	IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error)
 
 	// Create ---
@@ -351,8 +352,18 @@ func (ds dataSourceImpl) ChangeAllPasswordsForLoginOptions(ctx context.Context, 
 	)
 }
 
-func (ds dataSourceImpl) GetAllActiveLoginOptionByUserIdAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error) {
-	result, err := ds.db.Queries.LoginOptionGetAllActiveByUserIdAndSupportPassword(ctx, userId)
+func (ds dataSourceImpl) GetAllActiveLoginOptionForUserAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error) {
+	result, err := ds.db.Queries.LoginOptionGetAllActiveForUserAndSupportPassword(ctx, userId)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	}
+
+	return result, err
+}
+
+func (ds dataSourceImpl) GetAllActiveLoginOptionForUser(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error) {
+	result, err := ds.db.Queries.LoginOptionGetAllActiveByUserId(ctx, userId)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = apperr.ErrNoResult

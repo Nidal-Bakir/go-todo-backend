@@ -7,6 +7,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
 )
 
 const (
@@ -23,7 +24,7 @@ func NewOTPSender(_ context.Context, provider gateway.Provider, otpLength uint8)
 	return &OTPSender{provider: provider, otpLength: otpLength}
 }
 
-func (o OTPSender) SendSmsOtpForAccountVerification(ctx context.Context, target utils.PhoneNumber) (otp string, err error) {
+func (o OTPSender) SendSmsOtpForAccountVerification(ctx context.Context, target phonenumber.PhoneNumber) (otp string, err error) {
 	otp = o.genRandOTP()
 	err = o.sendSmsOtp(ctx, target, otp)
 	return otp, err
@@ -35,7 +36,7 @@ func (o OTPSender) SendEmailOtpForAccountVerification(ctx context.Context, targe
 	return otp, err
 }
 
-func (o OTPSender) SendSmsOtpForForgetPassword(ctx context.Context, target utils.PhoneNumber) (otp string, err error) {
+func (o OTPSender) SendSmsOtpForForgetPassword(ctx context.Context, target phonenumber.PhoneNumber) (otp string, err error) {
 	otp = o.genRandOTP()
 	err = o.sendSmsOtp(ctx, target, otp)
 	return otp, err
@@ -47,7 +48,7 @@ func (o OTPSender) SendEmailOtpForForgetPassword(ctx context.Context, target str
 	return otp, err
 }
 
-func (o OTPSender) sendSmsOtp(ctx context.Context, target utils.PhoneNumber, content string) (err error) {
+func (o OTPSender) sendSmsOtp(ctx context.Context, target phonenumber.PhoneNumber, content string) (err error) {
 	return o.provider.NewSMSProvider(ctx, target.CountryCode).Send(ctx, target.ToString(), content)
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
+	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -97,7 +98,7 @@ type TempUser struct {
 	Fname       string
 	Lname       string
 	Email       string
-	Phone       utils.PhoneNumber
+	Phone       phonenumber.PhoneNumber
 	SentOTP     string
 	Password    string
 }
@@ -262,4 +263,44 @@ func (f *ForgetPasswordTmpDataStore) FromMap(m map[string]string) *ForgetPasswor
 	f.UserId = utils.Must(strconv.Atoi(m["user_id"]))
 	f.SentOTP = m["sent_otp"]
 	return f
+}
+
+type PasswordLoginAccessKey struct {
+	Phone       phonenumber.PhoneNumber
+	Email       string
+	LoginMethod LoginMethod
+}
+
+func (p PasswordLoginAccessKey) accessKeyStr() string {
+	a := ""
+	p.LoginMethod.Fold(
+		func() { a = p.Email },
+		func() { a = p.Phone.ToAppStdForm() },
+	)
+	return a
+}
+
+type CreateInstallationData struct {
+	NotificationToken       string // e.g the FCM token
+	Locale                  string // e.g: en-US ...
+	TimezoneOffsetInMinutes int    // e.g: +180
+	DeviceManufacturer      string // e.g: samsung
+	DeviceOS                string // e.g: android
+	DeviceOSVersion         string // e.g: 14
+	AppVersion              string // e.g: 3.1.1
+}
+
+type UpdateInstallationData struct {
+	NotificationToken       string // e.g the FCM token
+	Locale                  string // e.g: en-US ...
+	TimezoneOffsetInMinutes int    // e.g: +180
+	AppVersion              string // e.g: 3.1.1
+}
+
+type PublicLoginOptionForProfile struct {
+	ID          int32
+	Phone       phonenumber.PhoneNumber
+	Email       string
+	LoginMethod LoginMethod
+	IsVerified  bool
 }
