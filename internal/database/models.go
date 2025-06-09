@@ -111,7 +111,7 @@ type Session struct {
 type Todo struct {
 	ID        int32              `json:"id"`
 	Title     string             `json:"title"`
-	Body      pgtype.Text        `json:"body"`
+	Body      string             `json:"body"`
 	Status    string             `json:"status"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`

@@ -450,14 +450,18 @@ func (repo repositoryImpl) VerifyTokenForInstallation(token string) (*Installati
 }
 
 func (repo repositoryImpl) CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error) {
+	zlog := zerolog.Ctx(ctx)
+
 	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
 	token, err := repo.authJWT.GenWithClaimsForInstallation(expiresAt)
 	if err != nil {
+		zlog.Err(err).Msg("error while gen jwt token with claims for installation")
 		return "", err
 	}
 
 	err = repo.dataSource.CreateInstallation(ctx, data, token)
 	if err != nil {
+		zlog.Err(err).Msg("error while creating installation")
 		return "", err
 	}
 

@@ -17,7 +17,12 @@ import (
 func installationRouter(_ context.Context, authRepo auth.Repository) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /create", createInstallation(authRepo))
-	mux.HandleFunc("POST /update", Installation(authRepo)(updateInstallation(authRepo)))
+	mux.HandleFunc("POST /update",
+		middleware.MiddlewareChain(
+			updateInstallation(authRepo),
+			Installation(authRepo),
+		),
+	)
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
@@ -37,7 +42,7 @@ func createInstallation(authRepo auth.Repository) http.HandlerFunc {
 
 		installationToken, err := authRepo.CreateInstallation(ctx, params)
 		if err != nil {
-			writeError(ctx, w, http.StatusInternalServerError, err)
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 
@@ -111,7 +116,7 @@ func updateInstallation(authRepo auth.Repository) http.HandlerFunc {
 
 		err := authRepo.UpdateInstallation(ctx, installation.InstallationToken, params)
 		if err != nil {
-			writeError(ctx, w, http.StatusInternalServerError, err)
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 

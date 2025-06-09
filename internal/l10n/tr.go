@@ -23,4 +23,7 @@ const (
 
 	// user
 	BlockedUser = "blocked_user"
+
+	// todo
+	UnsupportedTodoStatus = "unsupported_todo_status"
 )

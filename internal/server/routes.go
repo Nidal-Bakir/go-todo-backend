@@ -91,7 +91,7 @@ func v1Router(ctx context.Context, s *Server) http.Handler {
 	registerAuthHandler(ctx, mux, s, authRepo)
 	registerInstallationHandler(ctx, mux, authRepo)
 
-	registerTodoHandler(ctx, mux, s)
+	registerTodoHandler(ctx, mux, s, authRepo)
 
 	if appenv.IsStagOrLocal() {
 		mux.Handle("/dev-tools/", http.StripPrefix("/dev-tools", devToolsRouter(s)))
@@ -113,8 +113,14 @@ func registerInstallationHandler(ctx context.Context, mux *http.ServeMux, authRe
 }
 
 // handel: /todo and /todo/
-func registerTodoHandler(ctx context.Context, mux *http.ServeMux, s *Server) {
-	h := todoRouter(ctx, s)
+//
+// Needs: Auth
+func registerTodoHandler(ctx context.Context, mux *http.ServeMux, s *Server, authRepo auth.Repository) {
+	h := middleware.MiddlewareChain(
+		todoRouter(ctx, s).ServeHTTP,
+		Auth(authRepo),
+	)
+
 	mux.Handle("/todo", h)
 	mux.Handle("/todo/", h)
 }

@@ -16,5 +16,6 @@
   "old_password_does_not_match_current_one": "Old password does not match current one",
   "expired_session_token": "Expired session token",
   "invalid_id": "Invalid Id",
-  "blocked_user": "Blocked user"
+  "blocked_user": "Blocked user",
+  "unsupported_todo_status": "The status you’re trying to use for the to-do item is invalid or not recognized."
 }

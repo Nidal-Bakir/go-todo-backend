@@ -124,4 +124,7 @@ var (
 
 	// user
 	ErrBlockedUser = NewAppErrWithTr(errors.New("blocked user"), l10n.BlockedUser, "user_1")
+
+	// todo
+	ErrUnsupportedTodoStatus = NewAppErrWithTr(errors.New("unsupported todo status"), l10n.UnsupportedTodoStatus, "todo_1")
 )

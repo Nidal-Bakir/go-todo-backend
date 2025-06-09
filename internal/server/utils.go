@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
@@ -26,6 +27,16 @@ func writeOperationDoneSuccessfullyJson(ctx context.Context, w http.ResponseWrit
 
 func return400IfAppErrOr500(err error) int {
 	if apperr.IsAppErr(err) {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
+}
+
+func return400IfApp404IfNoResultErrOr500(err error) int {
+	if apperr.IsAppErr(err) {
+		if errors.Is(err, apperr.ErrNoResult) {
+			return http.StatusNotFound
+		}
 		return http.StatusBadRequest
 	}
 	return http.StatusInternalServerError

@@ -7,20 +7,167 @@ package database
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const todoSoftDeleteTodo = `-- name: TodoSoftDeleteTodo :exec
+const todoCreateTodo = `-- name: TodoCreateTodo :one
+INSERT INTO
+	todo (title, body, status, user_id)
+VALUES
+	($1, $2, $3, $4)
+RETURNING
+	id, title, body, status, created_at, updated_at, deleted_at, user_id
+`
+
+type TodoCreateTodoParams struct {
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	Status string `json:"status"`
+	UserID int32  `json:"user_id"`
+}
+
+// TodoCreateTodo
+//
+//	INSERT INTO
+//		todo (title, body, status, user_id)
+//	VALUES
+//		($1, $2, $3, $4)
+//	RETURNING
+//		id, title, body, status, created_at, updated_at, deleted_at, user_id
+func (q *Queries) TodoCreateTodo(ctx context.Context, arg TodoCreateTodoParams) (Todo, error) {
+	row := q.db.QueryRow(ctx, todoCreateTodo,
+		arg.Title,
+		arg.Body,
+		arg.Status,
+		arg.UserID,
+	)
+	var i Todo
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Body,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const todoGetTodoLinkedToUser = `-- name: TodoGetTodoLinkedToUser :one
+SELECT id, title, body, status, created_at, updated_at, deleted_at, user_id FROM todo
+WHERE id = $1
+    AND user_id = $2
+    AND deleted_at IS NULL
+LIMIT 1
+`
+
+type TodoGetTodoLinkedToUserParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// TodoGetTodoLinkedToUser
+//
+//	SELECT id, title, body, status, created_at, updated_at, deleted_at, user_id FROM todo
+//	WHERE id = $1
+//	    AND user_id = $2
+//	    AND deleted_at IS NULL
+//	LIMIT 1
+func (q *Queries) TodoGetTodoLinkedToUser(ctx context.Context, arg TodoGetTodoLinkedToUserParams) (Todo, error) {
+	row := q.db.QueryRow(ctx, todoGetTodoLinkedToUser, arg.ID, arg.UserID)
+	var i Todo
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Body,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+	)
+	return i, err
+}
+
+const todoSoftDeleteTodoLinkedToUser = `-- name: TodoSoftDeleteTodoLinkedToUser :exec
 UPDATE todo
 SET deleted_at = NOW()
 WHERE id = $1
+    AND user_id = $2
 `
 
-// TodoSoftDeleteTodo
+type TodoSoftDeleteTodoLinkedToUserParams struct {
+	ID     int32 `json:"id"`
+	UserID int32 `json:"user_id"`
+}
+
+// TodoSoftDeleteTodoLinkedToUser
 //
 //	UPDATE todo
 //	SET deleted_at = NOW()
 //	WHERE id = $1
-func (q *Queries) TodoSoftDeleteTodo(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, todoSoftDeleteTodo, id)
+//	    AND user_id = $2
+func (q *Queries) TodoSoftDeleteTodoLinkedToUser(ctx context.Context, arg TodoSoftDeleteTodoLinkedToUserParams) error {
+	_, err := q.db.Exec(ctx, todoSoftDeleteTodoLinkedToUser, arg.ID, arg.UserID)
 	return err
+}
+
+const todoUpdateTodo = `-- name: TodoUpdateTodo :one
+UPDATE todo
+SET
+	title = COALESCE($3, title),
+	body = COALESCE($4, body),
+	status = COALESCE($5, status)
+WHERE
+	id = $1
+	AND user_id = $2
+    AND deleted_at IS NULL
+RETURNING
+	id, title, body, status, created_at, updated_at, deleted_at, user_id
+`
+
+type TodoUpdateTodoParams struct {
+	ID     int32       `json:"id"`
+	UserID int32       `json:"user_id"`
+	Title  pgtype.Text `json:"title"`
+	Body   pgtype.Text `json:"body"`
+	Status pgtype.Text `json:"status"`
+}
+
+// TodoUpdateTodo
+//
+//	UPDATE todo
+//	SET
+//		title = COALESCE($3, title),
+//		body = COALESCE($4, body),
+//		status = COALESCE($5, status)
+//	WHERE
+//		id = $1
+//		AND user_id = $2
+//	    AND deleted_at IS NULL
+//	RETURNING
+//		id, title, body, status, created_at, updated_at, deleted_at, user_id
+func (q *Queries) TodoUpdateTodo(ctx context.Context, arg TodoUpdateTodoParams) (Todo, error) {
+	row := q.db.QueryRow(ctx, todoUpdateTodo,
+		arg.ID,
+		arg.UserID,
+		arg.Title,
+		arg.Body,
+		arg.Status,
+	)
+	var i Todo
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Body,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.UserID,
+	)
+	return i, err
 }
