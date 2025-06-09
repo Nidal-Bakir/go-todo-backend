@@ -17,8 +17,6 @@ require (
 	github.com/rs/cors v1.11.1
 )
 
-require github.com/guregu/null/v6 v6.0.0 // indirect
-
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
