@@ -11,7 +11,6 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/todo"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
-	"github.com/jackc/pgx/v5"
 )
 
 func todoRouter(_ context.Context, s *Server) http.Handler {
@@ -114,9 +113,6 @@ func updateTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		res, err := todoRepo.UpdateTodo(ctx, int(userAndSession.UserID), todoId, todoData)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				err = apperr.ErrNoResult
-			}
 			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
@@ -134,7 +130,50 @@ func todoIndex(todoRepo todo.Repository) http.HandlerFunc {
 			writeError(ctx, w, http.StatusBadRequest, err)
 			return
 		}
+
+		param := validateTodoIndexParam(r)
+
+		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
+		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+
+		todos, err := todoRepo.GetTodos(
+			ctx, int(userAndSession.UserID),
+			param.Page*param.PerPage,
+			param.PerPage,
+		)
+		if err != nil {
+			if errors.Is(err, apperr.ErrNoResult) {
+				writeJson(ctx, w, http.StatusOK, todos)
+				return
+			}
+			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			return
+		}
+
+		writeJson(ctx, w, http.StatusOK, todos)
 	}
+}
+
+type paginationParam struct {
+	PerPage int
+	Page    int
+}
+
+func validateTodoIndexParam(r *http.Request) paginationParam {
+	var param paginationParam
+
+	convToInt := func(strNum string) int {
+		n, err := strconv.Atoi(strNum)
+		if err != nil {
+			return 0
+		}
+		return n
+	}
+
+	param.Page = convToInt(r.FormValue("page"))
+	param.PerPage = utils.Clamp(convToInt(r.FormValue("per_page")), 1, 40)
+
+	return param
 }
 
 func todoShow(todoRepo todo.Repository) http.HandlerFunc {
@@ -152,9 +191,6 @@ func todoShow(todoRepo todo.Repository) http.HandlerFunc {
 
 		res, err := todoRepo.GetTodo(ctx, int(userAndSession.UserID), todoId)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				err = apperr.ErrNoResult
-			}
 			writeError(ctx, w, return400IfApp404IfNoResultErrOr500(err), err)
 			return
 		}
@@ -178,9 +214,6 @@ func deleteTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		err = todoRepo.DeleteTodo(ctx, int(userAndSession.UserID), todoId)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				err = apperr.ErrNoResult
-			}
 			writeError(ctx, w, return400IfApp404IfNoResultErrOr500(err), err)
 			return
 		}

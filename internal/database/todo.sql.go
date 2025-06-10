@@ -92,6 +92,62 @@ func (q *Queries) TodoGetTodoLinkedToUser(ctx context.Context, arg TodoGetTodoLi
 	return i, err
 }
 
+const todoGetTodosForUser = `-- name: TodoGetTodosForUser :many
+SELECT
+    id, title, body, status, created_at, updated_at, deleted_at, user_id
+FROM todo
+WHERE user_id = $1
+   AND deleted_at IS NULL
+ORDER BY created_at DESC
+OFFSET $2
+LIMIT $3
+`
+
+type TodoGetTodosForUserParams struct {
+	UserID int32 `json:"user_id"`
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
+}
+
+// TodoGetTodosForUser
+//
+//	SELECT
+//	    id, title, body, status, created_at, updated_at, deleted_at, user_id
+//	FROM todo
+//	WHERE user_id = $1
+//	   AND deleted_at IS NULL
+//	ORDER BY created_at DESC
+//	OFFSET $2
+//	LIMIT $3
+func (q *Queries) TodoGetTodosForUser(ctx context.Context, arg TodoGetTodosForUserParams) ([]Todo, error) {
+	rows, err := q.db.Query(ctx, todoGetTodosForUser, arg.UserID, arg.Offset, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Todo{}
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Body,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const todoSoftDeleteTodoLinkedToUser = `-- name: TodoSoftDeleteTodoLinkedToUser :exec
 UPDATE todo
 SET deleted_at = NOW()

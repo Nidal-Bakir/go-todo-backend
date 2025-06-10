@@ -34,3 +34,13 @@ WHERE
     AND deleted_at IS NULL
 RETURNING
 	*;
+
+-- name: TodoGetTodosForUser :many
+SELECT
+    *
+FROM todo
+WHERE user_id = $1
+   AND deleted_at IS NULL
+ORDER BY created_at DESC
+OFFSET $2
+LIMIT $3;

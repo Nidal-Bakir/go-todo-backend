@@ -2,15 +2,18 @@ package todo
 
 import (
 	"context"
+	"errors"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
 
 type Repository interface {
-	GetTodos(ctx context.Context, userId, perPage, page int) ([]TodoItem, error)
+	GetTodos(ctx context.Context, userId, offset, limit int) ([]TodoItem, error)
 	GetTodo(ctx context.Context, userId, todoId int) (TodoItem, error)
 
 	CreateTodo(ctx context.Context, userId int, data TodoData) (TodoItem, error)
@@ -31,12 +34,43 @@ type repositoryImpl struct {
 	redis *redis.Client
 }
 
-func (repo repositoryImpl) GetTodos(ctx context.Context, userId, perPage, page int) ([]TodoItem, error) {
-	panic("not implemented")
+func (repo repositoryImpl) GetTodos(ctx context.Context, userId, offset, limit int) ([]TodoItem, error) {
+	zlog := zerolog.Ctx(ctx)
+
+	data, err := repo.db.Queries.TodoGetTodosForUser(
+		ctx,
+		database.TodoGetTodosForUserParams{
+			UserID: int32(userId),
+			Offset: int64(offset),
+			Limit:  int64(limit),
+		},
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = apperr.ErrNoResult
+		} else {
+			zlog.Err(err).Msg("can not get todo")
+		}
+		return []TodoItem{}, err
+	}
+
+	todoItems := make([]TodoItem, len(data))
+
+	for i, v := range data {
+		todoItem, err := todoItemFromDataBase(v)
+		if err != nil {
+			zlog.Err(err).Msg("can not convert database.Todo to TodoItem")
+			return []TodoItem{}, err
+		}
+		todoItems[i] = todoItem
+	}
+
+	return todoItems, nil
 }
 
 func (repo repositoryImpl) GetTodo(ctx context.Context, userId, todoId int) (TodoItem, error) {
-	zlog := zerolog.Ctx(ctx)
+	zlog := zerolog.Ctx(ctx).With().Int("todo_id", todoId).Logger()
 
 	res, err := repo.db.Queries.TodoGetTodoLinkedToUser(
 		ctx,
@@ -46,7 +80,11 @@ func (repo repositoryImpl) GetTodo(ctx context.Context, userId, todoId int) (Tod
 		},
 	)
 	if err != nil {
-		zlog.Err(err).Msg("can not get todo")
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = apperr.ErrNoResult
+		} else {
+			zlog.Err(err).Msg("can not get todo")
+		}
 		return TodoItem{}, err
 	}
 
@@ -100,7 +138,7 @@ func (repo repositoryImpl) CreateTodo(ctx context.Context, userId int, data Todo
 }
 
 func (repo repositoryImpl) UpdateTodo(ctx context.Context, userId, todoId int, data TodoData) (TodoItem, error) {
-	zlog := zerolog.Ctx(ctx)
+	zlog := zerolog.Ctx(ctx).With().Int("todo_id", todoId).Logger()
 
 	stringToPgTextType := func(strPtr *string) pgtype.Text {
 		var txt pgtype.Text
@@ -128,7 +166,11 @@ func (repo repositoryImpl) UpdateTodo(ctx context.Context, userId, todoId int, d
 	)
 
 	if err != nil {
-		zlog.Err(err).Msg("can not create todo")
+		if errors.Is(err, pgx.ErrNoRows) {
+			err = apperr.ErrNoResult
+		} else {
+			zlog.Err(err).Msg("can not create todo")
+		}
 		return TodoItem{}, err
 	}
 
@@ -142,11 +184,21 @@ func (repo repositoryImpl) UpdateTodo(ctx context.Context, userId, todoId int, d
 }
 
 func (repo repositoryImpl) DeleteTodo(ctx context.Context, userId, todoId int) error {
-	return repo.db.Queries.TodoSoftDeleteTodoLinkedToUser(
+	zlog := zerolog.Ctx(ctx).With().Int("todo_id", todoId).Logger()
+
+	err := repo.db.Queries.TodoSoftDeleteTodoLinkedToUser(
 		ctx,
 		database.TodoSoftDeleteTodoLinkedToUserParams{
 			ID:     int32(todoId),
 			UserID: int32(userId),
 		},
 	)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		err = apperr.ErrNoResult
+	} else {
+		zlog.Err(err).Msg("can not delete todo")
+	}
+
+	return err
 }

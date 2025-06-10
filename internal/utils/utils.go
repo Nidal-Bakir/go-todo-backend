@@ -5,6 +5,15 @@ import (
 	"math"
 )
 
+func Clamp(x, min, max int) int {
+	if x < min {
+		x = min
+	} else if x > max {
+		x = max
+	}
+	return x
+}
+
 func SafeIntToInt32(v int) (int32, error) {
 	if v < math.MinInt32 || v > math.MaxInt32 {
 		return 0, fmt.Errorf("value %d out of range for int32", v)
