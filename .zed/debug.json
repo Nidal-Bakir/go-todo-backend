@@ -1,0 +1,11 @@
+[
+  {
+    "label": "Go (Delve)",
+    "adapter": "Delve",
+    "request": "launch",
+    "mode": "debug",
+    "cwd": "${ZED_WORKTREE_ROOT}",
+    "program": "./cmd/api",
+    "envFile": "./.env"
+  }
+]

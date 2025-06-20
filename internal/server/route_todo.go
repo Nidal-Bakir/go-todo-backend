@@ -11,6 +11,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/todo"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/paginate"
 )
 
 func todoRouter(_ context.Context, s *Server) http.Handler {
@@ -131,49 +132,29 @@ func todoIndex(todoRepo todo.Repository) http.HandlerFunc {
 			return
 		}
 
-		param := validateTodoIndexParam(r)
-
 		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
 		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
 
-		todos, err := todoRepo.GetTodos(
-			ctx, int(userAndSession.UserID),
-			param.Page*param.PerPage,
-			param.PerPage,
-		)
-		if err != nil {
-			if errors.Is(err, apperr.ErrNoResult) {
-				writeJson(ctx, w, http.StatusOK, todos)
-				return
-			}
+		paginatedDate, err := paginate.NewSimplePaginatedAction(
+			func(offset, limit int) ([]todo.TodoItem, error) {
+				return todoRepo.GetTodos(
+					ctx,
+					int(userAndSession.UserID),
+					offset,
+					limit,
+				)
+			},
+		).Exec(r)
+		if err != nil && !errors.Is(err, apperr.ErrNoResult) {
 			writeError(ctx, w, return400IfAppErrOr500(err), err)
 			return
 		}
 
-		writeJson(ctx, w, http.StatusOK, todos)
+		// convert items to public form
+		publicPaginatedDate := paginate.PaginatedDataMapper(paginatedDate, publicTodoItemFromRepoModel)
+
+		writeJson(ctx, w, http.StatusOK, publicPaginatedDate)
 	}
-}
-
-type paginationParam struct {
-	PerPage int
-	Page    int
-}
-
-func validateTodoIndexParam(r *http.Request) paginationParam {
-	var param paginationParam
-
-	convToInt := func(strNum string) int {
-		n, err := strconv.Atoi(strNum)
-		if err != nil {
-			return 0
-		}
-		return n
-	}
-
-	param.Page = convToInt(r.FormValue("page"))
-	param.PerPage = utils.Clamp(convToInt(r.FormValue("per_page")), 1, 40)
-
-	return param
 }
 
 func todoShow(todoRepo todo.Repository) http.HandlerFunc {
