@@ -574,6 +574,12 @@ func (repo repositoryImpl) ResetPassword(ctx context.Context, id uuid.UUID, prov
 
 	repo.deleteForgetPasswordDataFromTempCache(ctx, forgetPassData)
 
+	// logout all the devices, do not returen any erros, jsut log them
+	err = repo.dataSource.ExpAllTokensAndUnlinkThemFromInstallation(ctx, forgetPassData.UserId)
+	if err != nil {
+		zlog.Err(err).Msg("error can not exp all the tokens and unlink them from installation after a Reset Passowrd operation")
+	}
+
 	return nil
 }
 
