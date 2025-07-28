@@ -1,4 +1,4 @@
-package apiutils
+package resutils
 
 import (
 	"context"
@@ -32,13 +32,7 @@ func (e errorRes) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	for i, e := range errs {
-		if appError := apperr.UnwrapAppErr(e); appError != nil {
-			appError.SetTranslation(ctx)
-			errs[i] = appError
-		}
-	}
+func apiWriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
 	err := errorRes{Errors: errs}
 
 	// on production log the actual error, and send an arbitrary error to the user
@@ -53,7 +47,7 @@ func WriteError(ctx context.Context, w http.ResponseWriter, code int, errs ...er
 	_writeJson(ctx, w, code, err, true)
 }
 
-func WriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
+func apiWriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
 	_writeJson(ctx, w, code, payload, appenv.IsStagOrLocal())
 }
 
@@ -63,7 +57,7 @@ func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload an
 	bytes, err := json.Marshal(payload)
 	if err != nil {
 		zlog.Error().Err(err).Any("payload", payload).Int("code", code).Msg("can not marshal payload in WriteJson")
-		WriteError(ctx, w, http.StatusInternalServerError, err)
+		apiWriteError(ctx, w, http.StatusInternalServerError, err)
 		return
 	}
 

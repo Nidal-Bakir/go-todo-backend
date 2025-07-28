@@ -34,7 +34,5 @@ UPDATE ON role_permission FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_
 
 -- +goose Down
 DROP TABLE role_permission;
-
 DROP TABLE role;
-
 DROP TABLE permission;

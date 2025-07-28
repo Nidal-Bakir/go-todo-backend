@@ -8,21 +8,21 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
 )
 
-func writeError(ctx context.Context, w http.ResponseWriter, code int, errs ...error) {
-	apiutils.WriteError(ctx, w, code, errs...)
+func writeError(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errs ...error) {
+	resutils.WriteError(ctx, w, r, code, errs...)
 }
 
-func writeJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
-	apiutils.WriteJson(ctx, w, code, payload)
+func writeResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, payload any) {
+	resutils.WriteResponse(ctx, w, r, code, payload)
 }
 
-func writeOperationDoneSuccessfullyJson(ctx context.Context, w http.ResponseWriter) {
+func apiWriteOperationDoneSuccessfullyJson(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	localizer, ok := l10n.LocalizerFromContext(ctx)
 	utils.Assert(ok, "we should find the localizer in the context tree, but we did not. something is wrong.")
-	writeJson(ctx, w, http.StatusOK, map[string]string{"msg": localizer.GetWithId(l10n.OperationDoneSuccessfullyTrId)})
+	writeResponse(ctx, w, r, http.StatusOK, map[string]string{"msg": localizer.GetWithId(l10n.OperationDoneSuccessfullyTrId)})
 }
 
 func return400IfAppErrOr500(err error) int {

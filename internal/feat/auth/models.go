@@ -13,54 +13,57 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type LoginMethod string
+type LoginIdentityType string
 
 const (
-	LoginMethodEmail       LoginMethod = "email"
-	LoginMethodPhoneNumber LoginMethod = "phone"
+	LoginIdentityTypeEmail LoginIdentityType = "email"
+	LoginIdentityTypePhone LoginIdentityType = "phone"
+	LoginIdentityTypeOcid  LoginIdentityType = "ocid"
+	LoginIdentityTypeGuest LoginIdentityType = "guest"
 )
 
-func (l LoginMethod) IsUsingEmail() bool {
-	return l == LoginMethodEmail
+func (l LoginIdentityType) IsUsingEmail() bool {
+	return l == LoginIdentityTypeEmail
 }
-func (l LoginMethod) IsUsingPhoneNumber() bool {
-	return l == LoginMethodPhoneNumber
+func (l LoginIdentityType) IsUsingPhoneNumber() bool {
+	return l == LoginIdentityTypePhone
 }
 
-func (l LoginMethod) SupportPassword() bool {
+func (l LoginIdentityType) SupportPassword() bool {
 	var supportPassword bool
-
-	l.Fold(
-		func() { supportPassword = true },
-		func() { supportPassword = true },
+	l.FoldOr(
+		LoginIdentityFoldActions{
+			OnEmail: func() { supportPassword = true },
+			OnPhone: func() { supportPassword = true },
+		},
+		func() {},
 	)
-
 	return supportPassword
 }
 
-func (l LoginMethod) String() string {
+func (l LoginIdentityType) String() string {
 	return string(l)
 }
 
-func (l *LoginMethod) FromString(str string) (*LoginMethod, error) {
+func (l *LoginIdentityType) FromString(str string) (*LoginIdentityType, error) {
 	switch {
-	case LoginMethodEmail.String() == str:
-		*l = LoginMethodEmail
+	case LoginIdentityTypeEmail.String() == str:
+		*l = LoginIdentityTypeEmail
 
-	case LoginMethodPhoneNumber.String() == str:
-		*l = LoginMethodPhoneNumber
+	case LoginIdentityTypePhone.String() == str:
+		*l = LoginIdentityTypePhone
 
 	default:
 		l = nil
-		return l, apperr.ErrUnsupportedLoginMethod
+		return l, apperr.ErrUnsupportedLoginIdentityType
 	}
 
 	return l, nil
 }
 
-func (l *LoginMethod) Fold(onEmail func(), onPhone func()) {
+func (l *LoginIdentityType) Fold(actions LoginIdentityFoldActions) {
 	panicFn := func() {
-		panic(fmt.Sprintf("Not supported login method %s", l.String()))
+		panic(fmt.Sprintf("Not supported login identity type %s", l.String()))
 	}
 
 	if l == nil {
@@ -68,46 +71,64 @@ func (l *LoginMethod) Fold(onEmail func(), onPhone func()) {
 		return
 	}
 
-	l.FoldOr(
-		onEmail,
-		onPhone,
-		panicFn,
-	)
+	l.FoldOr(actions, panicFn)
 }
 
-func (l *LoginMethod) FoldOr(onEmail func(), onPhone func(), orElse func()) {
+type LoginIdentityFoldActions struct {
+	OnEmail func()
+	OnPhone func()
+	OnOcid  func()
+	OnGuest func()
+}
+
+func (l *LoginIdentityType) FoldOr(actions LoginIdentityFoldActions, orElse func()) {
 	if l == nil {
 		orElse()
 		return
 	}
 
+	actionOrElse := func(fn func()) func() {
+		if fn == nil {
+			return orElse
+		}
+		return fn
+	}
+
 	switch *l {
-	case LoginMethodEmail:
-		onEmail()
-	case LoginMethodPhoneNumber:
-		onPhone()
+	case LoginIdentityTypeEmail:
+		actionOrElse(actions.OnEmail)()
+
+	case LoginIdentityTypePhone:
+		actionOrElse(actions.OnPhone)()
+
+	case LoginIdentityTypeOcid:
+		actionOrElse(actions.OnOcid)()
+
+	case LoginIdentityTypeGuest:
+		actionOrElse(actions.OnGuest)()
+
 	default:
 		orElse()
 	}
 }
 
-type TempUser struct {
-	Id          uuid.UUID // used as a key
-	Username    string    // will be the same as Id and will be updated with new value afterword, but initaly this should not be empty
-	LoginMethod LoginMethod
-	Fname       string
-	Lname       string
-	Email       string
-	Phone       phonenumber.PhoneNumber
-	SentOTP     string
-	Password    string
+type TempPasswordUser struct {
+	Id                uuid.UUID // used as a key
+	Username          string    // will be the same as Id and will be updated with new value afterword, but initaly this should not be empty
+	LoginIdentityType LoginIdentityType
+	Fname             string
+	Lname             string
+	Email             string
+	Phone             phonenumber.PhoneNumber
+	SentOTP           string
+	Password          string
 }
 
-func (tu TempUser) ToMap() map[string]string {
+func (tu TempPasswordUser) ToMap() map[string]string {
 	m := make(map[string]string, 8)
 	m["id"] = tu.Id.String()
 	m["username"] = tu.Username
-	m["login_method"] = tu.LoginMethod.String()
+	m["login_identity_type"] = tu.LoginIdentityType.String()
 	m["f_name"] = tu.Fname
 	m["l_name"] = tu.Lname
 	m["email"] = tu.Email
@@ -118,10 +139,10 @@ func (tu TempUser) ToMap() map[string]string {
 	return m
 }
 
-func (tu *TempUser) FromMap(m map[string]string) *TempUser {
+func (tu *TempPasswordUser) FromMap(m map[string]string) *TempPasswordUser {
 	tu.Id = uuid.MustParse(m["id"])
 	tu.Username = m["username"]
-	tu.LoginMethod = LoginMethod(m["login_method"])
+	tu.LoginIdentityType = LoginIdentityType(m["login_identity_type"])
 	tu.Fname = m["f_name"]
 	tu.Lname = m["l_name"]
 	tu.Email = m["email"]
@@ -133,12 +154,14 @@ func (tu *TempUser) FromMap(m map[string]string) *TempUser {
 	return tu
 }
 
-func (tu TempUser) ValidateForStore() (ok bool) {
+func (tu TempPasswordUser) ValidateForStore() (ok bool) {
 	ok = tu.Username == tu.Id.String()
 
-	tu.LoginMethod.FoldOr(
-		func() { ok = ok && emailvalidator.IsValidEmail(tu.Email) },
-		func() { ok = ok && tu.Phone.IsValid() },
+	tu.LoginIdentityType.FoldOr(
+		LoginIdentityFoldActions{
+			OnEmail: func() { ok = ok && emailvalidator.IsValidEmail(tu.Email) },
+			OnPhone: func() { ok = ok && tu.Phone.IsValid() },
+		},
 		func() { ok = false },
 	)
 
@@ -149,16 +172,17 @@ func (tu TempUser) ValidateForStore() (ok bool) {
 	return ok
 }
 
-type CreateUserArgs struct {
-	Username         string
-	Fname            string
-	Lname            string
-	LoginMethod      LoginMethod
-	AccessKey        string
-	HashedPass       string
-	PassSalt         string
-	ProfileImagePath string
-	RoleID           int32
+type CreatePasswordUserArgs struct {
+	Username          string
+	Fname             string
+	Lname             string
+	LoginIdentityType LoginIdentityType
+	Email             string
+	Phone             string
+	HashedPass        string
+	PassSalt          string
+	ProfileImagePath  string
+	RoleID            *int32
 }
 
 type User struct {
@@ -223,35 +247,27 @@ func NewUserAndSessionFromDatabaseUserAndSessionRow(u database.UsersGetUserAndSe
 		UserFirstName:    u.UserFirstName,
 		UserMiddleName:   u.UserMiddleName,
 		UserLastName:     u.UserLastName,
-		UserCreatedAt:    u.UserCreatedAt,
-		UserUpdatedAt:    u.UserUpdatedAt,
 		UserBlockedAt:    u.UserBlockedAt,
-		UserDeletedAt:    u.UserDeletedAt,
 		UserBlockedUntil: u.UserBlockedUntil,
 		UserRoleID:       u.UserRoleID,
 
 		SessionID:               u.SessionID,
 		SessionToken:            u.SessionToken,
-		SessionCreatedAt:        u.SessionCreatedAt,
-		SessionUpdatedAt:        u.SessionUpdatedAt,
-		SessionExpiresAt:        u.SessionExpiresAt,
-		SessionDeletedAt:        u.SessionDeletedAt,
 		SessionOriginatedFrom:   u.SessionOriginatedFrom,
 		SessionUsedInstallation: u.SessionUsedInstallation,
 	}
 }
 
 type ForgetPasswordTmpDataStore struct {
-	Id            uuid.UUID // used as a key
-	LoginOptionId int
-	UserId        int
-	SentOTP       string
+	Id uuid.UUID // used as a key
+
+	UserId  int
+	SentOTP string
 }
 
 func (f ForgetPasswordTmpDataStore) ToMap() map[string]string {
 	m := make(map[string]string, 8)
 	m["id"] = f.Id.String()
-	m["login_option_id"] = strconv.Itoa(f.LoginOptionId)
 	m["user_id"] = strconv.Itoa(f.UserId)
 	m["sent_otp"] = f.SentOTP
 	return m
@@ -259,23 +275,24 @@ func (f ForgetPasswordTmpDataStore) ToMap() map[string]string {
 
 func (f *ForgetPasswordTmpDataStore) FromMap(m map[string]string) *ForgetPasswordTmpDataStore {
 	f.Id = uuid.MustParse(m["id"])
-	f.LoginOptionId = utils.Must(strconv.Atoi(m["login_option_id"]))
 	f.UserId = utils.Must(strconv.Atoi(m["user_id"]))
 	f.SentOTP = m["sent_otp"]
 	return f
 }
 
 type PasswordLoginAccessKey struct {
-	Phone       phonenumber.PhoneNumber
-	Email       string
-	LoginMethod LoginMethod
+	Phone             phonenumber.PhoneNumber
+	Email             string
+	LoginIdentityType LoginIdentityType
 }
 
 func (p PasswordLoginAccessKey) accessKeyStr() string {
 	a := ""
-	p.LoginMethod.Fold(
-		func() { a = p.Email },
-		func() { a = p.Phone.ToAppStdForm() },
+	p.LoginIdentityType.Fold(
+		LoginIdentityFoldActions{
+			OnEmail: func() { a = p.Email },
+			OnPhone: func() { a = p.Phone.ToAppStdForm() },
+		},
 	)
 	return a
 }
@@ -298,9 +315,10 @@ type UpdateInstallationData struct {
 }
 
 type PublicLoginOptionForProfile struct {
-	ID          int32
-	Phone       phonenumber.PhoneNumber
-	Email       string
-	LoginMethod LoginMethod
-	IsVerified  bool
+	ID                int32
+	Phone             phonenumber.PhoneNumber
+	Email             string
+	LoginIdentityType LoginIdentityType
+	IsVerified        bool
+	OidcProvider      string
 }

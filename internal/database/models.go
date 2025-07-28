@@ -8,27 +8,140 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type ActiveLoginOption struct {
-	ID          int32              `json:"id"`
-	LoginMethod string             `json:"login_method"`
-	AccessKey   string             `json:"access_key"`
-	HashedPass  pgtype.Text        `json:"hashed_pass"`
-	PassSalt    pgtype.Text        `json:"pass_salt"`
-	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
-	UserID      int32              `json:"user_id"`
+type ActiveGuestLoginIdentity struct {
+	ID              int32              `json:"id"`
+	LoginIdentityID int32              `json:"login_identity_id"`
+	DeviceID        string             `json:"device_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveLoginIdentity struct {
+	ID           int32              `json:"id"`
+	UserID       int32              `json:"user_id"`
+	IdentityType string             `json:"identity_type"`
+	IsPrimary    pgtype.Bool        `json:"is_primary"`
+	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveOauthConnection struct {
+	ID         int32              `json:"id"`
+	ProviderID int32              `json:"provider_id"`
+	Scopes     string             `json:"scopes"`
+	CreatedAt  pgtype.Timestamp   `json:"created_at"`
+	UpdatedAt  pgtype.Timestamp   `json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveOauthIntegration struct {
+	ID                int32              `json:"id"`
+	OauthConnectionID int32              `json:"oauth_connection_id"`
+	IntegrationType   string             `json:"integration_type"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveOauthProvider struct {
+	ID            int32              `json:"id"`
+	Name          string             `json:"name"`
+	IsOidcCapable bool               `json:"is_oidc_capable"`
+	CreatedAt     pgtype.Timestamp   `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp   `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveOauthToken struct {
+	ID                 int32              `json:"id"`
+	OauthIntegrationID int32              `json:"oauth_integration_id"`
+	AccessToken        string             `json:"access_token"`
+	RefreshToken       pgtype.Text        `json:"refresh_token"`
+	TokenType          string             `json:"token_type"`
+	ExpiresAt          pgtype.Timestamp   `json:"expires_at"`
+	IssuedAt           pgtype.Timestamp   `json:"issued_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveOidcLoginIdentity struct {
+	ID                        int32              `json:"id"`
+	LoginIdentityID           int32              `json:"login_identity_id"`
+	OidcUserIntegrationDataID int32              `json:"oidc_user_integration_data_id"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveOidcUserIntegrationDatum struct {
+	ID                int32              `json:"id"`
+	UserIntegrationID int32              `json:"user_integration_id"`
+	Sub               string             `json:"sub"`
+	Email             pgtype.Text        `json:"email"`
+	Iss               string             `json:"iss"`
+	Aud               string             `json:"aud"`
+	GivenName         pgtype.Text        `json:"given_name"`
+	FamilyName        pgtype.Text        `json:"family_name"`
+	Name              pgtype.Text        `json:"name"`
+	Picture           pgtype.Text        `json:"picture"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActivePasswordLoginIdentity struct {
+	ID              int32              `json:"id"`
+	LoginIdentityID int32              `json:"login_identity_id"`
+	Email           pgtype.Text        `json:"email"`
+	Phone           pgtype.Text        `json:"phone"`
+	HashedPass      string             `json:"hashed_pass"`
+	PassSalt        string             `json:"pass_salt"`
+	VerifiedAt      pgtype.Timestamptz `json:"verified_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type ActiveSession struct {
-	ID             int32              `json:"id"`
-	Token          string             `json:"token"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
-	OriginatedFrom int32              `json:"originated_from"`
+	ID               int32              `json:"id"`
+	Token            string             `json:"token"`
+	IpAddress        string             `json:"ip_address"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	OriginatedFrom   int32              `json:"originated_from"`
+	UsedInstallation int32              `json:"used_installation"`
+}
+
+type ActiveSystemIntegration struct {
+	ID                 int32              `json:"id"`
+	OauthIntegrationID int32              `json:"oauth_integration_id"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ActiveUserIntegration struct {
+	ID                 int32              `json:"id"`
+	OauthIntegrationID int32              `json:"oauth_integration_id"`
+	UserID             int32              `json:"user_id"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type GuestLoginIdentity struct {
+	ID              int32              `json:"id"`
+	LoginIdentityID int32              `json:"login_identity_id"`
+	DeviceID        string             `json:"device_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Installation struct {
@@ -48,30 +161,108 @@ type Installation struct {
 	LastAttachTo            pgtype.Int4        `json:"last_attach_to"`
 }
 
-type LoginOption struct {
-	ID          int32              `json:"id"`
-	LoginMethod string             `json:"login_method"`
-	AccessKey   string             `json:"access_key"`
-	HashedPass  pgtype.Text        `json:"hashed_pass"`
-	PassSalt    pgtype.Text        `json:"pass_salt"`
-	VerifiedAt  pgtype.Timestamptz `json:"verified_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
-	UserID      int32              `json:"user_id"`
+type LoginIdentity struct {
+	ID           int32              `json:"id"`
+	UserID       int32              `json:"user_id"`
+	IdentityType string             `json:"identity_type"`
+	IsPrimary    pgtype.Bool        `json:"is_primary"`
+	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type Otp struct {
-	ID             int32              `json:"id"`
-	Code           string             `json:"code"`
-	HitCount       int16              `json:"hit_count"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
-	Intent         string             `json:"intent"`
-	OtpFor         pgtype.Int4        `json:"otp_for"`
-	UsingSessionID pgtype.Int4        `json:"using_session_id"`
+type NotDeletedUser struct {
+	ID           int32              `json:"id"`
+	Username     string             `json:"username"`
+	ProfileImage pgtype.Text        `json:"profile_image"`
+	FirstName    string             `json:"first_name"`
+	MiddleName   pgtype.Text        `json:"middle_name"`
+	LastName     pgtype.Text        `json:"last_name"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
+	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
+	RoleID       pgtype.Int4        `json:"role_id"`
+}
+
+type OauthConnection struct {
+	ID         int32              `json:"id"`
+	ProviderID int32              `json:"provider_id"`
+	Scopes     string             `json:"scopes"`
+	CreatedAt  pgtype.Timestamp   `json:"created_at"`
+	UpdatedAt  pgtype.Timestamp   `json:"updated_at"`
+	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OauthIntegration struct {
+	ID                int32              `json:"id"`
+	OauthConnectionID int32              `json:"oauth_connection_id"`
+	IntegrationType   string             `json:"integration_type"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OauthProvider struct {
+	ID            int32              `json:"id"`
+	Name          string             `json:"name"`
+	IsOidcCapable bool               `json:"is_oidc_capable"`
+	CreatedAt     pgtype.Timestamp   `json:"created_at"`
+	UpdatedAt     pgtype.Timestamp   `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OauthToken struct {
+	ID                 int32              `json:"id"`
+	OauthIntegrationID int32              `json:"oauth_integration_id"`
+	AccessToken        string             `json:"access_token"`
+	RefreshToken       pgtype.Text        `json:"refresh_token"`
+	TokenType          string             `json:"token_type"`
+	ExpiresAt          pgtype.Timestamp   `json:"expires_at"`
+	IssuedAt           pgtype.Timestamp   `json:"issued_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OidcLoginIdentity struct {
+	ID                        int32              `json:"id"`
+	LoginIdentityID           int32              `json:"login_identity_id"`
+	OidcUserIntegrationDataID int32              `json:"oidc_user_integration_data_id"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OidcUserIntegrationDatum struct {
+	ID                int32              `json:"id"`
+	UserIntegrationID int32              `json:"user_integration_id"`
+	Sub               string             `json:"sub"`
+	Email             pgtype.Text        `json:"email"`
+	Iss               string             `json:"iss"`
+	Aud               string             `json:"aud"`
+	GivenName         pgtype.Text        `json:"given_name"`
+	FamilyName        pgtype.Text        `json:"family_name"`
+	Name              pgtype.Text        `json:"name"`
+	Picture           pgtype.Text        `json:"picture"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type PasswordLoginIdentity struct {
+	ID              int32              `json:"id"`
+	LoginIdentityID int32              `json:"login_identity_id"`
+	Email           pgtype.Text        `json:"email"`
+	Phone           pgtype.Text        `json:"phone"`
+	HashedPass      string             `json:"hashed_pass"`
+	PassSalt        string             `json:"pass_salt"`
+	VerifiedAt      pgtype.Timestamptz `json:"verified_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Permission struct {
@@ -100,12 +291,21 @@ type RolePermission struct {
 type Session struct {
 	ID               int32              `json:"id"`
 	Token            string             `json:"token"`
+	IpAddress        string             `json:"ip_address"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
 	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
 	OriginatedFrom   int32              `json:"originated_from"`
 	UsedInstallation int32              `json:"used_installation"`
+}
+
+type SystemIntegration struct {
+	ID                 int32              `json:"id"`
+	OauthIntegrationID int32              `json:"oauth_integration_id"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type Todo struct {
@@ -132,4 +332,13 @@ type User struct {
 	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 	RoleID       pgtype.Int4        `json:"role_id"`
+}
+
+type UserIntegration struct {
+	ID                 int32              `json:"id"`
+	OauthIntegrationID int32              `json:"oauth_integration_id"`
+	UserID             int32              `json:"user_id"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 }

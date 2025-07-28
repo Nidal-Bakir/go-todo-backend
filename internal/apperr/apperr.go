@@ -107,7 +107,7 @@ var (
 	// auth
 	ErrInvalidEmail                      = NewAppErrWithTr(errors.New("invalid email"), l10n.InvalidEmailTrId, "auth_1")
 	ErrInvalidPhoneNumber                = NewAppErrWithTr(errors.New("invalid phone number"), l10n.InvalidPhoneNumberTrId, "auth_2")
-	ErrUnsupportedLoginMethod            = NewAppErrWithTr(errors.New("unsupported login method"), l10n.UnsupportedLoginMethodTrId, "auth_3")
+	ErrUnsupportedLoginIdentityType      = NewAppErrWithTr(errors.New("unsupported login method"), l10n.UnsupportedLoginIdentityTypeTrId, "auth_3")
 	ErrTooShortPassword                  = NewAppErrWithTr(errors.New("too short password"), l10n.TooShortPasswordTrId, "auth_4")
 	ErrTooShortName                      = NewAppErrWithTr(errors.New("too short name"), l10n.TooShortNameTrId, "auth_5")
 	ErrInvalidOtpCode                    = NewAppErrWithTr(errors.New("invalid otp code"), l10n.InvalidOtpCodeTrId, "auth_6")
@@ -117,6 +117,7 @@ var (
 	ErrAlreadyUsedPhoneNumber            = NewAppErrWithTr(errors.New("already used phone number"), l10n.AlreadyUsedPhoneNumberTrId, "auth_11")
 	ErrOldPasswordDoesNotMatchCurrentOne = NewAppErrWithTr(errors.New("old password noes not match current one"), l10n.OldPasswordDoesNotMatchCurrentOneTrId, "auth_12")
 	ErrInstallationTokenInUse            = NewAppErrWithErrorCode(errors.New("cannot link with the provided installation token — it is already linked to another user, or the current user if you did not unlinked(logout) yet"), "auth_13")
+	ErrAlreadyUsedEmailWithOidc          = NewAppErrWithTr(errors.New("already used email with open id connect"), l10n.AlreadyUsedEmailWithOidcTrId, "auth_13")
 
 	// jwt
 	ErrExpiredSessionToken             = NewAppErrWithTr(errors.New("expired session token"), l10n.ExpiredSessionToken, "auth_13")

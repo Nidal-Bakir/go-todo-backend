@@ -15,7 +15,11 @@ import (
 
 func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(ctx, s)))
+
+	authRepo := s.NewAuthRepository()
+
+	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(ctx, s, authRepo)))
+	mux.Handle("/", webRouter(ctx, authRepo))
 
 	rateLimitGlobal := middleware.RateLimiter(
 		func(r *http.Request) (string, error) {
@@ -74,19 +78,17 @@ func corsMiddleware(next http.Handler) http.HandlerFunc {
 	return next.ServeHTTP
 }
 
-func apiRouter(ctx context.Context, s *Server) http.Handler {
+func apiRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(ctx, s)))
+	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(ctx, s, authRepo)))
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 	)
 }
 
-func v1Router(ctx context.Context, s *Server) http.Handler {
+func v1Router(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
 	mux := http.NewServeMux()
-
-	authRepo := s.NewAuthRepository()
 
 	registerAuthHandler(ctx, mux, s, authRepo)
 	registerInstallationHandler(ctx, mux, authRepo)

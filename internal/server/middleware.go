@@ -29,7 +29,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 
 			token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
 			if token == "" {
-				writeError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+				writeError(ctx, w, r, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 				return
 			}
 
@@ -37,7 +37,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 				if appenv.IsStagOrLocal() {
 					zlog.Error().Err(err).Msg("Error from jwt verify function")
 				}
-				writeError(ctx, w, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+				writeError(ctx, w, r, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
 				return
 			}
 
@@ -51,7 +51,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 					err = fmt.Errorf("unauthorized")
 				}
 
-				writeError(ctx, w, http.StatusUnauthorized, err)
+				writeError(ctx, w, r, http.StatusUnauthorized, err)
 				return
 			}
 
@@ -59,7 +59,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 			blockedAt := userAndSessionData.UserBlockedAt
 			blockedUntil := userAndSessionData.UserBlockedUntil
 			if blockedAt.Valid || (blockedUntil.Valid && blockedUntil.Time.After(time.Now())) {
-				writeError(ctx, w, http.StatusUnauthorized, apperr.ErrBlockedUser)
+				writeError(ctx, w, r, http.StatusUnauthorized, apperr.ErrBlockedUser)
 				return
 			}
 
@@ -95,7 +95,7 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 
 			missingOrInvalidErr := errors.New("missing A-Installation in the request header, or the the installation id is invalid")
 			sendError := func() {
-				writeError(ctx, w, http.StatusBadRequest, missingOrInvalidErr)
+				writeError(ctx, w, r, http.StatusBadRequest, missingOrInvalidErr)
 			}
 
 			installationToken := r.Header.Get("A-Installation")
@@ -109,7 +109,7 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 					zlog.Error().Err(err).Msg("Error from jwt verify function")
 				}
 				if errors.Is(err, apperr.ErrExpiredSessionToken) {
-					writeError(ctx, w, http.StatusBadRequest, apperr.ErrExpiredInstallationSessionToken)
+					writeError(ctx, w, r, http.StatusBadRequest, apperr.ErrExpiredInstallationSessionToken)
 				} else {
 					sendError()
 				}
@@ -133,7 +133,7 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 				if appenv.IsProd() {
 					err = missingOrInvalidErr
 				}
-				writeError(ctx, w, http.StatusBadRequest, err)
+				writeError(ctx, w, r, http.StatusBadRequest, err)
 				return
 			}
 

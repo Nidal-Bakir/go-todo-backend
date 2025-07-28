@@ -59,6 +59,13 @@ func NewConnection(ctx context.Context) *Service {
 		Queries:  New(connectionPool),
 	}
 
+	zlog.Info().Msg("Migrating the database to the latest version...")
+	err = runMigrationsUp(connectionPool)
+	if err != nil {
+		zlog.Fatal().Err(err).Msg("con not run the migration up on database start up connection")
+	}
+	zlog.Info().Msg("Done from migrating the database to the latest version")
+
 	return dbInstance
 }
 

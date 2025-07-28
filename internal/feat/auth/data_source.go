@@ -22,28 +22,31 @@ const (
 type DataSource interface {
 	// Query ---
 
-	GetUserById(ctx context.Context, id int32) (database.User, error)
-	GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error)
+	GetUserById(ctx context.Context, id int32) (database.UsersGetUserByIdRow, error)
+
 	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (database.UsersGetUserAndSessionDataBySessionTokenRow, error)
 
-	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error)
+	GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempPasswordUser, error)
 	GetForgetPasswordDataFromTempCache(ctx context.Context, dataId uuid.UUID) (*ForgetPasswordTmpDataStore, error)
 
 	GetInstallationUsingTokenAndWhereAttachTo(ctx context.Context, installationToken string, attachedToSession int32) (database.Installation, error)
 	GetInstallationUsingToken(ctx context.Context, installationToken string) (database.Installation, error)
 
-	GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error)
-	GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.ActiveLoginOption, error)
-	GetAllActiveLoginOptionForUserAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error)
-	GetAllActiveLoginOptionForUser(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error)
-	IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error)
+	GetPasswordLoginIdentityWithUser(ctx context.Context, identityValue string, loginIdentityType LoginIdentityType) (database.LoginIdentityGetPasswordLoginIdentityWithUserRow, error)
+	GetPasswordLoginIdentity(ctx context.Context, identityValue string, loginIdentityType LoginIdentityType) (database.LoginIdentityGetPasswordLoginIdentityRow, error)
+	GetAllPasswordLoginIdentitiesForUser(ctx context.Context, userId int32) ([]database.LoginIdentityGetAllPasswordLoginIdentitiesByUserIdRow, error)
+	GetAllLoginIdentitiesForUser(ctx context.Context, userId int32) ([]database.LoginIdentityGetAllByUserIdRow, error)
+
+	IsEmailUsedInPasswordLoginIdentity(ctx context.Context, email string) (bool, error)
+	IsPhoneUsedInPasswordLoginIdentity(ctx context.Context, phone string) (bool, error)
+	IsEmailUsedInOidcLoginIdentity(ctx context.Context, email string) (bool, error)
 
 	// Create ---
 
-	StoreUserInTempCache(ctx context.Context, tUser TempUser) error
+	StoreUserInTempCache(ctx context.Context, tUser TempPasswordUser) error
 	StoreForgetPasswordDataInTempCache(ctx context.Context, forgetPassData ForgetPasswordTmpDataStore) error
-	CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error)
-	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) error
+	CreatePasswordUser(ctx context.Context, userArgs CreatePasswordUserArgs) (user database.User, err error)
+	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token, ipAddress string, expiresAt time.Time) error
 	CreateInstallation(ctx context.Context, data CreateInstallationData, installationToken string) error
 
 	// Update ---
@@ -53,8 +56,7 @@ type DataSource interface {
 	ExpTokenAndUnlinkFromInstallation(ctx context.Context, installationId, tokenId int) error
 	ExpAllTokensAndUnlinkThemFromInstallation(ctx context.Context, userId int) error
 
-	// change the all the passwords of all the login options that support password usage
-	ChangeAllPasswordsForLoginOptions(ctx context.Context, userId int32, HashedPass, PassSalt string) error
+	ChangePasswordLoginIdentityForUser(ctx context.Context, userId int32, HashedPass, PassSalt string) error
 
 	// Delete ---
 	DeleteUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) error
@@ -70,7 +72,7 @@ func NewDataSource(db *database.Service, redis *redis.Client) DataSource {
 	return &dataSourceImpl{db: db, redis: redis}
 }
 
-func (ds dataSourceImpl) GetUserById(ctx context.Context, id int32) (database.User, error) {
+func (ds dataSourceImpl) GetUserById(ctx context.Context, id int32) (database.UsersGetUserByIdRow, error) {
 	dbUser, err := ds.db.Queries.UsersGetUserById(ctx, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -79,18 +81,6 @@ func (ds dataSourceImpl) GetUserById(ctx context.Context, id int32) (database.Us
 		return dbUser, err
 	}
 	return dbUser, nil
-}
-
-func (ds dataSourceImpl) GetUserBySessionToken(ctx context.Context, sessionToken string) (database.User, error) {
-	dbUser, err := ds.db.Queries.UsersGetUserBySessionToken(ctx, sessionToken)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return dbUser, apperr.ErrNoResult
-		}
-		return dbUser, err
-	}
-
-	return dbUser, err
 }
 
 func (ds dataSourceImpl) GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (database.UsersGetUserAndSessionDataBySessionTokenRow, error) {
@@ -109,7 +99,7 @@ func genTempUserId(id uuid.UUID) string {
 	return fmt.Sprint("user:tmp:", id.String())
 }
 
-func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser TempUser) error {
+func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser TempPasswordUser) error {
 	key := genTempUserId(tUser.Id)
 
 	pip := ds.redis.TxPipeline()
@@ -131,7 +121,7 @@ func (ds dataSourceImpl) StoreUserInTempCache(ctx context.Context, tUser TempUse
 	return nil
 }
 
-func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempUser, error) {
+func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uuid.UUID) (*TempPasswordUser, error) {
 	key := genTempUserId(tempUserId)
 
 	result, err := ds.redis.HGetAll(ctx, key).Result()
@@ -143,7 +133,7 @@ func (ds dataSourceImpl) GetUserFromTempCache(ctx context.Context, tempUserId uu
 		return nil, apperr.ErrNoResult
 	}
 
-	tUser := new(TempUser).FromMap(result)
+	tUser := new(TempPasswordUser).FromMap(result)
 
 	return tUser, err
 }
@@ -152,7 +142,7 @@ func (ds dataSourceImpl) DeleteUserFromTempCache(ctx context.Context, tempUserId
 	return ds.redis.Del(ctx, genTempUserId(tempUserId)).Err()
 }
 
-func (ds dataSourceImpl) CreateUser(ctx context.Context, userArgs CreateUserArgs) (user database.User, err error) {
+func (ds dataSourceImpl) CreatePasswordUser(ctx context.Context, userArgs CreatePasswordUserArgs) (user database.User, err error) {
 	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return database.User{}, err
@@ -187,20 +177,22 @@ func (ds dataSourceImpl) CreateUser(ctx context.Context, userArgs CreateUserArgs
 		database.UsersCreateNewUserParams{
 			FirstName:    userArgs.Fname,
 			Username:     userArgs.Username,
-			LastName:     pgtype.Text{String: userArgs.Lname, Valid: userArgs.Lname != ""},
-			ProfileImage: pgtype.Text{String: userArgs.ProfileImagePath, Valid: userArgs.ProfileImagePath != ""},
-			RoleID:       pgtype.Int4{Int32: userArgs.RoleID, Valid: userArgs.RoleID != 0},
-		})
+			LastName:     ds.toPgTypeText(userArgs.Lname),
+			ProfileImage: ds.toPgTypeText(userArgs.ProfileImagePath),
+			RoleID:       ds.toPgTypeInt4(userArgs.RoleID),
+		},
+	)
 
-	_, err = queries.LoginOptionCreateNewLoginOption(
+	_, err = queries.LoginIdentityCreateNewPasswordLoginIdentity(
 		ctx,
-		database.LoginOptionCreateNewLoginOptionParams{
-			UserID:      user.ID,
-			LoginMethod: userArgs.LoginMethod.String(),
-			AccessKey:   userArgs.AccessKey,
-			HashedPass:  pgtype.Text{String: userArgs.HashedPass, Valid: userArgs.HashedPass != ""},
-			PassSalt:    pgtype.Text{String: userArgs.PassSalt, Valid: userArgs.PassSalt != ""},
-			VerifiedAt:  pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		database.LoginIdentityCreateNewPasswordLoginIdentityParams{
+			UserID:       user.ID,
+			IdentityType: userArgs.LoginIdentityType.String(),
+			Email:        ds.toPgTypeText(userArgs.Email),
+			Phone:        ds.toPgTypeText(userArgs.Phone),
+			HashedPass:   userArgs.HashedPass,
+			PassSalt:     userArgs.PassSalt,
+			VerifiedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
 		},
 	)
 
@@ -211,12 +203,12 @@ func (ds dataSourceImpl) UpdateusernameForUser(ctx context.Context, id int32, ne
 	return ds.db.Queries.UsersUpdateUsernameForUser(ctx, database.UsersUpdateUsernameForUserParams{ID: id, Username: newUsername})
 }
 
-func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.LoginOptionGetActiveLoginOptionWithUserRow, error) {
-	userWithLoginOption, err := ds.db.Queries.LoginOptionGetActiveLoginOptionWithUser(
+func (ds dataSourceImpl) GetPasswordLoginIdentityWithUser(ctx context.Context, identityValue string, loginIdentityType LoginIdentityType) (database.LoginIdentityGetPasswordLoginIdentityWithUserRow, error) {
+	userWithLoginIdentity, err := ds.db.Queries.LoginIdentityGetPasswordLoginIdentityWithUser(
 		ctx,
-		database.LoginOptionGetActiveLoginOptionWithUserParams{
-			LoginMethod: loginMethod.String(),
-			AccessKey:   accessKey,
+		database.LoginIdentityGetPasswordLoginIdentityWithUserParams{
+			IdentityType:  loginIdentityType.String(),
+			IdentityValue: identityValue,
 		},
 	)
 
@@ -224,15 +216,15 @@ func (ds dataSourceImpl) GetActiveLoginOptionWithUser(ctx context.Context, acces
 		err = apperr.ErrNoResult
 	}
 
-	return userWithLoginOption, err
+	return userWithLoginIdentity, err
 }
 
-func (ds dataSourceImpl) GetActiveLoginOption(ctx context.Context, accessKey string, loginMethod LoginMethod) (database.ActiveLoginOption, error) {
-	loginOption, err := ds.db.Queries.LoginOptionGetActiveLoginOption(
+func (ds dataSourceImpl) GetPasswordLoginIdentity(ctx context.Context, identityValue string, loginIdentityType LoginIdentityType) (database.LoginIdentityGetPasswordLoginIdentityRow, error) {
+	loginIdentity, err := ds.db.Queries.LoginIdentityGetPasswordLoginIdentity(
 		ctx,
-		database.LoginOptionGetActiveLoginOptionParams{
-			LoginMethod: loginMethod.String(),
-			AccessKey:   accessKey,
+		database.LoginIdentityGetPasswordLoginIdentityParams{
+			IdentityType:  loginIdentityType.String(),
+			IdentityValue: identityValue,
 		},
 	)
 
@@ -240,10 +232,10 @@ func (ds dataSourceImpl) GetActiveLoginOption(ctx context.Context, accessKey str
 		err = apperr.ErrNoResult
 	}
 
-	return loginOption, err
+	return loginIdentity, err
 }
 
-func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, expiresAt time.Time) (err error) {
+func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token, ipAddress string, expiresAt time.Time) (err error) {
 	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return err
@@ -280,6 +272,7 @@ func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context
 			OriginatedFrom:   loginOptionId,
 			UsedInstallation: installationId,
 			ExpiresAt:        pgtype.Timestamptz{Time: expiresAt, Valid: true},
+			IpAddress:        ipAddress,
 		},
 	)
 	if err != nil {
@@ -334,26 +327,42 @@ func (ds dataSourceImpl) GetInstallationUsingToken(ctx context.Context, installa
 	return installation, err
 }
 
-func (ds dataSourceImpl) IsAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (isUsed bool, err error) {
-	count, err := ds.db.Queries.LoginOptionIsAccessKeyUsed(ctx, accessKey)
+func (ds dataSourceImpl) IsEmailUsedInPasswordLoginIdentity(ctx context.Context, email string) (isUsed bool, err error) {
+	count, err := ds.db.Queries.LoginIdentityIsEmailUsed(ctx, ds.toPgTypeText(email))
 	if count > 0 {
 		isUsed = true
 	}
 	return isUsed, err
 }
 
-func (ds dataSourceImpl) ChangeAllPasswordsForLoginOptions(ctx context.Context, userId int32, HashedPass, PassSalt string) error {
-	return ds.db.Queries.LoginOptionChangeAllPasswordsByUserId(
-		ctx, database.LoginOptionChangeAllPasswordsByUserIdParams{
+func (ds dataSourceImpl) IsPhoneUsedInPasswordLoginIdentity(ctx context.Context, phone string) (isUsed bool, err error) {
+	count, err := ds.db.Queries.LoginIdentityIsPhoneUsed(ctx, ds.toPgTypeText(phone))
+	if count > 0 {
+		isUsed = true
+	}
+	return isUsed, err
+}
+
+func (ds dataSourceImpl) IsEmailUsedInOidcLoginIdentity(ctx context.Context, email string) (isUsed bool, err error) {
+	count, err := ds.db.Queries.LoginIdentityIsOidcEmailUsed(ctx, ds.toPgTypeText(email))
+	if count > 0 {
+		isUsed = true
+	}
+	return isUsed, err
+}
+
+func (ds dataSourceImpl) ChangePasswordLoginIdentityForUser(ctx context.Context, userId int32, HashedPass, PassSalt string) error {
+	return ds.db.Queries.LoginIdentityChangePasswordLoginIdentityByUserId(
+		ctx, database.LoginIdentityChangePasswordLoginIdentityByUserIdParams{
 			UserID:     userId,
-			HashedPass: pgtype.Text{String: HashedPass, Valid: true},
-			PassSalt:   pgtype.Text{String: PassSalt, Valid: true},
+			HashedPass: HashedPass,
+			PassSalt:   PassSalt,
 		},
 	)
 }
 
-func (ds dataSourceImpl) GetAllActiveLoginOptionForUserAndSupportPassword(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error) {
-	result, err := ds.db.Queries.LoginOptionGetAllActiveForUserAndSupportPassword(ctx, userId)
+func (ds dataSourceImpl) GetAllPasswordLoginIdentitiesForUser(ctx context.Context, userId int32) ([]database.LoginIdentityGetAllPasswordLoginIdentitiesByUserIdRow, error) {
+	result, err := ds.db.Queries.LoginIdentityGetAllPasswordLoginIdentitiesByUserId(ctx, userId)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = apperr.ErrNoResult
@@ -362,8 +371,8 @@ func (ds dataSourceImpl) GetAllActiveLoginOptionForUserAndSupportPassword(ctx co
 	return result, err
 }
 
-func (ds dataSourceImpl) GetAllActiveLoginOptionForUser(ctx context.Context, userId int32) ([]database.ActiveLoginOption, error) {
-	result, err := ds.db.Queries.LoginOptionGetAllActiveByUserId(ctx, userId)
+func (ds dataSourceImpl) GetAllLoginIdentitiesForUser(ctx context.Context, userId int32) ([]database.LoginIdentityGetAllByUserIdRow, error) {
+	result, err := ds.db.Queries.LoginIdentityGetAllByUserId(ctx, userId)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		err = apperr.ErrNoResult
@@ -402,6 +411,13 @@ func (ds dataSourceImpl) UpdateInstallation(ctx context.Context, installationTok
 
 func (dataSourceImpl) toPgTypeText(str string) pgtype.Text {
 	return pgtype.Text{String: str, Valid: len(str) != 0}
+}
+
+func (dataSourceImpl) toPgTypeInt4(num *int32) pgtype.Int4 {
+	if num == nil {
+		return pgtype.Int4{Int32: -1, Valid: false}
+	}
+	return pgtype.Int4{Int32: int32(*num), Valid: true}
 }
 
 func genTempForgetPasswordTmpDataStorId(id uuid.UUID) string {

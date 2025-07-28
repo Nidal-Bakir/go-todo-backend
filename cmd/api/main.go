@@ -13,6 +13,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv" // autoload .env with init function. Do not remove this line
 	"github.com/Nidal-Bakir/go-todo-backend/internal/logger"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/server"
+	"github.com/rs/zerolog"
 )
 
 func main() {
@@ -24,7 +25,24 @@ func main() {
 
 	server := server.NewServer(serverWithCancelCtx)
 
-	// Listen for syscall signals for process to interrupt/quit
+	prepareForGracefulShutdown(server, serverWithCancelCtx, serverStopCancelFunc, zlog)
+
+	zlog.Info().Msgf("Staring the server on: %s", server.Addr)
+	err := server.ListenAndServe()
+	if err != nil {
+		if errors.Is(err, http.ErrServerClosed) {
+			zlog.Info().Msg("Server Stopped Gracefully.")
+		} else {
+			zlog.Fatal().Err(err).Msg("Can't start the server")
+		}
+	}
+
+	// Wait for server context to be stopped
+	<-serverWithCancelCtx.Done()
+}
+
+// Listen for syscall signals for process to interrupt/quit
+func prepareForGracefulShutdown(server *http.Server, serverWithCancelCtx context.Context, serverStopCancelFunc context.CancelFunc, zlog *zerolog.Logger) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
@@ -49,18 +67,4 @@ func main() {
 
 		serverStopCancelFunc()
 	}()
-
-	zlog.Info().Msgf("Staring the server on: %s", server.Addr)
-
-	err := server.ListenAndServe()
-	if err != nil {
-		if errors.Is(err, http.ErrServerClosed) {
-			zlog.Info().Msg("Server Stopped Gracefully.")
-		} else {
-			zlog.Fatal().Err(err).Msg("Can't start the server")
-		}
-	}
-
-	// Wait for server context to be stopped
-	<-serverWithCancelCtx.Done()
 }

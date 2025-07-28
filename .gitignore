@@ -38,3 +38,7 @@ bin/
 
 # Keys
 private_key.pem
+client_secret_*.json
+
+# go debug
+__debug_bin*

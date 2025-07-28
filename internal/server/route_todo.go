@@ -37,7 +37,7 @@ func createTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		err := r.ParseForm()
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, r, http.StatusBadRequest, err)
 			return
 		}
 
@@ -46,17 +46,17 @@ func createTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		todoData, err := extractTodoData(r)
 		if err != nil {
-			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
 		}
 
 		res, err := todoRepo.CreateTodo(ctx, int(userAndSession.UserID), todoData)
 		if err != nil {
-			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
 		}
 
-		writeJson(ctx, w, http.StatusCreated, publicTodoItemFromRepoModel(res))
+		writeResponse(ctx, w, r, http.StatusCreated, publicTodoItemFromRepoModel(res))
 	}
 }
 
@@ -93,13 +93,13 @@ func updateTodo(todoRepo todo.Repository) http.HandlerFunc {
 		ctx := r.Context()
 		todoId, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, errors.New("can not parse the todo id from the url"))
+			writeError(ctx, w, r, http.StatusBadRequest, errors.New("can not parse the todo id from the url"))
 			return
 		}
 
 		err = r.ParseForm()
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, r, http.StatusBadRequest, err)
 			return
 		}
 
@@ -108,17 +108,17 @@ func updateTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		todoData, err := extractTodoData(r)
 		if err != nil {
-			writeError(ctx, w, return400IfApp404IfNoResultErrOr500(err), err)
+			writeError(ctx, w, r, return400IfApp404IfNoResultErrOr500(err), err)
 			return
 		}
 
 		res, err := todoRepo.UpdateTodo(ctx, int(userAndSession.UserID), todoId, todoData)
 		if err != nil {
-			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
 		}
 
-		writeJson(ctx, w, http.StatusCreated, publicTodoItemFromRepoModel(res))
+		writeResponse(ctx, w, r, http.StatusCreated, publicTodoItemFromRepoModel(res))
 	}
 }
 
@@ -128,7 +128,7 @@ func todoIndex(todoRepo todo.Repository) http.HandlerFunc {
 
 		err := r.ParseForm()
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, err)
+			writeError(ctx, w, r, http.StatusBadRequest, err)
 			return
 		}
 
@@ -146,14 +146,14 @@ func todoIndex(todoRepo todo.Repository) http.HandlerFunc {
 			},
 		).Exec(r)
 		if err != nil && !errors.Is(err, apperr.ErrNoResult) {
-			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
 		}
 
 		// convert items to public form
 		publicPaginatedDate := paginate.PaginatedDataMapper(paginatedDate, publicTodoItemFromRepoModel)
 
-		writeJson(ctx, w, http.StatusOK, publicPaginatedDate)
+		writeResponse(ctx, w, r, http.StatusOK, publicPaginatedDate)
 	}
 }
 
@@ -163,7 +163,7 @@ func todoShow(todoRepo todo.Repository) http.HandlerFunc {
 
 		todoId, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, errors.New("can not parse the todo id from the url"))
+			writeError(ctx, w, r, http.StatusBadRequest, errors.New("can not parse the todo id from the url"))
 			return
 		}
 
@@ -172,11 +172,11 @@ func todoShow(todoRepo todo.Repository) http.HandlerFunc {
 
 		res, err := todoRepo.GetTodo(ctx, int(userAndSession.UserID), todoId)
 		if err != nil {
-			writeError(ctx, w, return400IfApp404IfNoResultErrOr500(err), err)
+			writeError(ctx, w, r, return400IfApp404IfNoResultErrOr500(err), err)
 			return
 		}
 
-		writeJson(ctx, w, http.StatusCreated, publicTodoItemFromRepoModel(res))
+		writeResponse(ctx, w, r, http.StatusCreated, publicTodoItemFromRepoModel(res))
 	}
 }
 
@@ -186,7 +186,7 @@ func deleteTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		todoId, err := strconv.Atoi(r.PathValue("id"))
 		if err != nil {
-			writeError(ctx, w, http.StatusBadRequest, errors.New("can not parse the todo id from the url"))
+			writeError(ctx, w, r, http.StatusBadRequest, errors.New("can not parse the todo id from the url"))
 			return
 		}
 
@@ -195,10 +195,10 @@ func deleteTodo(todoRepo todo.Repository) http.HandlerFunc {
 
 		err = todoRepo.DeleteTodo(ctx, int(userAndSession.UserID), todoId)
 		if err != nil {
-			writeError(ctx, w, return400IfApp404IfNoResultErrOr500(err), err)
+			writeError(ctx, w, r, return400IfApp404IfNoResultErrOr500(err), err)
 			return
 		}
-		writeOperationDoneSuccessfullyJson(ctx, w)
+		apiWriteOperationDoneSuccessfullyJson(ctx, w, r)
 	}
 }
 

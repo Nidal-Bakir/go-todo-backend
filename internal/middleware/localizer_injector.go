@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
 	"github.com/rs/zerolog"
 	"golang.org/x/text/language"
 )
@@ -21,13 +21,13 @@ func LocalizerInjector(next http.Handler) http.HandlerFunc {
 		}
 
 		if lang == "" {
-			apiutils.WriteError(ctx, w, http.StatusBadRequest, errors.New("missing Accept-Language in the request header or lang in Query Parameter"))
+			resutils.WriteError(ctx, w, r, http.StatusBadRequest, errors.New("missing Accept-Language in the request header or lang in Query Parameter"))
 			return
 		}
 
 		tag, err := language.Parse(strings.Split(lang, ",")[0])
 		if err != nil {
-			apiutils.WriteError(ctx, w, http.StatusBadRequest, errors.New("invalid Accept-Language header or lang in Query Parameter"))
+			resutils.WriteError(ctx, w, r, http.StatusBadRequest, errors.New("invalid Accept-Language header or lang in Query Parameter"))
 			return
 		}
 

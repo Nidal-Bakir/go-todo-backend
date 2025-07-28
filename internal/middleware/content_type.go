@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/mimes"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
 )
 
 // SetHeader is a convenience handler to set a response header key/value
@@ -41,7 +41,7 @@ func AllowContentType(contentTypes ...string) func(http.Handler) http.HandlerFun
 				return
 			}
 
-			apiutils.WriteError(r.Context(), w, http.StatusUnsupportedMediaType, errors.New("did you set the Content-Type header correctly?"))
+			resutils.WriteError(r.Context(), w, r, http.StatusUnsupportedMediaType, errors.New("did you set the Content-Type header correctly?"))
 		})
 	}
 }

@@ -8,7 +8,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
 	"github.com/rs/zerolog"
 )
 
@@ -20,7 +20,7 @@ func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratel
 			key, err := limitKeyFn(r)
 			if err != nil {
 				zlog := zerolog.Ctx(ctx)
-				apiutils.WriteError(ctx, w, http.StatusInternalServerError, err)
+				resutils.WriteError(ctx, w, r, http.StatusInternalServerError, err)
 				zlog.Err(err).Msg("error while getting the limit key for the rate limiter")
 				return
 			}
@@ -31,7 +31,7 @@ func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratel
 				w.Header().Add("Retry-After", strconv.Itoa(int(math.Ceil(backoffDuration.Abs().Seconds()))))
 				// Request limit per ${config.TimeFrame}
 				w.Header().Add("X-RateLimit-Limit", fmt.Sprint(limiter.Config().PerTimeFrame))
-				apiutils.WriteError(ctx, w, http.StatusTooManyRequests, apperr.ErrTooManyRequests)
+				resutils.WriteError(ctx, w, r, http.StatusTooManyRequests, apperr.ErrTooManyRequests)
 				return
 			}
 

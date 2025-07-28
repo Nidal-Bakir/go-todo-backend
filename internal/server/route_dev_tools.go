@@ -33,5 +33,5 @@ func devToolsRouter(s *Server) http.Handler {
 }
 
 func (s *Server) dbHealthHandler(w http.ResponseWriter, r *http.Request) {
-	writeJson(r.Context(), w, http.StatusOK, s.db.Health(r.Context()))
+	writeResponse(r.Context(), w, r, http.StatusOK, s.db.Health(r.Context()))
 }

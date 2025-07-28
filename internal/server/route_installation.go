@@ -36,17 +36,17 @@ func createInstallation(authRepo auth.Repository) http.HandlerFunc {
 
 		params, errs := validateCreateInstallationParams(r)
 		if len(errs) != 0 {
-			writeError(ctx, w, http.StatusBadRequest, errs...)
+			writeError(ctx, w, r, http.StatusBadRequest, errs...)
 			return
 		}
 
 		installationToken, err := authRepo.CreateInstallation(ctx, params)
 		if err != nil {
-			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
 		}
 
-		writeJson(ctx, w, http.StatusCreated, map[string]string{"installation_token": installationToken})
+		writeResponse(ctx, w, r, http.StatusCreated, map[string]string{"installation_token": installationToken})
 	}
 }
 
@@ -107,7 +107,7 @@ func updateInstallation(authRepo auth.Repository) http.HandlerFunc {
 
 		params, errs := validateUpdateInstallationParams(r)
 		if len(errs) != 0 {
-			writeError(ctx, w, http.StatusBadRequest, errs...)
+			writeError(ctx, w, r, http.StatusBadRequest, errs...)
 			return
 		}
 
@@ -116,11 +116,11 @@ func updateInstallation(authRepo auth.Repository) http.HandlerFunc {
 
 		err := authRepo.UpdateInstallation(ctx, installation.InstallationToken, params)
 		if err != nil {
-			writeError(ctx, w, return400IfAppErrOr500(err), err)
+			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
 		}
 
-		writeOperationDoneSuccessfullyJson(ctx, w)
+		apiWriteOperationDoneSuccessfullyJson(ctx, w, r)
 	}
 }
 

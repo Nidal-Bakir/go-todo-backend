@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/apiutils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
 	"github.com/rs/zerolog"
 )
 
@@ -43,7 +43,7 @@ func Timeout(d time.Duration) func(next http.Handler) http.HandlerFunc {
 				cancelFunc()
 
 				if errors.Is(ctxWithCancel.Err(), context.DeadlineExceeded) {
-					apiutils.WriteError(r.Context(), w, http.StatusGatewayTimeout, errors.New("timeout"))
+					resutils.WriteError(r.Context(), w, r, http.StatusGatewayTimeout, errors.New("timeout"))
 
 					logEvent := zlog.Warn().Err(context.DeadlineExceeded).Int("status_code", http.StatusGatewayTimeout)
 					logEvent.Msgf("Warning a request timed out. Sending Gateway-Timeout %d status code", http.StatusGatewayTimeout)

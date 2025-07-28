@@ -2,6 +2,7 @@ package paginate
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
@@ -27,13 +28,19 @@ func (a *SimplePaginatedAction[T]) Exec(r *http.Request) (*PaginatedData[T], err
 		return paginatedData, err
 	}
 
+	requestFullPath, err := constructFullPath(r)
+	if err != nil {
+		return paginatedData, err
+	}
+
 	if len(data) == perPage+1 {
 		paginatedData.Data = data[:perPage]
-		paginatedData.setNext(r.URL.Path, r.URL.Query(), page+1, perPage)
+		paginatedData.setNext(requestFullPath, r.URL.Query(), page+1, perPage)
 	} else {
 		paginatedData.Data = data
 	}
-	paginatedData.setPrev(r.URL.Path, r.URL.Query(), page-1, perPage)
+
+	paginatedData.setPrev(requestFullPath, r.URL.Query(), page-1, perPage)
 
 	return paginatedData, nil
 }
@@ -49,4 +56,23 @@ func (a *SimplePaginatedAction[T]) validatePaginationParam(r *http.Request) (pag
 	page = convToInt(r.FormValue("page"))
 	perPage = utils.Clamp(convToInt(r.FormValue("per_page")), 1, 40)
 	return page, perPage
+}
+
+func constructFullPath(r *http.Request) (string, error) {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	host := r.Host
+
+	baseURL := scheme + "://" + host
+
+	url, err := url.Parse(r.RequestURI)
+	if err != nil {
+		return "", err
+	}
+
+	fullPath := baseURL + url.Path
+
+	return fullPath, nil
 }

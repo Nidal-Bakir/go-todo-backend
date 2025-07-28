@@ -20,7 +20,6 @@ import (
 
 var (
 	serverPort = os.Getenv("SERVER_PORT")
-	ApiBaseUrl = os.Getenv("API_BASE_URL")
 )
 
 type Server struct {

@@ -27,11 +27,11 @@ const (
 type Repository interface {
 	GetUserById(ctx context.Context, id int) (User, error)
 	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (UserAndSession, error)
-	CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error)
-	CreateUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
-	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, installation database.Installation) (user User, token string, err error)
+	CreateTempPasswordUser(ctx context.Context, tUser *TempPasswordUser) (*TempPasswordUser, error)
+	CreatePasswordUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
+	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password, ipAddress string, installation database.Installation) (user User, token string, err error)
 	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (database.Installation, error)
-	ChangePasswordForAllLoginOptions(ctx context.Context, userID int, oldPassword, newPassword string) error
+	ChangePasswordForAllPasswordLoginIdentities(ctx context.Context, userID int, oldPassword, newPassword string) error
 	VerifyAuthToken(token string) (*AuthClaims, error)
 	VerifyTokenForInstallation(token string) (*InstallationClaims, error)
 	CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error)
@@ -39,7 +39,7 @@ type Repository interface {
 	Logout(ctx context.Context, userId, installationId, tokenId int, terminateAllOtherSessions bool) error
 	ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error)
 	ResetPassword(ctx context.Context, id uuid.UUID, providedOTP, newPassword string) error
-	GetAllActiveLoginOptionForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error)
+	GetAllLoginIdentitiesForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
@@ -71,7 +71,18 @@ func (repo repositoryImpl) GetUserById(ctx context.Context, id int) (User, error
 		return User{}, err
 	}
 
-	user := NewUserFromDatabaseUser(dbUser)
+	user := User{
+		ID:           dbUser.ID,
+		Username:     dbUser.Username,
+		ProfileImage: dbUser.ProfileImage,
+		FirstName:    dbUser.FirstName,
+		MiddleName:   dbUser.MiddleName,
+		LastName:     dbUser.LastName,
+		CreatedAt:    dbUser.CreatedAt,
+		UpdatedAt:    dbUser.UpdatedAt,
+		BlockedAt:    dbUser.BlockedAt,
+		RoleID:       dbUser.RoleID,
+	}
 	return user, nil
 }
 
@@ -90,7 +101,7 @@ func (repo repositoryImpl) GetUserAndSessionDataBySessionToken(ctx context.Conte
 	return userAndSession, nil
 }
 
-func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) (*TempUser, error) {
+func (repo repositoryImpl) CreateTempPasswordUser(ctx context.Context, tUser *TempPasswordUser) (*TempPasswordUser, error) {
 	zlog := zerolog.Ctx(ctx)
 
 	tUser.Id = uuid.New()
@@ -101,23 +112,14 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 	}
 
 	// check if the user is already present in the database with this Credentials
-	if isUsed, err := repo.isUsedCredentials(ctx, *tUser); isUsed || err != nil {
-		if err != nil {
-			return tUser, err
-		}
-
-		tUser.LoginMethod.Fold(
-			func() { err = apperr.ErrAlreadyUsedEmail },
-			func() { err = apperr.ErrAlreadyUsedPhoneNumber },
-		)
-
+	if err := repo.isUsedCredentialsPasswordUser(ctx, *tUser); err != nil {
 		return tUser, err
 	}
 
 	sentOtp, err := sendOtpToTempUserForAccountVerification(
 		ctx,
 		repo.gatewaysProvider,
-		PasswordLoginAccessKey{LoginMethod: tUser.LoginMethod, Phone: tUser.Phone, Email: tUser.Email},
+		PasswordLoginAccessKey{LoginIdentityType: tUser.LoginIdentityType, Phone: tUser.Phone, Email: tUser.Email},
 	)
 	if err != nil {
 		zlog.Err(err).Msg("error sending otp to temp user, for create account")
@@ -133,17 +135,47 @@ func (repo repositoryImpl) CreateTempUser(ctx context.Context, tUser *TempUser) 
 	return tUser, err
 }
 
-func (repo repositoryImpl) isUsedCredentials(ctx context.Context, tUser TempUser) (bool, error) {
-	var accessKey string
-	tUser.LoginMethod.Fold(
-		func() { accessKey = tUser.Email },
-		func() { accessKey = tUser.Phone.ToAppStdForm() },
-	)
-	return repo.isAccessKeyUsedInAnyLoginOption(ctx, accessKey)
-}
+func (repo repositoryImpl) isUsedCredentialsPasswordUser(ctx context.Context, tUser TempPasswordUser) error {
+	var resultError error
 
-func (repo repositoryImpl) isAccessKeyUsedInAnyLoginOption(ctx context.Context, accessKey string) (bool, error) {
-	return repo.dataSource.IsAccessKeyUsedInAnyLoginOption(ctx, accessKey)
+	tUser.LoginIdentityType.Fold(
+		LoginIdentityFoldActions{
+			OnEmail: func() {
+				isUsed, err := repo.dataSource.IsEmailUsedInPasswordLoginIdentity(ctx, tUser.Email)
+				if err != nil {
+					resultError = err
+					return
+				}
+				if isUsed {
+					resultError = apperr.ErrAlreadyUsedEmail
+					return
+				}
+
+				isUsed, err = repo.dataSource.IsEmailUsedInOidcLoginIdentity(ctx, tUser.Email)
+				if err != nil {
+					resultError = err
+					return
+				}
+				if isUsed {
+					resultError = apperr.ErrAlreadyUsedEmailWithOidc
+					return
+				}
+			},
+			OnPhone: func() {
+				isUsed, err := repo.dataSource.IsPhoneUsedInPasswordLoginIdentity(ctx, tUser.Email)
+				if err != nil {
+					resultError = err
+					return
+				}
+				if isUsed {
+					resultError = apperr.ErrAlreadyUsedPhoneNumber
+					return
+				}
+			},
+		},
+	)
+
+	return resultError
 }
 
 func sendOtpToTempUserForAccountVerification(
@@ -153,12 +185,10 @@ func sendOtpToTempUserForAccountVerification(
 ) (sentOTP string, err error) {
 	otpSender := otp.NewOTPSender(ctx, gatewaysProvider, OtpCodeLength)
 
-	passwordLoginAccessKey.LoginMethod.Fold(
-		func() {
-			sentOTP, err = otpSender.SendEmailOtpForAccountVerification(ctx, passwordLoginAccessKey.Email)
-		},
-		func() {
-			sentOTP, err = otpSender.SendSmsOtpForAccountVerification(ctx, passwordLoginAccessKey.Phone)
+	passwordLoginAccessKey.LoginIdentityType.Fold(
+		LoginIdentityFoldActions{
+			OnEmail: func() { sentOTP, err = otpSender.SendEmailOtpForAccountVerification(ctx, passwordLoginAccessKey.Email) },
+			OnPhone: func() { sentOTP, err = otpSender.SendSmsOtpForAccountVerification(ctx, passwordLoginAccessKey.Phone) },
 		},
 	)
 	return sentOTP, err
@@ -171,18 +201,16 @@ func sendOtpToTempUserForForgetPassword(
 ) (sentOTP string, err error) {
 	otpSender := otp.NewOTPSender(ctx, gatewaysProvider, OtpCodeLength)
 
-	passwordLoginAccessKey.LoginMethod.Fold(
-		func() {
-			sentOTP, err = otpSender.SendEmailOtpForForgetPassword(ctx, passwordLoginAccessKey.Email)
-		},
-		func() {
-			sentOTP, err = otpSender.SendSmsOtpForForgetPassword(ctx, passwordLoginAccessKey.Phone)
+	passwordLoginAccessKey.LoginIdentityType.Fold(
+		LoginIdentityFoldActions{
+			OnEmail: func() { sentOTP, err = otpSender.SendEmailOtpForForgetPassword(ctx, passwordLoginAccessKey.Email) },
+			OnPhone: func() { sentOTP, err = otpSender.SendSmsOtpForForgetPassword(ctx, passwordLoginAccessKey.Phone) },
 		},
 	)
 	return sentOTP, err
 }
 
-func (repo repositoryImpl) CreateUser(ctx context.Context, tempUserId uuid.UUID, providedOTP string) (User, error) {
+func (repo repositoryImpl) CreatePasswordUser(ctx context.Context, tempUserId uuid.UUID, providedOTP string) (User, error) {
 	tUser, err := repo.getTempUser(ctx, tempUserId)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNoResult) {
@@ -196,7 +224,7 @@ func (repo repositoryImpl) CreateUser(ctx context.Context, tempUserId uuid.UUID,
 		return User{}, err
 	}
 
-	user, err := repo.storUser(ctx, tUser)
+	user, err := repo.storPasswordUser(ctx, tUser)
 	if err != nil {
 		return User{}, err
 	}
@@ -206,7 +234,7 @@ func (repo repositoryImpl) CreateUser(ctx context.Context, tempUserId uuid.UUID,
 	return user, err
 }
 
-func (repo repositoryImpl) getTempUser(ctx context.Context, id uuid.UUID) (*TempUser, error) {
+func (repo repositoryImpl) getTempUser(ctx context.Context, id uuid.UUID) (*TempPasswordUser, error) {
 	zlog := zerolog.Ctx(ctx)
 
 	tUser, err := repo.dataSource.GetUserFromTempCache(ctx, id)
@@ -224,27 +252,27 @@ func (repo repositoryImpl) getTempUser(ctx context.Context, id uuid.UUID) (*Temp
 	return tUser, nil
 }
 
-func checkTempUserOTP(tUser *TempUser, providedOTP string) error {
+func checkTempUserOTP(tUser *TempPasswordUser, providedOTP string) error {
 	if tUser.SentOTP != providedOTP {
 		return apperr.ErrInvalidOtpCode
 	}
 	return nil
 }
 
-func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User, error) {
+func (repo repositoryImpl) storPasswordUser(ctx context.Context, tUser *TempPasswordUser) (User, error) {
 	zlog := zerolog.Ctx(ctx)
 
 	if ok := tUser.ValidateForStore(); !ok {
 		return User{}, apperr.ErrInvalidTempUserdata
 	}
 
-	createUserArgs, err := generateUserArgsForCreateUser(tUser, repo.passwordHasher)
+	createUserArgs, err := generatePassworUserArgsForCreateUser(tUser, repo.passwordHasher)
 	if err != nil {
 		zlog.Err(err).Msg("error generating user args")
 		return User{}, err
 	}
 
-	dbUser, err := repo.dataSource.CreateUser(ctx, createUserArgs)
+	dbUser, err := repo.dataSource.CreatePasswordUser(ctx, createUserArgs)
 	if err != nil {
 		zlog.Err(err).Msg("error while create new user in the database")
 		return User{}, err
@@ -264,42 +292,36 @@ func (repo repositoryImpl) storUser(ctx context.Context, tUser *TempUser) (User,
 	return user, nil
 }
 
-func generateUserArgsForCreateUser(user *TempUser, passwordHasher password_hasher.PasswordHasher) (CreateUserArgs, error) {
-	var accessKey, hashedPass, passSalt string
-	var supportPassword bool
+func generatePassworUserArgsForCreateUser(user *TempPasswordUser, passwordHasher password_hasher.PasswordHasher) (CreatePasswordUserArgs, error) {
+	var phone, email string
 
-	user.LoginMethod.Fold(
-		func() {
-			supportPassword = true
-			accessKey = user.Email
-		}, func() {
-			supportPassword = true
-			accessKey = user.Phone.ToAppStdForm()
+	user.LoginIdentityType.Fold(
+		LoginIdentityFoldActions{
+			OnEmail: func() { email = user.Email },
+			OnPhone: func() { phone = user.Phone.ToAppStdForm() },
 		},
 	)
 
-	if supportPassword {
-		var err error
-		hashedPass, passSalt, err = passwordHasher.GeneratePasswordHashWithSalt((user.Password))
-		if err != nil {
-			return CreateUserArgs{}, nil
-		}
+	hashedPass, passSalt, err := passwordHasher.GeneratePasswordHashWithSalt((user.Password))
+	if err != nil {
+		return CreatePasswordUserArgs{}, nil
 	}
 
-	createUserArgs := CreateUserArgs{
-		Username:    user.Username,
-		Fname:       user.Fname,
-		Lname:       user.Lname,
-		LoginMethod: user.LoginMethod,
-		AccessKey:   accessKey,
-		HashedPass:  hashedPass,
-		PassSalt:    passSalt,
+	createUserArgs := CreatePasswordUserArgs{
+		Username:          user.Username,
+		Fname:             user.Fname,
+		Lname:             user.Lname,
+		LoginIdentityType: user.LoginIdentityType,
+		Email:             email,
+		Phone:             phone,
+		HashedPass:        hashedPass,
+		PassSalt:          passSalt,
 	}
 
 	return createUserArgs, nil
 }
 
-func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *TempUser) {
+func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *TempPasswordUser) {
 	zlog := zerolog.Ctx(ctx)
 
 	// ignore any error because the temp user will be auto cleand by redis after sometime
@@ -312,14 +334,15 @@ func (repo repositoryImpl) PasswordLogin(
 	ctx context.Context,
 	passwordLoginAccessKey PasswordLoginAccessKey,
 	password string,
+	ipAddress string,
 	installation database.Installation,
 ) (user User, token string, err error) {
 	zlog := zerolog.Ctx(ctx)
 
-	userWithLoginOption, err := repo.dataSource.GetActiveLoginOptionWithUser(
+	userWithLoginOption, err := repo.dataSource.GetPasswordLoginIdentityWithUser(
 		ctx,
 		passwordLoginAccessKey.accessKeyStr(),
-		passwordLoginAccessKey.LoginMethod,
+		passwordLoginAccessKey.LoginIdentityType,
 	)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNoResult) {
@@ -331,8 +354,8 @@ func (repo repositoryImpl) PasswordLogin(
 	}
 
 	checkPassword := func() error {
-		hashedPassword := userWithLoginOption.LoginOptionHashedPass.String
-		salt := userWithLoginOption.LoginOptionPassSalt.String
+		hashedPassword := userWithLoginOption.HashedPass
+		salt := userWithLoginOption.PassSalt
 		if ok, err := repo.passwordHasher.CompareHashAndPassword(hashedPassword, salt, password); !ok || err != nil {
 			if err != nil {
 				return err
@@ -354,7 +377,7 @@ func (repo repositoryImpl) PasswordLogin(
 		return User{}, "", err
 	}
 
-	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginOption.LoginOptionID, installation.ID, token, expiresAt)
+	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginOption.LoginIdentityID, installation.ID, token, ipAddress, expiresAt)
 	if err != nil {
 		if !apperr.IsAppErr(err) {
 			zlog.Err(err).Msg("error creating new session for user to login")
@@ -370,10 +393,7 @@ func (repo repositoryImpl) PasswordLogin(
 		MiddleName:   userWithLoginOption.UserMiddleName,
 		LastName:     userWithLoginOption.UserLastName,
 		RoleID:       userWithLoginOption.UserRoleID,
-		DeletedAt:    userWithLoginOption.UserDeletedAt,
 		BlockedAt:    userWithLoginOption.UserBlockedAt,
-		CreatedAt:    userWithLoginOption.UserCreatedAt,
-		UpdatedAt:    userWithLoginOption.UserUpdatedAt,
 	}
 
 	return user, token, nil
@@ -398,14 +418,14 @@ func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, instal
 	return installation, nil
 }
 
-func (repo repositoryImpl) ChangePasswordForAllLoginOptions(ctx context.Context, userID int, oldPassword, newPassword string) error {
-	return repo.changePasswordForAllLoginOptions(ctx, userID, oldPassword, newPassword, true)
+func (repo repositoryImpl) ChangePasswordForAllPasswordLoginIdentities(ctx context.Context, userID int, oldPassword, newPassword string) error {
+	return repo.changePasswordForAllPasswordLoginIdentities(ctx, userID, oldPassword, newPassword, true)
 }
 
-func (repo repositoryImpl) changePasswordForAllLoginOptions(ctx context.Context, userID int, oldPassword, newPassword string, shouldCheckOldPasswordWithCurrentOne bool) error {
+func (repo repositoryImpl) changePasswordForAllPasswordLoginIdentities(ctx context.Context, userID int, oldPassword, newPassword string, shouldCheckOldPasswordWithCurrentOne bool) error {
 	zlog := zerolog.Ctx(ctx)
 
-	loginOptions, err := repo.dataSource.GetAllActiveLoginOptionForUserAndSupportPassword(ctx, int32(userID))
+	loginOptions, err := repo.dataSource.GetAllPasswordLoginIdentitiesForUser(ctx, int32(userID))
 
 	if err != nil {
 		zlog.Err(err).Msg("error while getting all the login options for a user")
@@ -415,7 +435,7 @@ func (repo repositoryImpl) changePasswordForAllLoginOptions(ctx context.Context,
 	if shouldCheckOldPasswordWithCurrentOne {
 		// all the login options should have the same password
 		for _, op := range loginOptions {
-			ok, err := repo.passwordHasher.CompareHashAndPassword(op.HashedPass.String, op.PassSalt.String, oldPassword)
+			ok, err := repo.passwordHasher.CompareHashAndPassword(op.PasswordHashedPass.String, op.PasswordPassSalt.String, oldPassword)
 			if err != nil {
 				zlog.Err(err).Msg("error while comparing password hash with salt and password to change a password for logged in user")
 				return err
@@ -432,7 +452,7 @@ func (repo repositoryImpl) changePasswordForAllLoginOptions(ctx context.Context,
 		return err
 	}
 
-	err = repo.dataSource.ChangeAllPasswordsForLoginOptions(ctx, int32(userID), hashedPass, salt)
+	err = repo.dataSource.ChangePasswordLoginIdentityForUser(ctx, int32(userID), hashedPass, salt)
 	if err != nil {
 		zlog.Err(err).Msg("error while changing the password for login options to logged in user")
 		return err
@@ -493,11 +513,11 @@ func (repo repositoryImpl) ForgetPassword(ctx context.Context, accessKey Passwor
 
 	randomUUID := uuid.New()
 
-	loginOption, err := repo.dataSource.GetActiveLoginOption(ctx, accessKey.accessKeyStr(), accessKey.LoginMethod)
+	loginOption, err := repo.dataSource.GetPasswordLoginIdentity(ctx, accessKey.accessKeyStr(), accessKey.LoginIdentityType)
 	if err != nil {
 		if errors.Is(err, apperr.ErrNoResult) {
 			// send a random uuid and do not report that the user/accessKey is not present in the database.
-			// Security in ambiguity
+			// Security by obscurity
 			err = nil
 		} else {
 			zlog.Err(err).Msg("error geting the login option, for forget password")
@@ -508,7 +528,7 @@ func (repo repositoryImpl) ForgetPassword(ctx context.Context, accessKey Passwor
 	sentOtp, err := sendOtpToTempUserForForgetPassword(
 		ctx,
 		repo.gatewaysProvider,
-		PasswordLoginAccessKey{LoginMethod: accessKey.LoginMethod, Phone: accessKey.Phone, Email: accessKey.Email},
+		PasswordLoginAccessKey{LoginIdentityType: accessKey.LoginIdentityType, Phone: accessKey.Phone, Email: accessKey.Email},
 	)
 	if err != nil {
 		zlog.Err(err).Msg("error sending otp to user, for forget password")
@@ -516,10 +536,9 @@ func (repo repositoryImpl) ForgetPassword(ctx context.Context, accessKey Passwor
 	}
 
 	forgetPassData := ForgetPasswordTmpDataStore{
-		Id:            randomUUID,
-		LoginOptionId: int(loginOption.ID),
-		UserId:        int(loginOption.UserID),
-		SentOTP:       sentOtp,
+		Id:      randomUUID,
+		UserId:  int(loginOption.UserID),
+		SentOTP: sentOtp,
 	}
 
 	err = repo.dataSource.StoreForgetPasswordDataInTempCache(ctx, forgetPassData)
@@ -547,7 +566,7 @@ func (repo repositoryImpl) ResetPassword(ctx context.Context, id uuid.UUID, prov
 		return apperr.ErrInvalidOtpCode
 	}
 
-	err = repo.changePasswordForAllLoginOptions(ctx, forgetPassData.UserId, "", newPassword, false)
+	err = repo.changePasswordForAllPasswordLoginIdentities(ctx, forgetPassData.UserId, "", newPassword, false)
 	if err != nil {
 		zlog.Err(err).Msg("error can not update the password for forget password flow")
 		return err
@@ -566,10 +585,10 @@ func (repo repositoryImpl) deleteForgetPasswordDataFromTempCache(ctx context.Con
 	}
 }
 
-func (repo repositoryImpl) GetAllActiveLoginOptionForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error) {
+func (repo repositoryImpl) GetAllLoginIdentitiesForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error) {
 	zlog := zerolog.Ctx(ctx)
 
-	res, err := repo.dataSource.GetAllActiveLoginOptionForUser(ctx, int32(userId))
+	res, err := repo.dataSource.GetAllLoginIdentitiesForUser(ctx, int32(userId))
 	if err != nil {
 		zlog.Err(err).Msg("error while getting all the active login option for user")
 		return nil, err
@@ -578,7 +597,7 @@ func (repo repositoryImpl) GetAllActiveLoginOptionForUser(ctx context.Context, u
 	loginOptionSlice := make([]PublicLoginOptionForProfile, len(res))
 
 	for i, v := range res {
-		method, err := new(LoginMethod).FromString(v.LoginMethod)
+		identityType, err := new(LoginIdentityType).FromString(v.LoginIdentityIdentityType)
 		if err != nil {
 			zlog.Err(err).Msg("error can not extract the login method from the str")
 			return []PublicLoginOptionForProfile{}, err
@@ -586,10 +605,11 @@ func (repo repositoryImpl) GetAllActiveLoginOptionForUser(ctx context.Context, u
 
 		var email string
 		var phone phonenumber.PhoneNumber
-		method.Fold(
-			func() { email = v.AccessKey },
-			func() {
-				phone, err = phonenumber.NewPhoneNumberFromStdForm(v.AccessKey)
+		identityType.Fold(
+			LoginIdentityFoldActions{
+				OnEmail: func() { email = v.PasswordEmail.String },
+				OnPhone: func() { phone, err = phonenumber.NewPhoneNumberFromStdForm(v.PasswordPhone.String) },
+				OnOcid:  func() { email = v.OidcDataEmail.String },
 			},
 		)
 		if err != nil {
@@ -598,11 +618,12 @@ func (repo repositoryImpl) GetAllActiveLoginOptionForUser(ctx context.Context, u
 		}
 
 		loginOptionSlice[i] = PublicLoginOptionForProfile{
-			ID:          v.ID,
-			Email:       email,
-			Phone:       phone,
-			LoginMethod: *method,
-			IsVerified:  v.VerifiedAt.Valid,
+			LoginIdentityType: *identityType,
+			ID:                v.LoginIdentityID,
+			Email:             email,
+			Phone:             phone,
+			IsVerified:        v.PasswordVerifiedAt.Valid,
+			OidcProvider:      v.OauthProviderName.String,
 		}
 	}
 
