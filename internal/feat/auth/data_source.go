@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
@@ -46,7 +47,7 @@ type DataSource interface {
 	StoreUserInTempCache(ctx context.Context, tUser TempPasswordUser) error
 	StoreForgetPasswordDataInTempCache(ctx context.Context, forgetPassData ForgetPasswordTmpDataStore) error
 	CreatePasswordUser(ctx context.Context, userArgs CreatePasswordUserArgs) (user database.User, err error)
-	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token, ipAddress string, expiresAt time.Time) error
+	CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token string, ipAddress netip.Addr, expiresAt time.Time) error
 	CreateInstallation(ctx context.Context, data CreateInstallationData, installationToken string) error
 
 	// Update ---
@@ -143,58 +144,38 @@ func (ds dataSourceImpl) DeleteUserFromTempCache(ctx context.Context, tempUserId
 }
 
 func (ds dataSourceImpl) CreatePasswordUser(ctx context.Context, userArgs CreatePasswordUserArgs) (user database.User, err error) {
-	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return database.User{}, err
+	userRow, err := ds.db.Queries.LoginIdentityCreateNewUserAndPasswordLoginIdentity(
+		ctx,
+		database.LoginIdentityCreateNewUserAndPasswordLoginIdentityParams{
+
+			UserFirstName:    userArgs.Fname,
+			UserUsername:     userArgs.Username,
+			UserLastName:     ds.toPgTypeText(userArgs.Lname),
+			UserProfileImage: ds.toPgTypeText(userArgs.ProfileImagePath),
+			UserRoleID:       ds.toPgTypeInt4(userArgs.RoleID),
+
+			IdentityType:       userArgs.LoginIdentityType.String(),
+			PasswordEmail:      ds.toPgTypeText(userArgs.Email),
+			PasswordPhone:      ds.toPgTypeText(userArgs.Phone),
+			PasswordHashedPass: userArgs.HashedPass,
+			PasswordPassSalt:   userArgs.PassSalt,
+			PasswordVerifiedAt: pgtype.Timestamptz{Time: userArgs.VerifiedAt, Valid: !userArgs.VerifiedAt.IsZero()},
+		},
+	)
+
+	user = database.User{
+		ID:           userRow.ID,
+		Username:     userRow.Username,
+		ProfileImage: userRow.ProfileImage,
+		FirstName:    userRow.FirstName,
+		MiddleName:   userRow.MiddleName,
+		LastName:     userRow.LastName,
+		CreatedAt:    userRow.CreatedAt,
+		UpdatedAt:    userRow.UpdatedAt,
+		BlockedAt:    userRow.BlockedAt,
+		DeletedAt:    userRow.DeletedAt,
+		RoleID:       userRow.RoleID,
 	}
-
-	defer func() {
-		rolbackFn := func() {
-			rollBackErr := tx.Rollback(ctx)
-			err = errors.Join(rollBackErr, ctx.Err(), err)
-		}
-		commitFn := func() {
-			commitErr := tx.Commit(ctx)
-			err = errors.Join(commitErr, err)
-		}
-
-		select {
-		case <-ctx.Done():
-			rolbackFn()
-		default:
-			if err != nil {
-				rolbackFn()
-			} else {
-				commitFn()
-			}
-		}
-	}()
-
-	queries := ds.db.Queries.WithTx(tx)
-
-	user, err = queries.UsersCreateNewUser(
-		ctx,
-		database.UsersCreateNewUserParams{
-			FirstName:    userArgs.Fname,
-			Username:     userArgs.Username,
-			LastName:     ds.toPgTypeText(userArgs.Lname),
-			ProfileImage: ds.toPgTypeText(userArgs.ProfileImagePath),
-			RoleID:       ds.toPgTypeInt4(userArgs.RoleID),
-		},
-	)
-
-	_, err = queries.LoginIdentityCreateNewPasswordLoginIdentity(
-		ctx,
-		database.LoginIdentityCreateNewPasswordLoginIdentityParams{
-			UserID:       user.ID,
-			IdentityType: userArgs.LoginIdentityType.String(),
-			Email:        ds.toPgTypeText(userArgs.Email),
-			Phone:        ds.toPgTypeText(userArgs.Phone),
-			HashedPass:   userArgs.HashedPass,
-			PassSalt:     userArgs.PassSalt,
-			VerifiedAt:   pgtype.Timestamptz{Time: time.Now(), Valid: true},
-		},
-	)
 
 	return user, err
 }
@@ -235,7 +216,14 @@ func (ds dataSourceImpl) GetPasswordLoginIdentity(ctx context.Context, identityV
 	return loginIdentity, err
 }
 
-func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(ctx context.Context, loginOptionId, installationId int32, token, ipAddress string, expiresAt time.Time) (err error) {
+func (ds dataSourceImpl) CreateNewSessionAndAttachUserToInstallation(
+	ctx context.Context,
+	loginOptionId,
+	installationId int32,
+	token string,
+	ipAddress netip.Addr,
+	expiresAt time.Time,
+) (err error) {
 	tx, err := ds.db.ConnPool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return err

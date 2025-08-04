@@ -4,8 +4,8 @@ CREATE TABLE password_login_identity (
     login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id),
     email VARCHAR(255),
     phone VARCHAR(16), -- E.164 format
-    hashed_pass TEXT NOT NULL,
-    pass_salt TEXT NOT NULL,
+    hashed_pass VARCHAR(128) NOT NULL,
+    pass_salt VARCHAR(64) NOT NULL,
     verified_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,

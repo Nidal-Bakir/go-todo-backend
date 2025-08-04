@@ -7,6 +7,7 @@ package database
 
 import (
 	"context"
+	"net/netip"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -28,7 +29,7 @@ type SessionCreateNewSessionParams struct {
 	OriginatedFrom   int32              `json:"originated_from"`
 	UsedInstallation int32              `json:"used_installation"`
 	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
-	IpAddress        string             `json:"ip_address"`
+	IpAddress        netip.Addr         `json:"ip_address"`
 }
 
 // SessionCreateNewSession

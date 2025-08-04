@@ -1,9 +1,9 @@
 -- +goose Up
 CREATE TABLE installation (
     id SERIAL PRIMARY KEY NOT NULL,
-    installation_token TEXT UNIQUE NOT NULL,
-    notification_token VARCHAR(2000),
-    locale VARCHAR(16) NOT NULL CHECK (length (locale) >= 2),
+    installation_token VARCHAR(2048) UNIQUE NOT NULL,
+    notification_token VARCHAR(2048),
+    locale VARCHAR(16) NOT NULL CHECK (char_length (locale) >= 2),
     timezone_offset_in_minutes INTEGER NOT NULL CHECK (timezone_offset_in_minutes BETWEEN -720 AND 840),
     device_manufacturer VARCHAR(50) NULL,
     device_os VARCHAR(50) NULL,

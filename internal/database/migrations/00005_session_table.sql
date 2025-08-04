@@ -1,9 +1,9 @@
 -- +goose Up
 CREATE TABLE session (
     id SERIAL PRIMARY KEY NOT NULL,
-    token TEXT UNIQUE NOT NULL CHECK (length (token) >= 50),
+    token VARCHAR(2048) UNIQUE NOT NULL CHECK (char_length(token) >= 50),
     -- the used ip address to create this session
-    ip_address TEXT NOT NULL,
+    ip_address INET NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW () NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW () NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,

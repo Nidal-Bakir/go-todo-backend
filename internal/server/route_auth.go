@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
 )
 
 func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
@@ -46,7 +48,7 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 	mux.HandleFunc(
 		"POST /login",
 		middleware.MiddlewareChain(
-			login(authRepo),
+			passwordLogin(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
 			Installation(authRepo),
 			loginRateLimiter(ctx, s.rdb),
@@ -504,16 +506,17 @@ func validateVareifyAccountParams(r *http.Request) (vareifyAccountParams, []erro
 
 //-----------------------------------------------------------------------------
 
-type loginParams struct {
+type passwordLoginParams struct {
 	LoginIdentityType auth.LoginIdentityType
 	Email             string
 	PhoneNumber       phonenumber.PhoneNumber
 	Password          string
 }
 
-func login(authRepo auth.Repository) http.HandlerFunc {
+func passwordLogin(authRepo auth.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		zlog := zerolog.Ctx(ctx)
 
 		err := r.ParseForm()
 		if err != nil {
@@ -530,11 +533,17 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 		installation, ok := auth.InstallationFromContext(ctx)
 		utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
 
+		requestIpAddres, err := netip.ParseAddr(r.RemoteAddr)
+		if err != nil {
+			zlog.Err(err).Msg("can not parse the remoteAddr using netip pkg")
+			return
+		}
+
 		user, token, err := authRepo.PasswordLogin(
 			ctx,
 			auth.PasswordLoginAccessKey{Phone: loginParam.PhoneNumber, Email: loginParam.Email, LoginIdentityType: loginParam.LoginIdentityType},
 			loginParam.Password,
-			r.RemoteAddr,
+			requestIpAddres,
 			installation,
 		)
 		if err != nil {
@@ -557,7 +566,7 @@ func login(authRepo auth.Repository) http.HandlerFunc {
 	}
 }
 
-func validatePasswordLoginParam(r *http.Request) (loginParams, []error) {
+func validatePasswordLoginParam(r *http.Request) (passwordLoginParams, []error) {
 	loginIdentityTypeFormStr := r.FormValue("login_identity_type")
 
 	emailFormStr := r.FormValue("email")
@@ -597,10 +606,10 @@ func validatePasswordLoginParam(r *http.Request) (loginParams, []error) {
 	errList = append(errList, validatePassword(passwordFormStr)...)
 
 	if len(errList) != 0 {
-		return loginParams{}, errList
+		return passwordLoginParams{}, errList
 	}
 
-	loginParam := loginParams{
+	loginParam := passwordLoginParams{
 		LoginIdentityType: *loginIdentityType,
 		Email:             emailFormStr,
 		PhoneNumber:       phone,

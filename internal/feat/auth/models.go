@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
@@ -183,6 +184,7 @@ type CreatePasswordUserArgs struct {
 	PassSalt          string
 	ProfileImagePath  string
 	RoleID            *int32
+	VerifiedAt        time.Time
 }
 
 type User struct {

@@ -5,6 +5,8 @@
 package database
 
 import (
+	"net/netip"
+
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -31,7 +33,7 @@ type ActiveLoginIdentity struct {
 type ActiveOauthConnection struct {
 	ID         int32              `json:"id"`
 	ProviderID int32              `json:"provider_id"`
-	Scopes     string             `json:"scopes"`
+	Scopes     []string           `json:"scopes"`
 	CreatedAt  pgtype.Timestamp   `json:"created_at"`
 	UpdatedAt  pgtype.Timestamp   `json:"updated_at"`
 	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
@@ -109,7 +111,7 @@ type ActivePasswordLoginIdentity struct {
 type ActiveSession struct {
 	ID               int32              `json:"id"`
 	Token            string             `json:"token"`
-	IpAddress        string             `json:"ip_address"`
+	IpAddress        netip.Addr         `json:"ip_address"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
@@ -190,7 +192,7 @@ type NotDeletedUser struct {
 type OauthConnection struct {
 	ID         int32              `json:"id"`
 	ProviderID int32              `json:"provider_id"`
-	Scopes     string             `json:"scopes"`
+	Scopes     []string           `json:"scopes"`
 	CreatedAt  pgtype.Timestamp   `json:"created_at"`
 	UpdatedAt  pgtype.Timestamp   `json:"updated_at"`
 	DeletedAt  pgtype.Timestamptz `json:"deleted_at"`
@@ -291,7 +293,7 @@ type RolePermission struct {
 type Session struct {
 	ID               int32              `json:"id"`
 	Token            string             `json:"token"`
-	IpAddress        string             `json:"ip_address"`
+	IpAddress        netip.Addr         `json:"ip_address"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`

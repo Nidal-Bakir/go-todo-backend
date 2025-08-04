@@ -1,8 +1,8 @@
 -- +goose Up
 CREATE TABLE users (
     id SERIAL PRIMARY KEY NOT NULL,
-    username VARCHAR(50) UNIQUE NOT NULL CHECK (length(username) >= 3),
-    profile_image TEXT,
+    username VARCHAR(50) UNIQUE NOT NULL CHECK (char_length(username) >= 3),
+    profile_image VARCHAR(2048),
     first_name VARCHAR(250) NOT NULL,
     middle_name VARCHAR(250),
     last_name VARCHAR(250),

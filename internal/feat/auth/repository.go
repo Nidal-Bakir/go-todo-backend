@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
@@ -29,7 +30,7 @@ type Repository interface {
 	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (UserAndSession, error)
 	CreateTempPasswordUser(ctx context.Context, tUser *TempPasswordUser) (*TempPasswordUser, error)
 	CreatePasswordUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
-	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password, ipAddress string, installation database.Installation) (user User, token string, err error)
+	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, ipAddress netip.Addr, installation database.Installation) (user User, token string, err error)
 	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (database.Installation, error)
 	ChangePasswordForAllPasswordLoginIdentities(ctx context.Context, userID int, oldPassword, newPassword string) error
 	VerifyAuthToken(token string) (*AuthClaims, error)
@@ -316,6 +317,7 @@ func generatePassworUserArgsForCreateUser(user *TempPasswordUser, passwordHasher
 		Phone:             phone,
 		HashedPass:        hashedPass,
 		PassSalt:          passSalt,
+		VerifiedAt:        time.Now(), // the user has already been verified in the cache/temp user creation step
 	}
 
 	return createUserArgs, nil
@@ -334,7 +336,7 @@ func (repo repositoryImpl) PasswordLogin(
 	ctx context.Context,
 	passwordLoginAccessKey PasswordLoginAccessKey,
 	password string,
-	ipAddress string,
+	ipAddress netip.Addr,
 	installation database.Installation,
 ) (user User, token string, err error) {
 	zlog := zerolog.Ctx(ctx)

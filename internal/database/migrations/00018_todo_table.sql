@@ -1,9 +1,9 @@
 -- +goose Up
 CREATE TABLE todo (
     id SERIAL PRIMARY KEY NOT NULL,
-    title TEXT NOT NULL,
-    body TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (length (status) >= 1),
+    title TEXT NOT NULL CHECK (char_length(title) <= 150),
+    body TEXT NOT NULL CHECK (char_length(body) <= 10000),
+    status TEXT NOT NULL CHECK (char_length(status) >= 1 AND char_length(status) <= 50),
     created_at TIMESTAMPTZ DEFAULT NOW () NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW () NOT NULL,
     deleted_at TIMESTAMPTZ,

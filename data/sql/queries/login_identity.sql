@@ -1,7 +1,62 @@
+-- name: LoginIdentityCreateNewUserAndPasswordLoginIdentity :one
+WITH new_user AS (
+  INSERT INTO users (
+    username,
+    profile_image,
+    first_name,
+    last_name,
+    role_id
+  )
+  VALUES (
+    @user_username::text,
+    sqlc.narg(user_profile_image)::text,
+    @user_first_name::text,
+    sqlc.narg(user_last_name)::text,
+    sqlc.narg(user_role_id)::int
+  )
+  RETURNING *
+),
+new_identity AS (
+  INSERT INTO login_identity (
+    user_id,
+    identity_type
+  )
+  VALUES (
+    (SELECT id FROM new_user),
+    @identity_type::text
+  )
+  RETURNING id
+),
+final_insert AS (
+  INSERT INTO password_login_identity (
+    login_identity_id,
+    email,
+    phone,
+    hashed_pass,
+    pass_salt,
+    verified_at
+  )
+  VALUES (
+    (SELECT id FROM new_identity),
+    sqlc.narg(password_email)::text,
+    sqlc.narg(password_phone)::text,
+    @password_hashed_pass::text,
+    @password_pass_salt::text,
+    @password_verified_at::timestamptz
+  )
+)
+SELECT * FROM new_user;
+
 -- name: LoginIdentityCreateNewPasswordLoginIdentity :one
 WITH new_identity AS (
- INSERT INTO login_identity (user_id, identity_type)
- VALUES ($1, $2)
+ INSERT INTO login_identity (
+    user_id,
+    identity_type
+ )
+ VALUES (
+    @identity_user_id::int,
+    @identity_type::text
+ )
  RETURNING id
 )
 INSERT INTO password_login_identity (
@@ -14,13 +69,149 @@ INSERT INTO password_login_identity (
 )
 VALUES (
     (SELECT id FROM new_identity),
-    $3,
-    $4,
-    $5,
-    $6,
-    $7
+    sqlc.narg(password_email)::text,
+    sqlc.narg(password_phone)::text,
+    @password_hashed_pass::text,
+    @password_pass_salt::text,
+    @password_verified_at::timestamptz
 )
 RETURNING id AS password_login_identity_id, (SELECT id AS login_identity_id FROM new_identity);
+
+
+
+-- name: LoginIdentityCreateNewUserAndOIDCLoginIdentity :one
+WITH new_user AS (
+  INSERT INTO users (
+    username,
+    profile_image,
+    first_name,
+    last_name,
+    role_id
+  )
+  VALUES (
+    @user_username::text,
+    sqlc.narg(user_profile_image)::text,
+    @user_first_name::text,
+    sqlc.narg(user_last_name)::text,
+    sqlc.narg(user_role_id)::int
+  )
+  RETURNING *
+),
+new_identity AS (
+  INSERT INTO login_identity (
+    user_id,
+    identity_type
+  )
+  VALUES (
+    (SELECT id FROM new_user),
+    'oidc'
+  )
+  RETURNING id
+),
+ensure_provider AS (
+    INSERT INTO oauth_provider (
+        name,
+        is_oidc_capable
+    )
+    VALUES (
+        @oauth_provider_name::text,
+        @oauth_provider_is_oidc_capable::bool
+    )
+    ON CONFLICT (name) DO NOTHING
+),
+oauth_provider_row AS (
+    SELECT * from oauth_provider WHERE name = @oauth_provider_name::text
+),
+ensure_oauth_connection AS (
+    INSERT INTO oauth_connection (
+        provider_id,
+        scopes
+    )
+    VALUES (
+        (SELECT id FROM oauth_provider_row),
+        @oauth_scopes::text[]
+    )
+    ON CONFLICT (provider_id, scopes) DO NOTHING
+),
+oauth_connection_row AS (
+    SELECT * from oauth_connection WHERE provider_id = (SELECT id FROM oauth_provider_row) AND scopes = $8
+),
+new_oauth_integration AS (
+    INSERT INTO oauth_integration (
+        oauth_connection_id,
+        integration_type
+    )
+    VALUES (
+        (SELECT id FROM oauth_connection_row),
+        'user'
+    )
+    RETURNING id
+),
+new_oauth_token AS (
+    INSERT INTO oauth_token (
+        oauth_integration_id,
+        access_token,
+        refresh_token,
+        token_type,
+        expires_at,
+        issued_at
+    )
+    VALUES (
+        (SELECT id FROM new_oauth_integration),
+        @oauth_access_token::text,
+        sqlc.narg(oauth_refresh_token)::text,
+        sqlc.narg(oauth_token_type)::text,
+        @oauth_token_expires_at::timestamptz,
+        sqlc.narg(oauth_token_issued_at)::timestamptz
+    )
+),
+new_user_integration AS (
+    INSERT INTO user_integration (
+        oauth_integration_id,
+        user_id
+    )
+    VALUES (
+        (SELECT id FROM new_oauth_integration),
+        (SELECT id FROM new_user)
+    )
+    RETURNING id
+),
+new_oidc_user_integration_data AS (
+    INSERT INTO oidc_user_integration_data (
+        user_integration_id,
+        sub,
+        email,
+        iss,
+        aud,
+        given_name,
+        family_name,
+        name,
+        picture
+    )
+    VALUES (
+        (SELECT id FROM new_user_integration),
+        @oidc_sub::text,
+        sqlc.narg(oidc_email)::text,
+        @oidc_iss::text,
+        @oidc_aud::text,
+        sqlc.narg(oidc_given_name)::text,
+        sqlc.narg(oidc_family_name)::text,
+        sqlc.narg(oidc_name)::text,
+        sqlc.narg(oidc_picture)::text
+    )
+    RETURNING id
+),
+new_oidc_login_identity AS (
+    INSERT INTO oidc_login_identity (
+        login_identity_id,
+        oidc_user_integration_data_id
+    )
+    VALUES (
+        (SELECT id FROM new_identity),
+        (SELECT id FROM new_oidc_user_integration_data)
+    )
+)
+SELECT * FROM new_user;
 
 
 -- name: LoginIdentityGetPasswordLoginIdentity :one
@@ -63,7 +254,7 @@ SELECT
     pli.hashed_pass,
     pli.pass_salt,
     pli.verified_at,
-    
+
     u.id as user_id,
     u.username as user_username,
     u.profile_image as user_profile_image,
@@ -73,7 +264,7 @@ SELECT
     u.blocked_at as user_blocked_at,
     u.blocked_until as user_blocked_until,
     u.role_id as user_role_id
-FROM not_deleted_users AS u     
+FROM not_deleted_users AS u
     JOIN active_login_identity AS li
         ON u.id = li.user_id
     JOIN active_password_login_identity pli
@@ -147,10 +338,10 @@ SELECT
   oud.family_name AS oidc_data_family_name,
   oud.name AS oidc_data_name,
   oud.picture AS oidc_data_picture,
-  
+
   -- oauth_provider
   op.name AS oauth_provider_name
-  
+
 FROM active_login_identity AS li
 LEFT JOIN active_password_login_identity AS pli
   ON li.id = pli.login_identity_id
@@ -168,7 +359,7 @@ LEFT JOIN oauth_connection AS oc
   ON oi.oauth_connection_id = oc.id
 LEFT JOIN oauth_provider AS op
   ON oc.provider_id = op.id
-  
+
 WHERE li.user_id = $1
 ORDER BY li.is_primary DESC, li.last_used_at DESC;
 
@@ -213,5 +404,33 @@ SELECT COUNT(*) FROM active_password_login_identity WHERE email = $1;
 SELECT COUNT(*) FROM active_password_login_identity WHERE phone = $1;
 
 -- name: LoginIdentityIsOidcEmailUsed :one
-SELECT COUNT(*) FROM active_oidc_user_integration_data
-WHERE email = $1;
+SELECT COUNT(*) FROM active_oidc_user_integration_data WHERE email = $1;
+
+
+
+-- WITH new_user AS (
+--     INSERT INTO users (username, first_name)
+--     VALUES (concat('guest_', gen_random_uuid()), 'Guest')
+--     RETURNING id
+-- ),
+-- new_identity AS (
+--     INSERT INTO login_identity (user_id)
+--     SELECT id FROM new_user
+--     RETURNING id, user_id
+-- ),
+-- new_guest AS (
+--     INSERT INTO guest_login_option (login_identity_id, device_id)
+--     SELECT id, $1 FROM new_identity
+--     RETURNING login_identity_id
+-- ),
+-- new_session AS (
+--     INSERT INTO session (token, originated_from, used_installation, expires_at)
+--     VALUES (
+--         $2,                        -- token
+--         (SELECT login_identity_id FROM new_guest),
+--         $3,                        -- installation_id
+--         NOW() + INTERVAL '30 days' -- expires
+--     )
+--     RETURNING token
+-- )
+-- SELECT token FROM new_session;
