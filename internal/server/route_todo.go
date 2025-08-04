@@ -14,6 +14,15 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/paginate"
 )
 
+// this limits are also check on the db level,
+// if you need to change the limits you need to change them here and on the db level.
+// see the todo table migration file(s)
+const (
+	todoBodyLengthLimit   int = 10000
+	todoTitleLengthLimit  int = 150
+	todoStatusLengthLimit int = 50
+)
+
 func todoRouter(_ context.Context, s *Server) http.Handler {
 	todoRepo := todo.NewRepository(s.db, s.rdb)
 
@@ -65,19 +74,31 @@ func extractTodoData(r *http.Request) (todo.TodoData, error) {
 
 	var title string
 	title = r.FormValue("title")
-	if len(title) != 0 {
+	titleLen := len(title)
+	if titleLen > todoTitleLengthLimit {
+		return todo.TodoData{}, errors.New("too large todo title")
+	}
+	if titleLen != 0 {
 		data.Title = &title
 	}
 
 	var body string
 	body = r.FormValue("body")
-	if len(body) != 0 {
+	bodyLen := len(body)
+	if bodyLen > todoBodyLengthLimit {
+		return todo.TodoData{}, errors.New("too large todo body")
+	}
+	if bodyLen != 0 {
 		data.Body = &body
 	}
 
 	status := new(todo.TodoStatus)
 	statusStr := r.FormValue("status")
-	if len(statusStr) != 0 {
+	statusStrLen := len(statusStr)
+	if statusStrLen > todoStatusLengthLimit {
+		return todo.TodoData{}, errors.New("too large todo status")
+	}
+	if statusStrLen != 0 {
 		status, err := status.FromString(statusStr)
 		if err != nil {
 			return todo.TodoData{}, err
