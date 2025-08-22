@@ -204,19 +204,16 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			HttpOnly: true,
 			Secure:   appenv.IsProd(),
 			SameSite: http.SameSiteLaxMode,
-			Path:     "/auth/oidc",
-			MaxAge:   auth.OtpCodeLength,
+			MaxAge: int(auth.AuthTokenExpDuration.Seconds()),
 		})
 
 		queryParams := url.Values{}
-
 		queryParams.Add("user_first_name", user.FirstName)
 		queryParams.Add("user_last_name", user.LastName.String)
 		queryParams.Add("username", user.Username)
 		queryParams.Add("profile_image", user.ProfileImage.String)
 		queryParams.Add("id", strconv.Itoa(int(user.ID)))
 		queryParams.Add("token", token)
-
 		redirectURL := "/" + "?" + queryParams.Encode()
 
 		http.Redirect(w, r, redirectURL, http.StatusFound)

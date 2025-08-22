@@ -38,6 +38,28 @@ document.getElementById("apiCallBtnInstallation").addEventListener("click", asyn
   }
 });
 
+document.getElementById("logout_btn").addEventListener("click", async () => {
+  try {
+    const response = await fetch("http://127.0.0.1:8080/api/v1/auth/logout", {
+      method: "POST",  
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "ar",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    });
+
+    const data = await response.json();
+    console.log("API response:", data);
+    localStorage.setItem("A-Installation", data["installation_token"]);
+    setCookie("A-Installation", data["installation_token"], 365);
+  } catch (error) {
+    console.error("API call failed:", error);
+    alert("API call failed!" + error);
+  }
+});
+
 
 const params = new URLSearchParams(window.location.search);
 
