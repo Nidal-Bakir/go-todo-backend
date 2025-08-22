@@ -78,140 +78,47 @@ VALUES (
 RETURNING id AS password_login_identity_id, (SELECT id AS login_identity_id FROM new_identity);
 
 
-
--- name: LoginIdentityCreateNewUserAndOIDCLoginIdentity :one
-WITH new_user AS (
-  INSERT INTO users (
-    username,
-    profile_image,
-    first_name,
-    last_name,
-    role_id
-  )
-  VALUES (
-    @user_username::text,
-    sqlc.narg(user_profile_image)::text,
-    @user_first_name::text,
-    sqlc.narg(user_last_name)::text,
-    sqlc.narg(user_role_id)::int
-  )
-  RETURNING *
-),
-new_identity AS (
-  INSERT INTO login_identity (
-    user_id,
-    identity_type
-  )
-  VALUES (
-    (SELECT id FROM new_user),
-    'oidc'
-  )
-  RETURNING id
-),
-ensure_provider AS (
-    INSERT INTO oauth_provider (
-        name,
-        is_oidc_capable
-    )
-    VALUES (
-        @oauth_provider_name::text,
-        @oauth_provider_is_oidc_capable::bool
-    )
-    ON CONFLICT (name) DO NOTHING
-),
-oauth_provider_row AS (
-    SELECT * from oauth_provider WHERE name = @oauth_provider_name::text
-),
-ensure_oauth_connection AS (
-    INSERT INTO oauth_connection (
-        provider_id,
-        scopes
-    )
-    VALUES (
-        (SELECT id FROM oauth_provider_row),
-        @oauth_scopes::text[]
-    )
-    ON CONFLICT (provider_id, scopes) DO NOTHING
-),
-oauth_connection_row AS (
-    SELECT * from oauth_connection WHERE provider_id = (SELECT id FROM oauth_provider_row) AND scopes = $8
-),
-new_oauth_integration AS (
-    INSERT INTO oauth_integration (
-        oauth_connection_id,
-        integration_type
-    )
-    VALUES (
-        (SELECT id FROM oauth_connection_row),
-        'user'
-    )
-    RETURNING id
-),
-new_oauth_token AS (
-    INSERT INTO oauth_token (
-        oauth_integration_id,
-        access_token,
-        refresh_token,
-        token_type,
-        expires_at,
-        issued_at
-    )
-    VALUES (
-        (SELECT id FROM new_oauth_integration),
-        @oauth_access_token::text,
-        sqlc.narg(oauth_refresh_token)::text,
-        sqlc.narg(oauth_token_type)::text,
-        @oauth_token_expires_at::timestamptz,
-        sqlc.narg(oauth_token_issued_at)::timestamptz
-    )
-),
-new_user_integration AS (
-    INSERT INTO user_integration (
-        oauth_integration_id,
-        user_id
-    )
-    VALUES (
-        (SELECT id FROM new_oauth_integration),
-        (SELECT id FROM new_user)
-    )
-    RETURNING id
-),
-new_oidc_user_integration_data AS (
-    INSERT INTO oidc_user_integration_data (
-        user_integration_id,
-        sub,
-        email,
-        iss,
-        aud,
-        given_name,
-        family_name,
-        name,
-        picture
-    )
-    VALUES (
-        (SELECT id FROM new_user_integration),
-        @oidc_sub::text,
-        sqlc.narg(oidc_email)::text,
-        @oidc_iss::text,
-        @oidc_aud::text,
-        sqlc.narg(oidc_given_name)::text,
-        sqlc.narg(oidc_family_name)::text,
-        sqlc.narg(oidc_name)::text,
-        sqlc.narg(oidc_picture)::text
-    )
-    RETURNING id
-),
-new_oidc_login_identity AS (
-    INSERT INTO oidc_login_identity (
-        login_identity_id,
-        oidc_user_integration_data_id
-    )
-    VALUES (
-        (SELECT id FROM new_identity),
-        (SELECT id FROM new_oidc_user_integration_data)
-    )
-)
-SELECT * FROM new_user;
+-- name: LoginIdentityGetOIDCDataBySub :one
+SELECT
+    u.id AS user_id,
+    u.username AS user_username,
+    u.profile_image AS user_profile_image,
+    u.first_name AS user_first_name,
+    u.middle_name AS user_middle_name,
+    u.last_name AS user_last_name,
+    u.blocked_at AS user_blocked_at,
+    u.blocked_until AS user_blocked_until,
+    u.created_at AS user_created_at,
+    u.updated_at AS user_updated_at,
+    u.role_id as user_role_id,
+    li.id AS login_identity_id,
+    ot.id AS oauth_token_id,
+    oc.id AS oauth_connection_id,
+    oc.scopes AS oauth_connection_scopes,
+    oi.id AS oauth_integration_id,
+    ouid.id AS oidc_user_integration_data_id
+from active_oidc_user_integration_data AS ouid
+JOIN active_user_integration AS ui
+    ON ouid.user_integration_id = ui.id
+JOIN active_oauth_integration AS oi
+    ON ui.oauth_integration_id = oi.id
+JOIN active_oauth_token AS ot
+    ON oi.id = ot.oauth_integration_id
+JOIN active_oauth_connection AS oc
+    ON oi.oauth_connection_id = oc.id
+JOIN active_oauth_provider AS op
+    ON oc.provider_name = op.name
+JOIN active_oidc_login_identity AS oli
+    ON ouid.id = oli.oidc_user_integration_data_id
+JOIN active_login_identity AS li
+    ON oli.login_identity_id = li.id
+JOIN not_deleted_users AS u
+    ON li.user_id = u.id
+WHERE ouid.sub = @oidc_sub::text
+    AND li.identity_type = 'oidc'
+    AND oi.integration_type = 'user'
+    AND op.name = @oidc_provider_name::text
+LIMIT 1;
 
 
 -- name: LoginIdentityGetPasswordLoginIdentity :one
@@ -358,7 +265,7 @@ LEFT JOIN oauth_integration AS oi
 LEFT JOIN oauth_connection AS oc
   ON oi.oauth_connection_id = oc.id
 LEFT JOIN oauth_provider AS op
-  ON oc.provider_id = op.id
+  ON oc.provider_name = op.name
 
 WHERE li.user_id = $1
 ORDER BY li.is_primary DESC, li.last_used_at DESC;
@@ -406,6 +313,11 @@ SELECT COUNT(*) FROM active_password_login_identity WHERE phone = $1;
 -- name: LoginIdentityIsOidcEmailUsed :one
 SELECT COUNT(*) FROM active_oidc_user_integration_data WHERE email = $1;
 
+
+-- name: LoginIdentityUpdateLastUsedAtToNow :exec
+UPDATE login_identity SET
+last_used_at = NOW()
+WHERE id = @id;
 
 
 -- WITH new_user AS (

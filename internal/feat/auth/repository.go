@@ -7,20 +7,30 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/google"
+	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 
+	dbutils "github.com/Nidal-Bakir/go-todo-backend/internal/utils/db_utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
 	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
-	usernaemgen "github.com/Nidal-Bakir/username_r_gen"
+	usernaemgen "github.com/Nidal-Bakir/username_r_gen/v2"
 	"github.com/google/uuid"
 
 	"github.com/rs/zerolog"
 )
 
 const (
+	aDay                         = time.Hour * 24
+	aMounth                      = aDay * 30
+	aYear                        = aMounth * 12
+	AuthTokenExpDuration         = aYear
+	InstallationTokenExpDuration = aYear
+
 	OtpCodeLength             = 6
 	PasswordRecommendedLength = 8
 )
@@ -30,8 +40,8 @@ type Repository interface {
 	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (UserAndSession, error)
 	CreateTempPasswordUser(ctx context.Context, tUser *TempPasswordUser) (*TempPasswordUser, error)
 	CreatePasswordUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
-	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, ipAddress netip.Addr, installation database.Installation) (user User, token string, err error)
-	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (database.Installation, error)
+	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, ipAddress netip.Addr, installation database_queries.Installation) (user User, token string, err error)
+	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (database_queries.Installation, error)
 	ChangePasswordForAllPasswordLoginIdentities(ctx context.Context, userID int, oldPassword, newPassword string) error
 	VerifyAuthToken(token string) (*AuthClaims, error)
 	VerifyTokenForInstallation(token string) (*InstallationClaims, error)
@@ -41,6 +51,7 @@ type Repository interface {
 	ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error)
 	ResetPassword(ctx context.Context, id uuid.UUID, providedOTP, newPassword string) error
 	GetAllLoginIdentitiesForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error)
+	LoginOrCreateUserWithOidc(ctx context.Context, data LoginOrCreateUserWithOidcRepoParam, ipAddress netip.Addr, installation database_queries.Installation) (user User, token string, err error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
@@ -279,8 +290,16 @@ func (repo repositoryImpl) storPasswordUser(ctx context.Context, tUser *TempPass
 		return User{}, err
 	}
 
+	repo.updateDbUserUsername(ctx, &dbUser)
+
+	user := NewUserFromDatabaseUser(dbUser)
+	return user, nil
+}
+
+func (repo repositoryImpl) updateDbUserUsername(ctx context.Context, dbUser *database_queries.User) {
+	zlog := zerolog.Ctx(ctx)
 	username := usernaemgen.NewUsernameGen().Generate(int64(dbUser.ID))
-	err = repo.dataSource.UpdateusernameForUser(ctx, dbUser.ID, username)
+	err := repo.dataSource.UpdateusernameForUser(ctx, dbUser.ID, username)
 	if err != nil {
 		zlog.Err(err).Msg("error while updating the username for user for the first time")
 		// we do not have to return with error because the username is set with some random UUID
@@ -288,9 +307,6 @@ func (repo repositoryImpl) storPasswordUser(ctx context.Context, tUser *TempPass
 		// use the new username
 		dbUser.Username = username
 	}
-
-	user := NewUserFromDatabaseUser(dbUser)
-	return user, nil
 }
 
 func generatePassworUserArgsForCreateUser(user *TempPasswordUser, passwordHasher password_hasher.PasswordHasher) (CreatePasswordUserArgs, error) {
@@ -325,7 +341,6 @@ func generatePassworUserArgsForCreateUser(user *TempPasswordUser, passwordHasher
 
 func (repo repositoryImpl) deleteTempUserFromCache(ctx context.Context, tUser *TempPasswordUser) {
 	zlog := zerolog.Ctx(ctx)
-
 	// ignore any error because the temp user will be auto cleand by redis after sometime
 	if err := repo.dataSource.DeleteUserFromTempCache(ctx, tUser.Id); err != nil {
 		zlog.Err(err).Msg("error while deleting user form temp cache. igonoring this error")
@@ -337,11 +352,11 @@ func (repo repositoryImpl) PasswordLogin(
 	passwordLoginAccessKey PasswordLoginAccessKey,
 	password string,
 	ipAddress netip.Addr,
-	installation database.Installation,
+	installation database_queries.Installation,
 ) (user User, token string, err error) {
 	zlog := zerolog.Ctx(ctx)
 
-	userWithLoginOption, err := repo.dataSource.GetPasswordLoginIdentityWithUser(
+	userWithLoginIdentity, err := repo.dataSource.GetPasswordLoginIdentityWithUser(
 		ctx,
 		passwordLoginAccessKey.accessKeyStr(),
 		passwordLoginAccessKey.LoginIdentityType,
@@ -356,8 +371,8 @@ func (repo repositoryImpl) PasswordLogin(
 	}
 
 	checkPassword := func() error {
-		hashedPassword := userWithLoginOption.HashedPass
-		salt := userWithLoginOption.PassSalt
+		hashedPassword := userWithLoginIdentity.HashedPass
+		salt := userWithLoginIdentity.PassSalt
 		if ok, err := repo.passwordHasher.CompareHashAndPassword(hashedPassword, salt, password); !ok || err != nil {
 			if err != nil {
 				return err
@@ -372,14 +387,12 @@ func (repo repositoryImpl) PasswordLogin(
 		return User{}, "", err
 	}
 
-	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
-	token, err = repo.authJWT.GenWithClaimsForUser(userWithLoginOption.UserID, expiresAt)
+	token, expiresAt, err := repo.generateAuthToken(ctx, userWithLoginIdentity.UserID)
 	if err != nil {
-		zlog.Err(err).Msg("error while generating a new session token using jwt, for login")
 		return User{}, "", err
 	}
 
-	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginOption.LoginIdentityID, installation.ID, token, ipAddress, expiresAt)
+	err = repo.dataSource.CreateNewSessionAndAttachUserToInstallation(ctx, userWithLoginIdentity.LoginIdentityID, installation.ID, token, ipAddress, expiresAt)
 	if err != nil {
 		if !apperr.IsAppErr(err) {
 			zlog.Err(err).Msg("error creating new session for user to login")
@@ -388,20 +401,31 @@ func (repo repositoryImpl) PasswordLogin(
 	}
 
 	user = User{
-		ID:           userWithLoginOption.UserID,
-		Username:     userWithLoginOption.UserUsername,
-		ProfileImage: userWithLoginOption.UserProfileImage,
-		FirstName:    userWithLoginOption.UserFirstName,
-		MiddleName:   userWithLoginOption.UserMiddleName,
-		LastName:     userWithLoginOption.UserLastName,
-		RoleID:       userWithLoginOption.UserRoleID,
-		BlockedAt:    userWithLoginOption.UserBlockedAt,
+		ID:           userWithLoginIdentity.UserID,
+		Username:     userWithLoginIdentity.UserUsername,
+		ProfileImage: userWithLoginIdentity.UserProfileImage,
+		FirstName:    userWithLoginIdentity.UserFirstName,
+		MiddleName:   userWithLoginIdentity.UserMiddleName,
+		LastName:     userWithLoginIdentity.UserLastName,
+		RoleID:       userWithLoginIdentity.UserRoleID,
+		BlockedAt:    userWithLoginIdentity.UserBlockedAt,
 	}
 
 	return user, token, nil
 }
 
-func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (installation database.Installation, err error) {
+func (repo repositoryImpl) generateAuthToken(ctx context.Context, userId int32) (token string, expiresAt time.Time, err error) {
+	zlog := zerolog.Ctx(ctx)
+	expiresAt = time.Now().Add(AuthTokenExpDuration)
+	token, err = repo.authJWT.GenWithClaimsForUser(userId, expiresAt)
+	if err != nil {
+		zlog.Err(err).Msg("error while generating a new session token using jwt, for login")
+		return "", expiresAt, err
+	}
+	return token, expiresAt, err
+}
+
+func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (installation database_queries.Installation, err error) {
 	zlog := zerolog.Ctx(ctx)
 
 	if attachedToSessionId == nil {
@@ -414,7 +438,7 @@ func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, instal
 		if !errors.Is(err, apperr.ErrNoResult) {
 			zlog.Err(err).Msg("error geting an installation from the database")
 		}
-		return database.Installation{}, err
+		return database_queries.Installation{}, err
 	}
 
 	return installation, nil
@@ -474,7 +498,7 @@ func (repo repositoryImpl) VerifyTokenForInstallation(token string) (*Installati
 func (repo repositoryImpl) CreateInstallation(ctx context.Context, data CreateInstallationData) (installationToken string, err error) {
 	zlog := zerolog.Ctx(ctx)
 
-	expiresAt := time.Now().AddDate(0, 6, 0) // after 6 months from now
+	expiresAt := time.Now().Add(InstallationTokenExpDuration)
 	token, err := repo.authJWT.GenWithClaimsForInstallation(expiresAt)
 	if err != nil {
 		zlog.Err(err).Msg("error while gen jwt token with claims for installation")
@@ -636,4 +660,95 @@ func (repo repositoryImpl) GetAllLoginIdentitiesForUser(ctx context.Context, use
 	}
 
 	return loginOptionSlice, nil
+}
+
+func (repo repositoryImpl) LoginOrCreateUserWithOidc(
+	ctx context.Context,
+	params LoginOrCreateUserWithOidcRepoParam,
+	ipAddress netip.Addr,
+	installation database_queries.Installation,
+) (User, string, error) {
+	zlog := zerolog.Ctx(ctx)
+
+	data := LoginOrCreateUserWithOidcData{
+		oauthProvider:              params.OauthProvider,
+		InstallationId:             installation.ID,
+		IpAddress:                  ipAddress,
+		OauthAccessToken:           params.AccessToken,
+		OauthRefreshToken:          dbutils.ToPgTypeText(params.RefreshToken),
+		OauthTokenType:             dbutils.ToPgTypeText(params.OauthTokenType),
+		OauthScopes:                params.OauthScopes,
+		UserRoleID:                 dbutils.ToPgTypeInt4(params.UserRoleID),
+		OauthTokenExpiresAt:        dbutils.ToPgTypeTimestamp(params.AccessTokenExpiresAt),
+		OauthProviderIsOidcCapable: true,
+		OauthTokenIssuedAt:         dbutils.ToPgTypeTimestamp(time.Now()),
+		UserUsername:               uuid.NewString(),
+	}
+
+	onGoogle := func() error {
+		res, err := google.ValidatorIdToken(ctx, params.OidcToken)
+		if err != nil {
+			zlog.Err(err).Msg("can not validate google id token")
+			return err
+		}
+
+		if emailvalidator.IsValidEmail(res.Email) {
+			isUsed, err := repo.dataSource.IsEmailUsedInPasswordLoginIdentity(ctx, res.Email)
+			if err != nil {
+				zlog.Err(err).Msg("can not check if oidc email is used in normal email password login identity")
+				return err
+			}
+			if isUsed {
+				return apperr.ErrAlreadyUsedEmailWithPasswordLogin
+			}
+		}
+
+		data.OidcAud = res.Audience
+		data.OidcIss = res.Issuer
+		data.OidcIat = dbutils.ToPgTypeTimestamp(res.IssuedAt)
+
+		data.OidcSub = res.Sub
+		data.OidcEmail = dbutils.ToPgTypeText(res.Email)
+
+		data.OidcGivenName = dbutils.ToPgTypeText(res.GivenName)
+		data.OidcFamilyName = dbutils.ToPgTypeText(res.FamilyName)
+		data.OidcName = dbutils.ToPgTypeText(res.Name)
+		data.OidcPicture = dbutils.ToPgTypeText(res.Picture)
+
+		data.UserFirstName = res.GivenName
+		data.UserLastName = dbutils.ToPgTypeText(res.FamilyName)
+		data.UserProfileImage = dbutils.ToPgTypeText(res.Picture)
+
+		return nil
+	}
+
+	err := params.OauthProvider.Fold(
+		oauth.OauthProviderFoldActions{
+			OnGoogle: onGoogle,
+		},
+	)
+	if err != nil {
+		zlog.Err(err).Msgf("error while running oidc action for provider: %s", params.OauthProvider.String())
+		return User{}, "", err
+	}
+
+	var token string
+	dbUser, err := repo.dataSource.LoginOrCreateUserWithOidc(
+		ctx,
+		data,
+		func(userId int32) (string, time.Time, error) {
+			t, exp, err := repo.generateAuthToken(ctx, userId)
+			token = t
+			return token, exp, err
+		},
+	)
+	if err != nil {
+		zlog.Err(err).Msg("error while runing LoginOrCreateUserWithOidc fn")
+		return User{}, "", err
+	}
+
+	repo.updateDbUserUsername(ctx, &dbUser)
+	user := NewUserFromDatabaseUser(dbUser)
+
+	return user, token, nil
 }

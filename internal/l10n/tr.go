@@ -17,6 +17,7 @@ const (
 	InvalidLoginCredentialsTrId           = "invalid_login_credentials"
 	AlreadyUsedEmailTrId                  = "already_used_email"
 	AlreadyUsedEmailWithOidcTrId          = "already_used_email_with_oidc"
+	AlreadyUsedEmailWithPasswordLoginTrId = "already_used_email_with_password_login"
 	AlreadyUsedPhoneNumberTrId            = "already_used_phone_number"
 	OperationDoneSuccessfullyTrId         = "operation_done_successfully"
 	OldPasswordDoesNotMatchCurrentOneTrId = "old_password_does_not_match_current_one"

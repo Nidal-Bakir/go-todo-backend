@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
 )
 
 type TodoStatus string
@@ -48,7 +48,7 @@ type TodoItem struct {
 	DeletedAt *time.Time
 }
 
-func todoItemFromDataBase(td database.Todo) (TodoItem, error) {
+func todoItemFromDataBase(td database_queries.Todo) (TodoItem, error) {
 	status, err := new(TodoStatus).FromString(td.Status)
 	if err != nil {
 		return TodoItem{}, err

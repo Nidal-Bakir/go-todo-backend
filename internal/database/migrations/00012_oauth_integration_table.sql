@@ -12,7 +12,7 @@ CREATE TABLE oauth_integration (
 
 
 CREATE TRIGGER update_oauth_integration_updated_at_column BEFORE
-UPDATE ON oauth_integration FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column ();
+UPDATE ON oauth_integration FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column();
 
 CREATE VIEW active_oauth_integration AS
 SELECT

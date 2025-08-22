@@ -1,12 +1,12 @@
 -- +goose Up
 CREATE TABLE oauth_connection (
   id SERIAL PRIMARY KEY NOT NULL,
-  provider_id INTEGER NOT NULL REFERENCES oauth_provider(id),
+  provider_name TEXT NOT NULL REFERENCES oauth_provider(name),
   scopes TEXT[] NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
   deleted_at TIMESTAMPTZ,
-  UNIQUE (provider_id, scopes)
+  UNIQUE (provider_name, scopes)
 );
 
 -- +goose statementbegin
@@ -42,4 +42,3 @@ WHERE
 DROP VIEW active_oauth_connection;
 DROP TABLE oauth_connection;
 DROP FUNCTION oauth_connection_sort_and_dedupe_scopes_array_fn;
-

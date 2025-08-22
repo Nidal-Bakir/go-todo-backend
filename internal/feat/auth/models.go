@@ -2,11 +2,13 @@ package auth
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
+	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
@@ -201,7 +203,7 @@ type User struct {
 	RoleID       pgtype.Int4        `json:"role_id"`
 }
 
-func NewUserFromDatabaseUser(u database.User) User {
+func NewUserFromDatabaseUser(u database_queries.User) User {
 	return User{
 		ID:           u.ID,
 		Username:     u.Username,
@@ -241,7 +243,7 @@ type UserAndSession struct {
 	SessionUsedInstallation int32              `json:"session_used_installation"`
 }
 
-func NewUserAndSessionFromDatabaseUserAndSessionRow(u database.UsersGetUserAndSessionDataBySessionTokenRow) UserAndSession {
+func NewUserAndSessionFromDatabaseUserAndSessionRow(u database_queries.UsersGetUserAndSessionDataBySessionTokenRow) UserAndSession {
 	return UserAndSession{
 		UserID:           u.UserID,
 		UserUsername:     u.UserUsername,
@@ -323,4 +325,46 @@ type PublicLoginOptionForProfile struct {
 	LoginIdentityType LoginIdentityType
 	IsVerified        bool
 	OidcProvider      string
+}
+
+type LoginOrCreateUserWithOidcData struct {
+	InstallationId int32
+	IpAddress      netip.Addr
+
+	UserFirstName    string
+	UserLastName     pgtype.Text
+	UserProfileImage pgtype.Text
+	UserUsername     string
+	UserRoleID       pgtype.Int4
+
+	OidcGivenName  pgtype.Text
+	OidcFamilyName pgtype.Text
+	OidcName       pgtype.Text
+	OidcSub        string
+	OidcEmail      pgtype.Text
+	OidcPicture    pgtype.Text
+	OidcIss        string
+	OidcAud        string
+	OidcIat        pgtype.Timestamp
+
+	oauthProvider              oauth.OauthProvider
+	OauthProviderIsOidcCapable bool
+
+	OauthScopes         oauth.Scops
+	OauthAccessToken    string
+	OauthRefreshToken   pgtype.Text
+	OauthTokenType      pgtype.Text
+	OauthTokenExpiresAt pgtype.Timestamp
+	OauthTokenIssuedAt  pgtype.Timestamp
+}
+
+type LoginOrCreateUserWithOidcRepoParam struct {
+	OauthProvider        oauth.OauthProvider
+	AccessToken          string
+	RefreshToken         string
+	AccessTokenExpiresAt time.Time
+	OidcToken            string
+	OauthScopes          oauth.Scops
+	UserRoleID           *int32
+	OauthTokenType       string
 }

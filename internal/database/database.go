@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 )
 
 type Service struct {
 	ConnPool *pgxpool.Pool
-	Queries  *Queries
+	Queries  *database_queries.Queries
 }
 
 var (
@@ -56,7 +57,7 @@ func NewConnection(ctx context.Context) *Service {
 
 	dbInstance = &Service{
 		ConnPool: connectionPool,
-		Queries:  New(connectionPool),
+		Queries:  database_queries.New(connectionPool),
 	}
 
 	zlog.Info().Msg("Migrating the database to the latest version...")

@@ -118,6 +118,7 @@ var (
 	ErrOldPasswordDoesNotMatchCurrentOne = NewAppErrWithTr(errors.New("old password noes not match current one"), l10n.OldPasswordDoesNotMatchCurrentOneTrId, "auth_12")
 	ErrInstallationTokenInUse            = NewAppErrWithErrorCode(errors.New("cannot link with the provided installation token — it is already linked to another user, or the current user if you did not unlinked(logout) yet"), "auth_13")
 	ErrAlreadyUsedEmailWithOidc          = NewAppErrWithTr(errors.New("already used email with open id connect"), l10n.AlreadyUsedEmailWithOidcTrId, "auth_13")
+	ErrAlreadyUsedEmailWithPasswordLogin = NewAppErrWithTr(errors.New("already used email with normal password login"), l10n.AlreadyUsedEmailWithPasswordLoginTrId, "auth_14")
 
 	// jwt
 	ErrExpiredSessionToken             = NewAppErrWithTr(errors.New("expired session token"), l10n.ExpiredSessionToken, "auth_13")

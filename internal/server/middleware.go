@@ -27,9 +27,23 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 
 			zlog := zerolog.Ctx(ctx)
 
-			token := strings.TrimSpace(strings.Replace(r.Header.Get("Authorization"), "Bearer", "", 1))
-			if token == "" {
+			sendUnauthorizedError := func() {
 				writeError(ctx, w, r, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+			}
+
+			authStr := r.Header.Get("Authorization")
+			if len(authStr) == 0 {
+				authorizationCookie, authorizationCookieErr := r.Cookie("Authorization")
+				if authorizationCookieErr != nil {
+					sendUnauthorizedError()
+					return
+				}
+				authStr = authorizationCookie.Value
+			}
+
+			token := strings.TrimSpace(strings.Replace(authStr, "Bearer", "", 1))
+			if token == "" {
+				sendUnauthorizedError()
 				return
 			}
 
@@ -37,7 +51,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 				if appenv.IsStagOrLocal() {
 					zlog.Error().Err(err).Msg("Error from jwt verify function")
 				}
-				writeError(ctx, w, r, http.StatusUnauthorized, fmt.Errorf("unauthorized"))
+				sendUnauthorizedError()
 				return
 			}
 
@@ -92,13 +106,20 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 			}
 
 			zlog := zerolog.Ctx(ctx)
-
 			missingOrInvalidErr := errors.New("missing A-Installation in the request header, or the the installation id is invalid")
 			sendError := func() {
 				writeError(ctx, w, r, http.StatusBadRequest, missingOrInvalidErr)
 			}
 
 			installationToken := r.Header.Get("A-Installation")
+			if len(installationToken) == 0 {
+				installationCookie, installationCookieErr := r.Cookie("A-Installation")
+				if installationCookieErr != nil {
+					sendError()
+					return
+				}
+				installationToken = installationCookie.Value
+			}
 			if len(installationToken) == 0 {
 				sendError()
 				return

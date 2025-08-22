@@ -1,7 +1,6 @@
 -- +goose Up
 CREATE TABLE oauth_provider (
-  id SERIAL PRIMARY KEY NOT NULL,
-  name VARCHAR(50) UNIQUE NOT NULL, -- e.g., "google", "github"
+  name VARCHAR(50) PRIMARY KEY NOT NULL, -- e.g., "google", "github"
   is_oidc_capable BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),

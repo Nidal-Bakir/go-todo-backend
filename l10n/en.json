@@ -18,5 +18,7 @@
   "expired_session_token": "Expired session token",
   "invalid_id": "Invalid Id",
   "blocked_user": "Blocked user",
-  "unsupported_todo_status": "The status you’re trying to use for the to-do item is invalid or not recognized."
+  "unsupported_todo_status": "The status you’re trying to use for the to-do item is invalid or not recognized.",
+  "already_used_email_with_password_login":"This email is already linked to an existing account. Try signing in with your email and password, or reset your password if you forgot it."
+  
 }

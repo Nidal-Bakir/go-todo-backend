@@ -8,8 +8,8 @@ github.com/BurntSushi/toml v1.4.0 h1:kuoIxZQy2WRRk1pttg9asf+WVv6tWQuBNVmK8+nqPr0
 github.com/BurntSushi/toml v1.4.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/Nidal-Bakir/go-semver v1.1.0 h1:THSeNtqcRywoQHHcPxE2tX9Fc4i7SLrODayhiYcHno4=
 github.com/Nidal-Bakir/go-semver v1.1.0/go.mod h1:aKyVA2KFz4G6/a6iHJejLz+OMoprXE+fPTA3KZ/VQTE=
-github.com/Nidal-Bakir/username_r_gen v1.0.0 h1:ijke8TkHnFBBfGtcbQZYrZHjICRtag5tRnBGtXFYBY8=
-github.com/Nidal-Bakir/username_r_gen v1.0.0/go.mod h1:Fgp83S6UpSfr/r9V0/ngYd+wCiXvUnWI7+RiApecQ5g=
+github.com/Nidal-Bakir/username_r_gen/v2 v2.0.1 h1:UilyyUsdkA8fNPvDz0ETZth7VT/e33F9s3Aq7e1Hr2A=
+github.com/Nidal-Bakir/username_r_gen/v2 v2.0.1/go.mod h1:sNq45jU5c+vj4hwiCvw8xmGpSNABntX0eSWTYKqfxJc=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

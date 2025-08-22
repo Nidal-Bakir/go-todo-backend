@@ -2,11 +2,11 @@ package todo
 
 import (
 	"context"
-	"errors"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
-	"github.com/jackc/pgx/v5"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
+	dbutils "github.com/Nidal-Bakir/go-todo-backend/internal/utils/db_utils"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
@@ -39,7 +39,7 @@ func (repo repositoryImpl) GetTodos(ctx context.Context, userId, offset, limit i
 
 	data, err := repo.db.Queries.TodoGetTodosForUser(
 		ctx,
-		database.TodoGetTodosForUserParams{
+		database_queries.TodoGetTodosForUserParams{
 			UserID: int32(userId),
 			Offset: int64(offset),
 			Limit:  int64(limit),
@@ -47,7 +47,7 @@ func (repo repositoryImpl) GetTodos(ctx context.Context, userId, offset, limit i
 	)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if dbutils.IsErrPgxNoRows(err) {
 			err = apperr.ErrNoResult
 		} else {
 			zlog.Err(err).Msg("can not get todo")
@@ -74,13 +74,13 @@ func (repo repositoryImpl) GetTodo(ctx context.Context, userId, todoId int) (Tod
 
 	res, err := repo.db.Queries.TodoGetTodoLinkedToUser(
 		ctx,
-		database.TodoGetTodoLinkedToUserParams{
+		database_queries.TodoGetTodoLinkedToUserParams{
 			ID:     int32(todoId),
 			UserID: int32(userId),
 		},
 	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if dbutils.IsErrPgxNoRows(err) {
 			err = apperr.ErrNoResult
 		} else {
 			zlog.Err(err).Msg("can not get todo")
@@ -116,7 +116,7 @@ func (repo repositoryImpl) CreateTodo(ctx context.Context, userId int, data Todo
 
 	res, err := repo.db.Queries.TodoCreateTodo(
 		ctx,
-		database.TodoCreateTodoParams{
+		database_queries.TodoCreateTodoParams{
 			Title:  nilToEmptyString(data.Title),
 			Body:   nilToEmptyString(data.Body),
 			Status: status.String(),
@@ -156,7 +156,7 @@ func (repo repositoryImpl) UpdateTodo(ctx context.Context, userId, todoId int, d
 	}
 
 	res, err := repo.db.Queries.TodoUpdateTodo(
-		ctx, database.TodoUpdateTodoParams{
+		ctx, database_queries.TodoUpdateTodoParams{
 			ID:     int32(todoId),
 			UserID: int32(userId),
 			Title:  stringToPgTextType(data.Title),
@@ -166,7 +166,7 @@ func (repo repositoryImpl) UpdateTodo(ctx context.Context, userId, todoId int, d
 	)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if dbutils.IsErrPgxNoRows(err) {
 			err = apperr.ErrNoResult
 		} else {
 			zlog.Err(err).Msg("can not create todo")
@@ -188,13 +188,13 @@ func (repo repositoryImpl) DeleteTodo(ctx context.Context, userId, todoId int) e
 
 	err := repo.db.Queries.TodoSoftDeleteTodoLinkedToUser(
 		ctx,
-		database.TodoSoftDeleteTodoLinkedToUserParams{
+		database_queries.TodoSoftDeleteTodoLinkedToUserParams{
 			ID:     int32(todoId),
 			UserID: int32(userId),
 		},
 	)
 
-	if errors.Is(err, pgx.ErrNoRows) {
+	if dbutils.IsErrPgxNoRows(err) {
 		err = apperr.ErrNoResult
 	} else {
 		zlog.Err(err).Msg("can not delete todo")

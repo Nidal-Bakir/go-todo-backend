@@ -3,7 +3,7 @@
 //   sqlc v1.28.0
 // source: login_identity.sql
 
-package database
+package database_queries
 
 import (
 	"context"
@@ -129,358 +129,6 @@ func (q *Queries) LoginIdentityCreateNewPasswordLoginIdentity(ctx context.Contex
 	)
 	var i LoginIdentityCreateNewPasswordLoginIdentityRow
 	err := row.Scan(&i.PasswordLoginIdentityID, &i.LoginIdentityID)
-	return i, err
-}
-
-const loginIdentityCreateNewUserAndOIDCLoginIdentity = `-- name: LoginIdentityCreateNewUserAndOIDCLoginIdentity :one
-WITH new_user AS (
-  INSERT INTO users (
-    username,
-    profile_image,
-    first_name,
-    last_name,
-    role_id
-  )
-  VALUES (
-    $1::text,
-    $2::text,
-    $3::text,
-    $4::text,
-    $5::int
-  )
-  RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
-),
-new_identity AS (
-  INSERT INTO login_identity (
-    user_id,
-    identity_type
-  )
-  VALUES (
-    (SELECT id FROM new_user),
-    'oidc'
-  )
-  RETURNING id
-),
-ensure_provider AS (
-    INSERT INTO oauth_provider (
-        name,
-        is_oidc_capable
-    )
-    VALUES (
-        $6::text,
-        $7::bool
-    )
-    ON CONFLICT (name) DO NOTHING
-),
-oauth_provider_row AS (
-    SELECT id, name, is_oidc_capable, created_at, updated_at, deleted_at from oauth_provider WHERE name = $6::text
-),
-ensure_oauth_connection AS (
-    INSERT INTO oauth_connection (
-        provider_id,
-        scopes
-    )
-    VALUES (
-        (SELECT id FROM oauth_provider_row),
-        $9::text[]
-    )
-    ON CONFLICT (provider_id, scopes) DO NOTHING
-),
-oauth_connection_row AS (
-    SELECT id, provider_id, scopes, created_at, updated_at, deleted_at from oauth_connection WHERE provider_id = (SELECT id FROM oauth_provider_row) AND scopes = $8
-),
-new_oauth_integration AS (
-    INSERT INTO oauth_integration (
-        oauth_connection_id,
-        integration_type
-    )
-    VALUES (
-        (SELECT id FROM oauth_connection_row),
-        'user'
-    )
-    RETURNING id
-),
-new_oauth_token AS (
-    INSERT INTO oauth_token (
-        oauth_integration_id,
-        access_token,
-        refresh_token,
-        token_type,
-        expires_at,
-        issued_at
-    )
-    VALUES (
-        (SELECT id FROM new_oauth_integration),
-        $10::text,
-        $11::text,
-        $12::text,
-        $13::timestamptz,
-        $14::timestamptz
-    )
-),
-new_user_integration AS (
-    INSERT INTO user_integration (
-        oauth_integration_id,
-        user_id
-    )
-    VALUES (
-        (SELECT id FROM new_oauth_integration),
-        (SELECT id FROM new_user)
-    )
-    RETURNING id
-),
-new_oidc_user_integration_data AS (
-    INSERT INTO oidc_user_integration_data (
-        user_integration_id,
-        sub,
-        email,
-        iss,
-        aud,
-        given_name,
-        family_name,
-        name,
-        picture
-    )
-    VALUES (
-        (SELECT id FROM new_user_integration),
-        $15::text,
-        $16::text,
-        $17::text,
-        $18::text,
-        $19::text,
-        $20::text,
-        $21::text,
-        $22::text
-    )
-    RETURNING id
-),
-new_oidc_login_identity AS (
-    INSERT INTO oidc_login_identity (
-        login_identity_id,
-        oidc_user_integration_data_id
-    )
-    VALUES (
-        (SELECT id FROM new_identity),
-        (SELECT id FROM new_oidc_user_integration_data)
-    )
-)
-SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id FROM new_user
-`
-
-type LoginIdentityCreateNewUserAndOIDCLoginIdentityParams struct {
-	UserUsername               pgtype.Text        `json:"user_username"`
-	UserProfileImage           pgtype.Text        `json:"user_profile_image"`
-	UserFirstName              pgtype.Text        `json:"user_first_name"`
-	UserLastName               pgtype.Text        `json:"user_last_name"`
-	UserRoleID                 pgtype.Int4        `json:"user_role_id"`
-	OauthProviderName          pgtype.Text        `json:"oauth_provider_name"`
-	OauthProviderIsOidcCapable pgtype.Bool        `json:"oauth_provider_is_oidc_capable"`
-	Column8                    []string           `json:"column_8"`
-	OauthScopes                []string           `json:"oauth_scopes"`
-	OauthAccessToken           pgtype.Text        `json:"oauth_access_token"`
-	OauthRefreshToken          pgtype.Text        `json:"oauth_refresh_token"`
-	OauthTokenType             pgtype.Text        `json:"oauth_token_type"`
-	OauthTokenExpiresAt        pgtype.Timestamptz `json:"oauth_token_expires_at"`
-	OauthTokenIssuedAt         pgtype.Timestamptz `json:"oauth_token_issued_at"`
-	OidcSub                    pgtype.Text        `json:"oidc_sub"`
-	OidcEmail                  pgtype.Text        `json:"oidc_email"`
-	OidcIss                    pgtype.Text        `json:"oidc_iss"`
-	OidcAud                    pgtype.Text        `json:"oidc_aud"`
-	OidcGivenName              pgtype.Text        `json:"oidc_given_name"`
-	OidcFamilyName             pgtype.Text        `json:"oidc_family_name"`
-	OidcName                   pgtype.Text        `json:"oidc_name"`
-	OidcPicture                pgtype.Text        `json:"oidc_picture"`
-}
-
-type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
-	ID           int32              `json:"id"`
-	Username     string             `json:"username"`
-	ProfileImage pgtype.Text        `json:"profile_image"`
-	FirstName    string             `json:"first_name"`
-	MiddleName   pgtype.Text        `json:"middle_name"`
-	LastName     pgtype.Text        `json:"last_name"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
-	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
-	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
-}
-
-// LoginIdentityCreateNewUserAndOIDCLoginIdentity
-//
-//	WITH new_user AS (
-//	  INSERT INTO users (
-//	    username,
-//	    profile_image,
-//	    first_name,
-//	    last_name,
-//	    role_id
-//	  )
-//	  VALUES (
-//	    $1::text,
-//	    $2::text,
-//	    $3::text,
-//	    $4::text,
-//	    $5::int
-//	  )
-//	  RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
-//	),
-//	new_identity AS (
-//	  INSERT INTO login_identity (
-//	    user_id,
-//	    identity_type
-//	  )
-//	  VALUES (
-//	    (SELECT id FROM new_user),
-//	    'oidc'
-//	  )
-//	  RETURNING id
-//	),
-//	ensure_provider AS (
-//	    INSERT INTO oauth_provider (
-//	        name,
-//	        is_oidc_capable
-//	    )
-//	    VALUES (
-//	        $6::text,
-//	        $7::bool
-//	    )
-//	    ON CONFLICT (name) DO NOTHING
-//	),
-//	oauth_provider_row AS (
-//	    SELECT id, name, is_oidc_capable, created_at, updated_at, deleted_at from oauth_provider WHERE name = $6::text
-//	),
-//	ensure_oauth_connection AS (
-//	    INSERT INTO oauth_connection (
-//	        provider_id,
-//	        scopes
-//	    )
-//	    VALUES (
-//	        (SELECT id FROM oauth_provider_row),
-//	        $9::text[]
-//	    )
-//	    ON CONFLICT (provider_id, scopes) DO NOTHING
-//	),
-//	oauth_connection_row AS (
-//	    SELECT id, provider_id, scopes, created_at, updated_at, deleted_at from oauth_connection WHERE provider_id = (SELECT id FROM oauth_provider_row) AND scopes = $8
-//	),
-//	new_oauth_integration AS (
-//	    INSERT INTO oauth_integration (
-//	        oauth_connection_id,
-//	        integration_type
-//	    )
-//	    VALUES (
-//	        (SELECT id FROM oauth_connection_row),
-//	        'user'
-//	    )
-//	    RETURNING id
-//	),
-//	new_oauth_token AS (
-//	    INSERT INTO oauth_token (
-//	        oauth_integration_id,
-//	        access_token,
-//	        refresh_token,
-//	        token_type,
-//	        expires_at,
-//	        issued_at
-//	    )
-//	    VALUES (
-//	        (SELECT id FROM new_oauth_integration),
-//	        $10::text,
-//	        $11::text,
-//	        $12::text,
-//	        $13::timestamptz,
-//	        $14::timestamptz
-//	    )
-//	),
-//	new_user_integration AS (
-//	    INSERT INTO user_integration (
-//	        oauth_integration_id,
-//	        user_id
-//	    )
-//	    VALUES (
-//	        (SELECT id FROM new_oauth_integration),
-//	        (SELECT id FROM new_user)
-//	    )
-//	    RETURNING id
-//	),
-//	new_oidc_user_integration_data AS (
-//	    INSERT INTO oidc_user_integration_data (
-//	        user_integration_id,
-//	        sub,
-//	        email,
-//	        iss,
-//	        aud,
-//	        given_name,
-//	        family_name,
-//	        name,
-//	        picture
-//	    )
-//	    VALUES (
-//	        (SELECT id FROM new_user_integration),
-//	        $15::text,
-//	        $16::text,
-//	        $17::text,
-//	        $18::text,
-//	        $19::text,
-//	        $20::text,
-//	        $21::text,
-//	        $22::text
-//	    )
-//	    RETURNING id
-//	),
-//	new_oidc_login_identity AS (
-//	    INSERT INTO oidc_login_identity (
-//	        login_identity_id,
-//	        oidc_user_integration_data_id
-//	    )
-//	    VALUES (
-//	        (SELECT id FROM new_identity),
-//	        (SELECT id FROM new_oidc_user_integration_data)
-//	    )
-//	)
-//	SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id FROM new_user
-func (q *Queries) LoginIdentityCreateNewUserAndOIDCLoginIdentity(ctx context.Context, arg LoginIdentityCreateNewUserAndOIDCLoginIdentityParams) (LoginIdentityCreateNewUserAndOIDCLoginIdentityRow, error) {
-	row := q.db.QueryRow(ctx, loginIdentityCreateNewUserAndOIDCLoginIdentity,
-		arg.UserUsername,
-		arg.UserProfileImage,
-		arg.UserFirstName,
-		arg.UserLastName,
-		arg.UserRoleID,
-		arg.OauthProviderName,
-		arg.OauthProviderIsOidcCapable,
-		arg.Column8,
-		arg.OauthScopes,
-		arg.OauthAccessToken,
-		arg.OauthRefreshToken,
-		arg.OauthTokenType,
-		arg.OauthTokenExpiresAt,
-		arg.OauthTokenIssuedAt,
-		arg.OidcSub,
-		arg.OidcEmail,
-		arg.OidcIss,
-		arg.OidcAud,
-		arg.OidcGivenName,
-		arg.OidcFamilyName,
-		arg.OidcName,
-		arg.OidcPicture,
-	)
-	var i LoginIdentityCreateNewUserAndOIDCLoginIdentityRow
-	err := row.Scan(
-		&i.ID,
-		&i.Username,
-		&i.ProfileImage,
-		&i.FirstName,
-		&i.MiddleName,
-		&i.LastName,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.BlockedAt,
-		&i.BlockedUntil,
-		&i.DeletedAt,
-		&i.RoleID,
-	)
 	return i, err
 }
 
@@ -694,7 +342,7 @@ LEFT JOIN oauth_integration AS oi
 LEFT JOIN oauth_connection AS oc
   ON oi.oauth_connection_id = oc.id
 LEFT JOIN oauth_provider AS op
-  ON oc.provider_id = op.id
+  ON oc.provider_name = op.name
 
 WHERE li.user_id = $1
 ORDER BY li.is_primary DESC, li.last_used_at DESC
@@ -777,7 +425,7 @@ type LoginIdentityGetAllByUserIdRow struct {
 //	LEFT JOIN oauth_connection AS oc
 //	  ON oi.oauth_connection_id = oc.id
 //	LEFT JOIN oauth_provider AS op
-//	  ON oc.provider_id = op.id
+//	  ON oc.provider_name = op.name
 //
 //	WHERE li.user_id = $1
 //	ORDER BY li.is_primary DESC, li.last_used_at DESC
@@ -912,6 +560,141 @@ func (q *Queries) LoginIdentityGetAllPasswordLoginIdentitiesByUserId(ctx context
 		return nil, err
 	}
 	return items, nil
+}
+
+const loginIdentityGetOIDCDataBySub = `-- name: LoginIdentityGetOIDCDataBySub :one
+SELECT
+    u.id AS user_id,
+    u.username AS user_username,
+    u.profile_image AS user_profile_image,
+    u.first_name AS user_first_name,
+    u.middle_name AS user_middle_name,
+    u.last_name AS user_last_name,
+    u.blocked_at AS user_blocked_at,
+    u.blocked_until AS user_blocked_until,
+    u.created_at AS user_created_at,
+    u.updated_at AS user_updated_at,
+    u.role_id as user_role_id,
+    li.id AS login_identity_id,
+    ot.id AS oauth_token_id,
+    oc.id AS oauth_connection_id,
+    oc.scopes AS oauth_connection_scopes,
+    oi.id AS oauth_integration_id,
+    ouid.id AS oidc_user_integration_data_id
+from active_oidc_user_integration_data AS ouid
+JOIN active_user_integration AS ui
+    ON ouid.user_integration_id = ui.id
+JOIN active_oauth_integration AS oi
+    ON ui.oauth_integration_id = oi.id
+JOIN active_oauth_token AS ot
+    ON oi.id = ot.oauth_integration_id
+JOIN active_oauth_connection AS oc
+    ON oi.oauth_connection_id = oc.id
+JOIN active_oauth_provider AS op
+    ON oc.provider_name = op.name
+JOIN active_oidc_login_identity AS oli
+    ON ouid.id = oli.oidc_user_integration_data_id
+JOIN active_login_identity AS li
+    ON oli.login_identity_id = li.id
+JOIN not_deleted_users AS u
+    ON li.user_id = u.id
+WHERE ouid.sub = $1::text
+    AND li.identity_type = 'oidc'
+    AND oi.integration_type = 'user'
+    AND op.name = $2::text
+LIMIT 1
+`
+
+type LoginIdentityGetOIDCDataBySubParams struct {
+	OidcSub          string `json:"oidc_sub"`
+	OidcProviderName string `json:"oidc_provider_name"`
+}
+
+type LoginIdentityGetOIDCDataBySubRow struct {
+	UserID                    int32              `json:"user_id"`
+	UserUsername              string             `json:"user_username"`
+	UserProfileImage          pgtype.Text        `json:"user_profile_image"`
+	UserFirstName             string             `json:"user_first_name"`
+	UserMiddleName            pgtype.Text        `json:"user_middle_name"`
+	UserLastName              pgtype.Text        `json:"user_last_name"`
+	UserBlockedAt             pgtype.Timestamptz `json:"user_blocked_at"`
+	UserBlockedUntil          pgtype.Timestamptz `json:"user_blocked_until"`
+	UserCreatedAt             pgtype.Timestamptz `json:"user_created_at"`
+	UserUpdatedAt             pgtype.Timestamptz `json:"user_updated_at"`
+	UserRoleID                pgtype.Int4        `json:"user_role_id"`
+	LoginIdentityID           int32              `json:"login_identity_id"`
+	OauthTokenID              int32              `json:"oauth_token_id"`
+	OauthConnectionID         int32              `json:"oauth_connection_id"`
+	OauthConnectionScopes     []string           `json:"oauth_connection_scopes"`
+	OauthIntegrationID        int32              `json:"oauth_integration_id"`
+	OidcUserIntegrationDataID int32              `json:"oidc_user_integration_data_id"`
+}
+
+// LoginIdentityGetOIDCDataBySub
+//
+//	SELECT
+//	    u.id AS user_id,
+//	    u.username AS user_username,
+//	    u.profile_image AS user_profile_image,
+//	    u.first_name AS user_first_name,
+//	    u.middle_name AS user_middle_name,
+//	    u.last_name AS user_last_name,
+//	    u.blocked_at AS user_blocked_at,
+//	    u.blocked_until AS user_blocked_until,
+//	    u.created_at AS user_created_at,
+//	    u.updated_at AS user_updated_at,
+//	    u.role_id as user_role_id,
+//	    li.id AS login_identity_id,
+//	    ot.id AS oauth_token_id,
+//	    oc.id AS oauth_connection_id,
+//	    oc.scopes AS oauth_connection_scopes,
+//	    oi.id AS oauth_integration_id,
+//	    ouid.id AS oidc_user_integration_data_id
+//	from active_oidc_user_integration_data AS ouid
+//	JOIN active_user_integration AS ui
+//	    ON ouid.user_integration_id = ui.id
+//	JOIN active_oauth_integration AS oi
+//	    ON ui.oauth_integration_id = oi.id
+//	JOIN active_oauth_token AS ot
+//	    ON oi.id = ot.oauth_integration_id
+//	JOIN active_oauth_connection AS oc
+//	    ON oi.oauth_connection_id = oc.id
+//	JOIN active_oauth_provider AS op
+//	    ON oc.provider_name = op.name
+//	JOIN active_oidc_login_identity AS oli
+//	    ON ouid.id = oli.oidc_user_integration_data_id
+//	JOIN active_login_identity AS li
+//	    ON oli.login_identity_id = li.id
+//	JOIN not_deleted_users AS u
+//	    ON li.user_id = u.id
+//	WHERE ouid.sub = $1::text
+//	    AND li.identity_type = 'oidc'
+//	    AND oi.integration_type = 'user'
+//	    AND op.name = $2::text
+//	LIMIT 1
+func (q *Queries) LoginIdentityGetOIDCDataBySub(ctx context.Context, arg LoginIdentityGetOIDCDataBySubParams) (LoginIdentityGetOIDCDataBySubRow, error) {
+	row := q.db.QueryRow(ctx, loginIdentityGetOIDCDataBySub, arg.OidcSub, arg.OidcProviderName)
+	var i LoginIdentityGetOIDCDataBySubRow
+	err := row.Scan(
+		&i.UserID,
+		&i.UserUsername,
+		&i.UserProfileImage,
+		&i.UserFirstName,
+		&i.UserMiddleName,
+		&i.UserLastName,
+		&i.UserBlockedAt,
+		&i.UserBlockedUntil,
+		&i.UserCreatedAt,
+		&i.UserUpdatedAt,
+		&i.UserRoleID,
+		&i.LoginIdentityID,
+		&i.OauthTokenID,
+		&i.OauthConnectionID,
+		&i.OauthConnectionScopes,
+		&i.OauthIntegrationID,
+		&i.OidcUserIntegrationDataID,
+	)
+	return i, err
 }
 
 const loginIdentityGetOIDCLoginIdentity = `-- name: LoginIdentityGetOIDCLoginIdentity :one
@@ -1276,4 +1059,20 @@ func (q *Queries) LoginIdentityIsPhoneUsed(ctx context.Context, phone pgtype.Tex
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const loginIdentityUpdateLastUsedAtToNow = `-- name: LoginIdentityUpdateLastUsedAtToNow :exec
+UPDATE login_identity SET
+last_used_at = NOW()
+WHERE id = $1
+`
+
+// LoginIdentityUpdateLastUsedAtToNow
+//
+//	UPDATE login_identity SET
+//	last_used_at = NOW()
+//	WHERE id = $1
+func (q *Queries) LoginIdentityUpdateLastUsedAtToNow(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, loginIdentityUpdateLastUsedAtToNow, id)
+	return err
 }

@@ -15,6 +15,11 @@ CREATE TABLE oidc_user_integration_data (
     deleted_at TIMESTAMPTZ
 );
 
+-- Partial unique indexes
+CREATE UNIQUE INDEX unique_email_oidc ON oidc_user_integration_data (email) WHERE email IS NOT NULL;
+
+CREATE INDEX index_sub_oidc ON oidc_user_integration_data (sub);
+
 CREATE TRIGGER update_oidc_user_integration_data_updated_at_column BEFORE
 UPDATE ON oidc_user_integration_data FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column ();
 

@@ -3,7 +3,7 @@
 //   sqlc v1.28.0
 // source: installation.sql
 
-package database
+package database_queries
 
 import (
 	"context"

@@ -5,7 +5,7 @@ CREATE TABLE oauth_token (
   access_token VARCHAR(2048) NOT NULL,
   refresh_token VARCHAR(2048),
   token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
-  expires_at TIMESTAMP NOT NULL,
+  expires_at TIMESTAMP,
   issued_at TIMESTAMP NOT NULL DEFAULT NOW(),
   created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE oauth_token (
 );
 
 CREATE TRIGGER update_oauth_token_updated_at_column BEFORE
-UPDATE ON oauth_token FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column ();
+UPDATE ON oauth_token FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column();
 
 CREATE VIEW active_oauth_token AS
 SELECT

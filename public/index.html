@@ -3,9 +3,22 @@
     <head>
         <meta charset="UTF-8" />
         <title>OAuth CSRF Protection</title>
+        <link rel="stylesheet" href="./public/css/style.css">
     </head>
     <body>
+        <button id="apiCallBtnInstallation" >make installation</button>
+        <button id="logout_btn" >logout</button>
+        
         <h1>Secure OAuth 2.0 Flow</h1>
         <a href="/auth/oidc/google/login"><button>Sign in with Google</button></a>
+        
+        <h1 id="user_first_name"></h1>
+        <h1 id="user_last_name"></h1>
+        <p id="username"></p>
+        <img id="profile_image" alt="Profile Image">
+        <p id="id"></p>
+        <p id="token"></p>
+        
+        <script src="./public/js/script.js"></script>
     </body>
 </html>

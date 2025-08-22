@@ -3,6 +3,7 @@ package google
 import (
 	"context"
 	"os"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -13,6 +14,7 @@ var (
 	clientSecretJsonFileData  []byte
 	googleOpenIdConnectConfig *oauth2.Config
 	googleIdTokenValidator    *idtoken.Validator
+	OidcScops                 = []string{"openid", "profile", "email"}
 )
 
 func init() {
@@ -27,15 +29,13 @@ func init() {
 }
 
 func AuthCodeURL(ctx context.Context, state, verifier string) string {
-	googleOpenIdConnectConfig.Scopes = []string{"openid", "profile", "email"}
-
+	googleOpenIdConnectConfig.Scopes = OidcScops
 	authUrl := googleOpenIdConnectConfig.AuthCodeURL(
 		state,
 		oauth2.AccessTypeOffline,
 		oauth2.S256ChallengeOption(verifier),
 		oauth2.ApprovalForce,
 	)
-
 	return authUrl
 }
 
@@ -67,21 +67,25 @@ func ValidatorIdToken(ctx context.Context, idToken string) (*GoogleOidcIdTokenCl
 		return claims, err
 	}
 
-	claims = newGoogleOidcIdTokenClaimsFromClaims(payload.Claims)
+	claims = newGoogleOidcIdTokenClaimsFromIdTokenPayload(payload)
 
 	return claims, nil
 }
 
 type GoogleOidcIdTokenClaims struct {
-	UserId     string `json:"sub"`
+	Sub        string `json:"sub"`
 	Email      string `json:"email"`
 	Name       string `json:"name"`
 	FamilyName string `json:"family_name"`
 	GivenName  string `json:"given_name"`
 	Picture    string `json:"picture"`
+
+	Issuer   string    `json:"iss"`
+	Audience string    `json:"aud"`
+	IssuedAt time.Time `json:"iat"`
 }
 
-func newGoogleOidcIdTokenClaimsFromClaims(claims map[string]any) *GoogleOidcIdTokenClaims {
+func newGoogleOidcIdTokenClaimsFromIdTokenPayload(payload *idtoken.Payload) *GoogleOidcIdTokenClaims {
 	c := new(GoogleOidcIdTokenClaims)
 
 	safeConv := func(x any) string {
@@ -94,12 +98,17 @@ func newGoogleOidcIdTokenClaimsFromClaims(claims map[string]any) *GoogleOidcIdTo
 		}
 		return ""
 	}
-	c.UserId = safeConv(claims["sub"])
-	c.Email = safeConv(claims["email"])
-	c.Name = safeConv(claims["name"])
-	c.FamilyName = safeConv(claims["family_name"])
-	c.GivenName = safeConv(claims["given_name"])
-	c.Picture = safeConv(claims["picture"])
+
+	c.Issuer = payload.Issuer
+	c.Audience = payload.Audience
+	c.IssuedAt = time.Unix(payload.IssuedAt, 0)
+
+	c.Sub = safeConv(payload.Claims["sub"])
+	c.Email = safeConv(payload.Claims["email"])
+	c.Name = safeConv(payload.Claims["name"])
+	c.FamilyName = safeConv(payload.Claims["family_name"])
+	c.GivenName = safeConv(payload.Claims["given_name"])
+	c.Picture = safeConv(payload.Claims["picture"])
 
 	return c
 }

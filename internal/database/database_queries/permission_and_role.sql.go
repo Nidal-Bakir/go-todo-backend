@@ -3,7 +3,7 @@
 //   sqlc v1.28.0
 // source: permission_and_role.sql
 
-package database
+package database_queries
 
 import (
 	"context"

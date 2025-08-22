@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 
-	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
 )
 
 type userCtxKeysType int
@@ -22,11 +22,11 @@ func UserAndSessionFromContext(ctx context.Context) (UserAndSession, bool) {
 	return userAndSession, ok
 }
 
-func ContextWithInstallation(ctx context.Context, installation database.Installation) context.Context {
+func ContextWithInstallation(ctx context.Context, installation database_queries.Installation) context.Context {
 	return context.WithValue(ctx, currentInstallationCtxKey, installation)
 }
 
-func InstallationFromContext(ctx context.Context) (database.Installation, bool) {
-	installation, ok := ctx.Value(currentInstallationCtxKey).(database.Installation)
+func InstallationFromContext(ctx context.Context) (database_queries.Installation, bool) {
+	installation, ok := ctx.Value(currentInstallationCtxKey).(database_queries.Installation)
 	return installation, ok
 }
