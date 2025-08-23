@@ -3,9 +3,12 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
@@ -40,4 +43,27 @@ func return400IfApp404IfNoResultErrOr500(err error) int {
 		return http.StatusBadRequest
 	}
 	return http.StatusInternalServerError
+}
+
+func SetAuthorizationCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "Authorization",
+		Value:    fmt.Sprint("Bearer ", token),
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   int(auth.AuthTokenExpDuration.Seconds()),
+	})
+}
+
+func RemoveAuthorizationCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "Authorization",
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   -1,
+	})
 }

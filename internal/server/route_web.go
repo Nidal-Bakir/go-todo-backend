@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -65,7 +64,7 @@ func oauthlogin(_ auth.Repository) http.HandlerFunc {
 			Name:     "oauth_state",
 			Value:    state,
 			HttpOnly: true,
-			Secure:   appenv.IsProd(),
+			Secure:   appenv.IsProdOrStag(),
 			SameSite: http.SameSiteLaxMode,
 			Path:     "/auth/oidc",
 			MaxAge:   maxAge,
@@ -74,7 +73,7 @@ func oauthlogin(_ auth.Repository) http.HandlerFunc {
 			Name:     "oauth_verifier",
 			Value:    verifier,
 			HttpOnly: true,
-			Secure:   appenv.IsProd(),
+			Secure:   appenv.IsProdOrStag(),
 			SameSite: http.SameSiteLaxMode,
 			Path:     "/auth/oidc",
 			MaxAge:   maxAge,
@@ -187,7 +186,7 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			Path:     "/auth/oidc",
 			MaxAge:   -1,
 			HttpOnly: true,
-			Secure:   appenv.IsProd(),
+			Secure:   appenv.IsProdOrStag(),
 		})
 		http.SetCookie(w, &http.Cookie{
 			Name:     "oauth_verifier",
@@ -195,17 +194,10 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			Path:     "/auth/oidc",
 			MaxAge:   -1,
 			HttpOnly: true,
-			Secure:   appenv.IsProd(),
+			Secure:   appenv.IsProdOrStag(),
 		})
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "Authorization",
-			Value:    fmt.Sprint("Bearer ", token),
-			HttpOnly: true,
-			Secure:   appenv.IsProd(),
-			SameSite: http.SameSiteLaxMode,
-			MaxAge: int(auth.AuthTokenExpDuration.Seconds()),
-		})
+		SetAuthorizationCookie(w, token)
 
 		queryParams := url.Values{}
 		queryParams.Add("user_first_name", user.FirstName)

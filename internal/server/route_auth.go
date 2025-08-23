@@ -342,7 +342,7 @@ func createTempPasswordAccount(authRepo auth.Repository) http.HandlerFunc {
 
 		installation, ok := auth.InstallationFromContext(ctx)
 		utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
-		if installation.AttachTo.Valid {
+		if installation.AttachTo != nil {
 			err = apperr.ErrInstallationTokenInUse
 			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
@@ -555,6 +555,10 @@ func passwordLogin(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
+		if installation.ClientType.IsWeb() {
+			SetAuthorizationCookie(w, token)
+		}
+
 		response := struct {
 			User  publicUser `json:"user"`
 			Token string     `json:"token"`
@@ -657,6 +661,10 @@ func logout(authRepo auth.Repository) http.HandlerFunc {
 		if err != nil {
 			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
 			return
+		}
+
+		if installation.ClientType.IsWeb() {
+			RemoveAuthorizationCookie(w)
 		}
 
 		apiWriteOperationDoneSuccessfullyJson(ctx, w, r)

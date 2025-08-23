@@ -152,7 +152,8 @@ type Installation struct {
 	Locale                  string             `json:"locale"`
 	TimezoneOffsetInMinutes int32              `json:"timezone_offset_in_minutes"`
 	DeviceManufacturer      pgtype.Text        `json:"device_manufacturer"`
-	DeviceOs                pgtype.Text        `json:"device_os"`
+	DeviceOs                string             `json:"device_os"`
+	ClientType              string             `json:"client_type"`
 	DeviceOsVersion         pgtype.Text        `json:"device_os_version"`
 	AppVersion              string             `json:"app_version"`
 	CreatedAt               pgtype.Timestamptz `json:"created_at"`

@@ -40,8 +40,8 @@ type Repository interface {
 	GetUserAndSessionDataBySessionToken(ctx context.Context, sessionToken string) (UserAndSession, error)
 	CreateTempPasswordUser(ctx context.Context, tUser *TempPasswordUser) (*TempPasswordUser, error)
 	CreatePasswordUser(ctx context.Context, tempUserId uuid.UUID, otp string) (User, error)
-	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, ipAddress netip.Addr, installation database_queries.Installation) (user User, token string, err error)
-	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (database_queries.Installation, error)
+	PasswordLogin(ctx context.Context, accessKey PasswordLoginAccessKey, password string, ipAddress netip.Addr, installation Installation) (user User, token string, err error)
+	GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (Installation, error)
 	ChangePasswordForAllPasswordLoginIdentities(ctx context.Context, userID int, oldPassword, newPassword string) error
 	VerifyAuthToken(token string) (*AuthClaims, error)
 	VerifyTokenForInstallation(token string) (*InstallationClaims, error)
@@ -51,7 +51,7 @@ type Repository interface {
 	ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error)
 	ResetPassword(ctx context.Context, id uuid.UUID, providedOTP, newPassword string) error
 	GetAllLoginIdentitiesForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error)
-	LoginOrCreateUserWithOidc(ctx context.Context, data LoginOrCreateUserWithOidcRepoParam, ipAddress netip.Addr, installation database_queries.Installation) (user User, token string, err error)
+	LoginOrCreateUserWithOidc(ctx context.Context, data LoginOrCreateUserWithOidcRepoParam, ipAddress netip.Addr, installation Installation) (user User, token string, err error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
@@ -352,7 +352,7 @@ func (repo repositoryImpl) PasswordLogin(
 	passwordLoginAccessKey PasswordLoginAccessKey,
 	password string,
 	ipAddress netip.Addr,
-	installation database_queries.Installation,
+	installation Installation,
 ) (user User, token string, err error) {
 	zlog := zerolog.Ctx(ctx)
 
@@ -425,22 +425,22 @@ func (repo repositoryImpl) generateAuthToken(ctx context.Context, userId int32) 
 	return token, expiresAt, err
 }
 
-func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (installation database_queries.Installation, err error) {
+func (repo repositoryImpl) GetInstallationUsingToken(ctx context.Context, installationToken string, attachedToSessionId *int32) (installation Installation, err error) {
 	zlog := zerolog.Ctx(ctx)
 
+	var dbInstallation database_queries.Installation
 	if attachedToSessionId == nil {
-		installation, err = repo.dataSource.GetInstallationUsingToken(ctx, installationToken)
+		dbInstallation, err = repo.dataSource.GetInstallationUsingToken(ctx, installationToken)
 	} else {
-		installation, err = repo.dataSource.GetInstallationUsingTokenAndWhereAttachTo(ctx, installationToken, *attachedToSessionId)
+		dbInstallation, err = repo.dataSource.GetInstallationUsingTokenAndWhereAttachTo(ctx, installationToken, *attachedToSessionId)
 	}
-
 	if err != nil {
 		if !errors.Is(err, apperr.ErrNoResult) {
 			zlog.Err(err).Msg("error geting an installation from the database")
 		}
-		return database_queries.Installation{}, err
+		return Installation{}, err
 	}
-
+	installation = NewInstallationFromDatabaseUser(dbInstallation)
 	return installation, nil
 }
 
@@ -666,7 +666,7 @@ func (repo repositoryImpl) LoginOrCreateUserWithOidc(
 	ctx context.Context,
 	params LoginOrCreateUserWithOidcRepoParam,
 	ipAddress netip.Addr,
-	installation database_queries.Installation,
+	installation Installation,
 ) (User, string, error) {
 	zlog := zerolog.Ctx(ctx)
 

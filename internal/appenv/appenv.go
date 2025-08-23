@@ -75,3 +75,7 @@ func IsLocal() bool {
 func IsStagOrLocal() bool {
 	return IsStag() || IsLocal()
 }
+
+func IsProdOrStag() bool {
+	return IsProd() || IsStag()
+}

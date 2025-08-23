@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -113,6 +114,87 @@ func (l *LoginIdentityType) FoldOr(actions LoginIdentityFoldActions, orElse func
 	default:
 		orElse()
 	}
+}
+
+type DeviceOS string
+
+const (
+	DeviceOSAndroid  DeviceOS = "android"
+	DeviceOSIos      DeviceOS = "ios"
+	DeviceOSWindows  DeviceOS = "windows"
+	DeviceOSMacos    DeviceOS = "macos"
+	DeviceOSLinux    DeviceOS = "linux"
+	DeviceOSChromeos DeviceOS = "chromeos"
+	DeviceOSUnknown  DeviceOS = "unknown"
+)
+
+var DevicesOSs = []DeviceOS{
+	DeviceOSAndroid,
+	DeviceOSIos,
+	DeviceOSWindows,
+	DeviceOSMacos,
+	DeviceOSLinux,
+	DeviceOSChromeos,
+	DeviceOSUnknown,
+}
+
+func (os DeviceOS) String() string {
+	return string(os)
+}
+
+func (os *DeviceOS) FromString(str string) (*DeviceOS, error) {
+	switch {
+	case DeviceOSAndroid.String() == str:
+		*os = DeviceOSAndroid
+	case DeviceOSIos.String() == str:
+		*os = DeviceOSIos
+	case DeviceOSWindows.String() == str:
+		*os = DeviceOSWindows
+	case DeviceOSMacos.String() == str:
+		*os = DeviceOSMacos
+	case DeviceOSLinux.String() == str:
+		*os = DeviceOSLinux
+	case DeviceOSChromeos.String() == str:
+		*os = DeviceOSChromeos
+	case DeviceOSUnknown.String() == str:
+		*os = DeviceOSUnknown
+	default:
+		os = nil
+		return os, errors.New("invalid device os")
+	}
+	return os, nil
+}
+
+type ClientType string
+
+const (
+	ClientTypeWeb      ClientType = "web"
+	ClientTypeMobile   ClientType = "mobile"
+	ClientTypeEmbedded ClientType = "embedded"
+)
+
+var clientTypes = []ClientType{ClientTypeWeb, ClientTypeMobile, ClientTypeEmbedded}
+
+func (c ClientType) String() string {
+	return string(c)
+}
+func (c ClientType) IsWeb() bool {
+	return c == ClientTypeWeb
+}
+
+func (c *ClientType) FromString(str string) (*ClientType, error) {
+	switch {
+	case ClientTypeWeb.String() == str:
+		*c = ClientTypeWeb
+	case ClientTypeMobile.String() == str:
+		*c = ClientTypeMobile
+	case ClientTypeEmbedded.String() == str:
+		*c = ClientTypeEmbedded
+	default:
+		c = nil
+		return c, errors.New("invalid client type")
+	}
+	return c, nil
 }
 
 type TempPasswordUser struct {
@@ -302,13 +384,14 @@ func (p PasswordLoginAccessKey) accessKeyStr() string {
 }
 
 type CreateInstallationData struct {
-	NotificationToken       string // e.g the FCM token
-	Locale                  string // e.g: en-US ...
-	TimezoneOffsetInMinutes int    // e.g: +180
-	DeviceManufacturer      string // e.g: samsung
-	DeviceOS                string // e.g: android
-	DeviceOSVersion         string // e.g: 14
-	AppVersion              string // e.g: 3.1.1
+	NotificationToken       string     // e.g the FCM token
+	Locale                  string     // e.g: en-US ...
+	TimezoneOffsetInMinutes int        // e.g: +180
+	DeviceManufacturer      string     // e.g: samsung
+	DeviceOS                DeviceOS   // e.g: android
+	ClientType              ClientType // e.g: mobile/web/...
+	DeviceOSVersion         string     // e.g: 14
+	AppVersion              string     // e.g: 3.1.1
 }
 
 type UpdateInstallationData struct {
@@ -367,4 +450,66 @@ type LoginOrCreateUserWithOidcRepoParam struct {
 	OauthScopes          oauth.Scops
 	UserRoleID           *int32
 	OauthTokenType       string
+}
+
+type Installation struct {
+	ID                      int32      `json:"id"`
+	InstallationToken       string     `json:"installation_token"`
+	NotificationToken       string     `json:"notification_token"`
+	Locale                  string     `json:"locale"`
+	TimezoneOffsetInMinutes int32      `json:"timezone_offset_in_minutes"`
+	DeviceManufacturer      string     `json:"device_manufacturer"`
+	DeviceOs                DeviceOS   `json:"device_os"`
+	ClientType              ClientType `json:"client_type"`
+	DeviceOsVersion         string     `json:"device_os_version"`
+	AppVersion              string     `json:"app_version"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
+	DeletedAt               *time.Time `json:"deleted_at"`
+	AttachTo                *int32     `json:"attach_to"`
+	LastAttachTo            *int32     `json:"last_attach_to"`
+}
+
+func NewInstallationFromDatabaseUser(i database_queries.Installation) Installation {
+	deviceOs := utils.Must(new(DeviceOS).FromString(i.DeviceOs))
+	clientType := utils.Must(new(ClientType).FromString(i.ClientType))
+
+	deletedAt := new(time.Time)
+	if i.DeletedAt.Valid {
+		deletedAt = &i.DeletedAt.Time
+	} else {
+		deletedAt = nil
+	}
+
+	attachTo := new(int32)
+	if i.AttachTo.Valid {
+		attachTo = &i.AttachTo.Int32
+	} else {
+		attachTo = nil
+	}
+
+	lastAttachTo := new(int32)
+	if i.LastAttachTo.Valid {
+		lastAttachTo = &i.LastAttachTo.Int32
+	} else {
+		lastAttachTo = nil
+	}
+
+	return Installation{
+		ID:                      i.ID,
+		InstallationToken:       i.InstallationToken,
+		NotificationToken:       i.NotificationToken.String,
+		Locale:                  i.Locale,
+		TimezoneOffsetInMinutes: i.TimezoneOffsetInMinutes,
+		DeviceManufacturer:      i.DeviceManufacturer.String,
+		DeviceOs:                *deviceOs,
+		ClientType:              *clientType,
+		DeviceOsVersion:         i.DeviceOsVersion.String,
+		AppVersion:              i.AppVersion,
+		CreatedAt:               i.CreatedAt.Time,
+		UpdatedAt:               i.UpdatedAt.Time,
+		DeletedAt:               deletedAt,
+		AttachTo:                attachTo,
+		LastAttachTo:            lastAttachTo,
+	}
 }

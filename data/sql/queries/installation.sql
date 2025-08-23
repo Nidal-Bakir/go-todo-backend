@@ -6,10 +6,11 @@ INSERT INTO installation (
         timezone_offset_in_minutes,
         device_manufacturer,
         device_os,
+        client_type,
         device_os_version,
         app_version
     )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 
 -- name: InstallationUpdateInstallation :exec

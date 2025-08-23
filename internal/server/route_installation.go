@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"slices"
 	"strconv"
 
 	"github.com/Nidal-Bakir/go-semver"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
@@ -46,11 +46,21 @@ func createInstallation(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
+		if params.ClientType.IsWeb() {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "A-Installation",
+				Value:    installationToken,
+				HttpOnly: true,
+				Secure:   appenv.IsProdOrStag(),
+				SameSite: http.SameSiteLaxMode,
+				Path:     "/",
+				MaxAge:   int(auth.InstallationTokenExpDuration.Seconds()),
+			})
+		}
+
 		writeResponse(ctx, w, r, http.StatusCreated, map[string]string{"installation_token": installationToken})
 	}
 }
-
-var devicesOSs = []string{"android", "ios", "windows", "macos", "linux", "chromeos"}
 
 func validateCreateInstallationParams(r *http.Request) (param auth.CreateInstallationData, errs []error) {
 	errs = make([]error, 0, 10)
@@ -79,11 +89,18 @@ func validateCreateInstallationParams(r *http.Request) (param auth.CreateInstall
 		errs = append(errs, errors.New("too long device manufacturer"))
 	}
 
-	deviceOS := r.FormValue("device_os")
-	if slices.Contains(devicesOSs, deviceOS) || len(deviceOS) == 0 {
-		param.DeviceOS = deviceOS
+	deviceOS, err := new(auth.DeviceOS).FromString(r.FormValue("device_os"))
+	if err != nil {
+		errs = append(errs, err)
 	} else {
-		errs = append(errs, errors.New("invalid device os"))
+		param.DeviceOS = *deviceOS
+	}
+
+	clientType, err := new(auth.ClientType).FromString(r.FormValue("client_type"))
+	if err != nil {
+		errs = append(errs, err)
+	} else {
+		param.ClientType = *clientType
 	}
 
 	deviceOsVersion := r.FormValue("device_os_version")

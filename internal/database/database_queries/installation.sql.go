@@ -72,10 +72,11 @@ INSERT INTO installation (
         timezone_offset_in_minutes,
         device_manufacturer,
         device_os,
+        client_type,
         device_os_version,
         app_version
     )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `
 
 type InstallationCreateNewInstallationParams struct {
@@ -84,7 +85,8 @@ type InstallationCreateNewInstallationParams struct {
 	Locale                  string      `json:"locale"`
 	TimezoneOffsetInMinutes int32       `json:"timezone_offset_in_minutes"`
 	DeviceManufacturer      pgtype.Text `json:"device_manufacturer"`
-	DeviceOs                pgtype.Text `json:"device_os"`
+	DeviceOs                string      `json:"device_os"`
+	ClientType              string      `json:"client_type"`
 	DeviceOsVersion         pgtype.Text `json:"device_os_version"`
 	AppVersion              string      `json:"app_version"`
 }
@@ -98,10 +100,11 @@ type InstallationCreateNewInstallationParams struct {
 //	        timezone_offset_in_minutes,
 //	        device_manufacturer,
 //	        device_os,
+//	        client_type,
 //	        device_os_version,
 //	        app_version
 //	    )
-//	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+//	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg InstallationCreateNewInstallationParams) error {
 	_, err := q.db.Exec(ctx, installationCreateNewInstallation,
 		arg.InstallationToken,
@@ -110,6 +113,7 @@ func (q *Queries) InstallationCreateNewInstallation(ctx context.Context, arg Ins
 		arg.TimezoneOffsetInMinutes,
 		arg.DeviceManufacturer,
 		arg.DeviceOs,
+		arg.ClientType,
 		arg.DeviceOsVersion,
 		arg.AppVersion,
 	)
@@ -197,7 +201,7 @@ func (q *Queries) InstallationDetachSessionFromInstallationByUserId(ctx context.
 }
 
 const installationGetInstallationUsingToken = `-- name: InstallationGetInstallationUsingToken :one
-SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, client_type, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 FROM installation
 WHERE installation_token = $1
     AND deleted_at IS NULL
@@ -206,7 +210,7 @@ LIMIT 1
 
 // InstallationGetInstallationUsingToken
 //
-//	SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+//	SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, client_type, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 //	FROM installation
 //	WHERE installation_token = $1
 //	    AND deleted_at IS NULL
@@ -222,6 +226,7 @@ func (q *Queries) InstallationGetInstallationUsingToken(ctx context.Context, ins
 		&i.TimezoneOffsetInMinutes,
 		&i.DeviceManufacturer,
 		&i.DeviceOs,
+		&i.ClientType,
 		&i.DeviceOsVersion,
 		&i.AppVersion,
 		&i.CreatedAt,
@@ -234,7 +239,7 @@ func (q *Queries) InstallationGetInstallationUsingToken(ctx context.Context, ins
 }
 
 const installationGetInstallationUsingTokenAndWhereAttachTo = `-- name: InstallationGetInstallationUsingTokenAndWhereAttachTo :one
-SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, client_type, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 FROM installation
 WHERE installation_token = $1
     AND attach_to = $2
@@ -249,7 +254,7 @@ type InstallationGetInstallationUsingTokenAndWhereAttachToParams struct {
 
 // InstallationGetInstallationUsingTokenAndWhereAttachTo
 //
-//	SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
+//	SELECT id, installation_token, notification_token, locale, timezone_offset_in_minutes, device_manufacturer, device_os, client_type, device_os_version, app_version, created_at, updated_at, deleted_at, attach_to, last_attach_to
 //	FROM installation
 //	WHERE installation_token = $1
 //	    AND attach_to = $2
@@ -266,6 +271,7 @@ func (q *Queries) InstallationGetInstallationUsingTokenAndWhereAttachTo(ctx cont
 		&i.TimezoneOffsetInMinutes,
 		&i.DeviceManufacturer,
 		&i.DeviceOs,
+		&i.ClientType,
 		&i.DeviceOsVersion,
 		&i.AppVersion,
 		&i.CreatedAt,
