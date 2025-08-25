@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
@@ -45,10 +45,18 @@ func return400IfApp404IfNoResultErrOr500(err error) int {
 	return http.StatusInternalServerError
 }
 
+func ReadAuthorizationCookie(r *http.Request) (string, error) {
+	authorizationCookie, err := r.Cookie("Authorization")
+	if err != nil {
+		return "", err
+	}
+	return authorizationCookie.Value, nil
+}
+
 func SetAuthorizationCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "Authorization",
-		Value:    fmt.Sprint("Bearer ", token),
+		Value:    token,
 		HttpOnly: true,
 		Secure:   appenv.IsProdOrStag(),
 		SameSite: http.SameSiteLaxMode,
@@ -66,4 +74,9 @@ func RemoveAuthorizationCookie(w http.ResponseWriter) {
 		Path:     "/",
 		MaxAge:   -1,
 	})
+}
+
+func StripBearerToken(tokenWithBearer string) string {
+	token, _ := strings.CutPrefix(tokenWithBearer, "Bearer ")
+	return token
 }

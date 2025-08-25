@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
@@ -33,15 +32,15 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 
 			authStr := r.Header.Get("Authorization")
 			if len(authStr) == 0 {
-				authorizationCookie, authorizationCookieErr := r.Cookie("Authorization")
-				if authorizationCookieErr != nil {
+				cookieVal, err := ReadAuthorizationCookie(r)
+				if err != nil {
 					sendUnauthorizedError()
 					return
 				}
-				authStr = authorizationCookie.Value
+				authStr = cookieVal
 			}
 
-			token := strings.TrimSpace(strings.Replace(authStr, "Bearer", "", 1))
+			token := StripBearerToken(authStr)
 			if token == "" {
 				sendUnauthorizedError()
 				return

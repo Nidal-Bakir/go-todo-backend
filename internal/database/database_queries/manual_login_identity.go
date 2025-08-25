@@ -190,141 +190,165 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 // LoginIdentityCreateNewUserAndOIDCLoginIdentity
 //
 // WITH new_user AS (
-//   INSERT INTO users (
-//     username,
-//     profile_image,
-//     first_name,
-//     last_name,
-//     role_id
-//   )
-//   VALUES (
-//     $1::text,
-//     $2::text,
-//     $3::text,
-//     $4::text,
-//     $5::int
-//   )
-//   RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+//
+//	INSERT INTO users (
+//	  username,
+//	  profile_image,
+//	  first_name,
+//	  last_name,
+//	  role_id
+//	)
+//	VALUES (
+//	  $1::text,
+//	  $2::text,
+//	  $3::text,
+//	  $4::text,
+//	  $5::int
+//	)
+//	RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+//
 // ),
 // new_identity AS (
-//   INSERT INTO login_identity (
-//     user_id,
-//     identity_type
-//   )
-//   VALUES (
-//     (SELECT user_id FROM new_user),
-//     'oidc'
-//   )
-//   RETURNING id
+//
+//	INSERT INTO login_identity (
+//	  user_id,
+//	  identity_type
+//	)
+//	VALUES (
+//	  (SELECT user_id FROM new_user),
+//	  'oidc'
+//	)
+//	RETURNING id
+//
 // ),
 // oauth_provider_record AS (
-//     SELECT
-//         $6::text AS provider_name,
-//         $7::bool AS is_oidc_capable
+//
+//	SELECT
+//	    $6::text AS provider_name,
+//	    $7::bool AS is_oidc_capable
+//
 // ),
 // oauth_provider_record_merge_op AS (
-//     MERGE INTO oauth_provider AS target
-//     USING oauth_provider_record AS r
-//     ON target.name = r.provider_name AND target.is_oidc_capable = r.is_oidc_capable
-//     WHEN NOT MATCHED THEN
-//         INSERT (name, is_oidc_capable)
-//         VALUES (r.provider_name, r.is_oidc_capable)
+//
+//	MERGE INTO oauth_provider AS target
+//	USING oauth_provider_record AS r
+//	ON target.name = r.provider_name AND target.is_oidc_capable = r.is_oidc_capable
+//	WHEN NOT MATCHED THEN
+//	    INSERT (name, is_oidc_capable)
+//	    VALUES (r.provider_name, r.is_oidc_capable)
+//
 // ),
 // oauth_connection_record AS (
-//     SELECT
-//         (SELECT provider_name from oauth_provider_record) AS provider_name,
-//         $8::text[] AS scopes
+//
+//	SELECT
+//	    (SELECT provider_name from oauth_provider_record) AS provider_name,
+//	    $8::text[] AS scopes
+//
 // ),
 // oauth_connection_record_merge_op AS (
-//     MERGE INTO oauth_connection AS target
-//     USING oauth_connection_record AS r
-//     ON target.provider_name = r.provider_name AND target.scopes = r.scopes
-//     WHEN NOT MATCHED THEN
-//         INSERT (provider_name, scopes)
-//         VALUES (r.provider_name, r.scopes)
-//     RETURNING target.*
+//
+//	MERGE INTO oauth_connection AS target
+//	USING oauth_connection_record AS r
+//	ON target.provider_name = r.provider_name AND target.scopes = r.scopes
+//	WHEN NOT MATCHED THEN
+//	    INSERT (provider_name, scopes)
+//	    VALUES (r.provider_name, r.scopes)
+//	RETURNING target.*
+//
 // ),
 // oauth_connection_row AS (
-//     SELECT * FROM oauth_connection_record_merge_op
-//     UNION ALL
-//     SELECT id, provider_name, scopes, created_at, updated_at, deleted_at from oauth_connection
-//         WHERE provider_name = (SELECT provider_name from oauth_provider_record)
-//             AND scopes = (SELECT scopes from oauth_connection_record)
+//
+//	SELECT * FROM oauth_connection_record_merge_op
+//	UNION ALL
+//	SELECT id, provider_name, scopes, created_at, updated_at, deleted_at from oauth_connection
+//	    WHERE provider_name = (SELECT provider_name from oauth_provider_record)
+//	        AND scopes = (SELECT scopes from oauth_connection_record)
+//
 // ),
 // new_oauth_integration AS (
-//     INSERT INTO oauth_integration (
-//         oauth_connection_id,
-//         integration_type
-//     )
-//     VALUES (
-//         (SELECT id FROM oauth_connection_row),
-//         'user'
-//     )
-//     RETURNING id
+//
+//	INSERT INTO oauth_integration (
+//	    oauth_connection_id,
+//	    integration_type
+//	)
+//	VALUES (
+//	    (SELECT id FROM oauth_connection_row),
+//	    'user'
+//	)
+//	RETURNING id
+//
 // ),
 // new_oauth_token AS (
-//     INSERT INTO oauth_token (
-//         oauth_integration_id,
-//         access_token,
-//         refresh_token,
-//         token_type,
-//         expires_at,
-//         issued_at
-//     )
-//     VALUES (
-//         (SELECT id FROM new_oauth_integration),
-//         $9::text,
-//         $10::text,
-//         $11::text,
-//         $12::timestamp,
-//         $13::timestamp
-//     )
+//
+//	INSERT INTO oauth_token (
+//	    oauth_integration_id,
+//	    access_token,
+//	    refresh_token,
+//	    token_type,
+//	    expires_at,
+//	    issued_at
+//	)
+//	VALUES (
+//	    (SELECT id FROM new_oauth_integration),
+//	    $9::text,
+//	    $10::text,
+//	    $11::text,
+//	    $12::timestamp,
+//	    $13::timestamp
+//	)
+//
 // ),
 // new_user_integration AS (
-//     INSERT INTO user_integration (
-//         oauth_integration_id,
-//         user_id
-//     )
-//     VALUES (
-//         (SELECT id FROM new_oauth_integration),
-//         (SELECT user_id FROM new_user)
-//     )
-//     RETURNING id
+//
+//	INSERT INTO user_integration (
+//	    oauth_integration_id,
+//	    user_id
+//	)
+//	VALUES (
+//	    (SELECT id FROM new_oauth_integration),
+//	    (SELECT user_id FROM new_user)
+//	)
+//	RETURNING id
+//
 // ),
 // new_oidc_user_integration_data AS (
-//     INSERT INTO oidc_user_integration_data (
-//         user_integration_id,
-//         sub,
-//         email,
-//         iss,
-//         aud,
-//         given_name,
-//         family_name,
-//         name,
-//         picture
-//     )
-//     VALUES (
-//         (SELECT id FROM new_user_integration),
-//         $14::text,
-//         $15::text,
-//         $16::text,
-//         $17::text,
-//         $18::text,
-//         $19::text,
-//         $20::text,
-//         $21::text
-//     )
-//     RETURNING id
+//
+//	INSERT INTO oidc_user_integration_data (
+//	    user_integration_id,
+//	    sub,
+//	    email,
+//	    iss,
+//	    aud,
+//	    given_name,
+//	    family_name,
+//	    name,
+//	    picture
+//	)
+//	VALUES (
+//	    (SELECT id FROM new_user_integration),
+//	    $14::text,
+//	    $15::text,
+//	    $16::text,
+//	    $17::text,
+//	    $18::text,
+//	    $19::text,
+//	    $20::text,
+//	    $21::text
+//	)
+//	RETURNING id
+//
 // ),
 // new_oidc_login_identity AS (
-//     INSERT INTO oidc_login_identity (
-//         login_identity_id,
-//         oidc_user_integration_data_id
-//     )
-//     VALUES (
-//         (SELECT id FROM new_identity),
-//         (SELECT id FROM new_oidc_user_integration_data)
-//     )
+//
+//	INSERT INTO oidc_login_identity (
+//	    login_identity_id,
+//	    oidc_user_integration_data_id
+//	)
+//	VALUES (
+//	    (SELECT id FROM new_identity),
+//	    (SELECT id FROM new_oidc_user_integration_data)
+//	)
+//
 // )
 // SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i
 func (q *Queries) LoginIdentityCreateNewUserAndOIDCLoginIdentity(ctx context.Context, arg LoginIdentityCreateNewUserAndOIDCLoginIdentityParams) (LoginIdentityCreateNewUserAndOIDCLoginIdentityRow, error) {
