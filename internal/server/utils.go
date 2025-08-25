@@ -45,7 +45,7 @@ func return400IfApp404IfNoResultErrOr500(err error) int {
 	return http.StatusInternalServerError
 }
 
-func ReadAuthorizationCookie(r *http.Request) (string, error) {
+func readAuthorizationCookie(r *http.Request) (string, error) {
 	authorizationCookie, err := r.Cookie("Authorization")
 	if err != nil {
 		return "", err
@@ -53,10 +53,10 @@ func ReadAuthorizationCookie(r *http.Request) (string, error) {
 	return authorizationCookie.Value, nil
 }
 
-func SetAuthorizationCookie(w http.ResponseWriter, token string) {
+func setAuthorizationCookie(w http.ResponseWriter, authorizationToken string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "Authorization",
-		Value:    token,
+		Value:    authorizationToken,
 		HttpOnly: true,
 		Secure:   appenv.IsProdOrStag(),
 		SameSite: http.SameSiteLaxMode,
@@ -65,7 +65,7 @@ func SetAuthorizationCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-func RemoveAuthorizationCookie(w http.ResponseWriter) {
+func removeAuthorizationCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "Authorization",
 		HttpOnly: true,
@@ -73,6 +73,26 @@ func RemoveAuthorizationCookie(w http.ResponseWriter) {
 		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 		MaxAge:   -1,
+	})
+}
+
+func readInstallationCookie(r *http.Request) (string, error) {
+	authorizationCookie, err := r.Cookie("Installation")
+	if err != nil {
+		return "", err
+	}
+	return authorizationCookie.Value, nil
+}
+
+func setInstallationCookie(w http.ResponseWriter, installationToken string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "Installation",
+		Value:    installationToken,
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/",
+		MaxAge:   int(auth.AuthTokenExpDuration.Seconds()),
 	})
 }
 

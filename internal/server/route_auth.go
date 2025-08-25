@@ -556,7 +556,7 @@ func passwordLogin(authRepo auth.Repository) http.HandlerFunc {
 		}
 
 		if installation.ClientType.IsWeb() {
-			SetAuthorizationCookie(w, token)
+			setAuthorizationCookie(w, token)
 		}
 
 		response := struct {
@@ -664,7 +664,7 @@ func logout(authRepo auth.Repository) http.HandlerFunc {
 		}
 
 		if installation.ClientType.IsWeb() {
-			RemoveAuthorizationCookie(w)
+			removeAuthorizationCookie(w)
 		}
 
 		apiWriteOperationDoneSuccessfullyJson(ctx, w, r)

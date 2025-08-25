@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"github.com/Nidal-Bakir/go-semver"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
@@ -47,15 +46,7 @@ func createInstallation(authRepo auth.Repository) http.HandlerFunc {
 		}
 
 		if params.ClientType.IsWeb() {
-			http.SetCookie(w, &http.Cookie{
-				Name:     "A-Installation",
-				Value:    installationToken,
-				HttpOnly: true,
-				Secure:   appenv.IsProdOrStag(),
-				SameSite: http.SameSiteLaxMode,
-				Path:     "/",
-				MaxAge:   int(auth.InstallationTokenExpDuration.Seconds()),
-			})
+			setInstallationCookie(w, installationToken)
 		}
 
 		writeResponse(ctx, w, r, http.StatusCreated, map[string]string{"installation_token": installationToken})

@@ -197,7 +197,7 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			Secure:   appenv.IsProdOrStag(),
 		})
 
-		SetAuthorizationCookie(w, token)
+		setAuthorizationCookie(w, token)
 
 		queryParams := url.Values{}
 		queryParams.Add("user_first_name", user.FirstName)

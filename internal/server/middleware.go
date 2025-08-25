@@ -32,7 +32,7 @@ func Auth(authRepo auth.Repository) func(http.Handler) http.HandlerFunc {
 
 			authStr := r.Header.Get("Authorization")
 			if len(authStr) == 0 {
-				cookieVal, err := ReadAuthorizationCookie(r)
+				cookieVal, err := readAuthorizationCookie(r)
 				if err != nil {
 					sendUnauthorizedError()
 					return
@@ -112,12 +112,12 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 
 			installationToken := r.Header.Get("A-Installation")
 			if len(installationToken) == 0 {
-				installationCookie, installationCookieErr := r.Cookie("A-Installation")
-				if installationCookieErr != nil {
+				installationTokenFromCookie, err := readInstallationCookie(r)
+				if err != nil {
 					sendError()
 					return
 				}
-				installationToken = installationCookie.Value
+				installationToken = installationTokenFromCookie
 			}
 			if len(installationToken) == 0 {
 				sendError()
