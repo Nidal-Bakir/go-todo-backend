@@ -27,5 +27,6 @@ func WriteResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 		apiWriteJson(ctx, w, code, payload)
 	} else {
 		// TODO: what?
+		panic("WriteResponse with the header Accept != application/json, what shoud we do?")
 	}
 }
