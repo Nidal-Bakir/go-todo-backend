@@ -60,6 +60,7 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 		middleware.StripSlashes,
 		rateLimitGlobal,
 		middleware.Heartbeat,
+		middleware.CSRFProtection("https://go-todo.com"),
 	)
 }
 
