@@ -60,6 +60,7 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 		middleware.StripSlashes,
 		rateLimitGlobal,
 		middleware.Heartbeat,
+		middleware.CSRFProtection(FrontendDomains...),
 	)
 }
 
@@ -68,7 +69,7 @@ func corsMiddleware(next http.Handler) http.HandlerFunc {
 	if isStagOrLocal {
 		o := cors.Options{
 			Debug:            isStagOrLocal,
-			AllowedOrigins:   []string{"http://127.0.0.1:8080"},
+			AllowedOrigins:   FrontendDomains,
 			AllowedMethods:   []string{"OPTIONS", "HEAD", "GET", "POST", "DELETE", "PUT", "PATCH"},
 			AllowedHeaders:   []string{"*"},
 			AllowCredentials: true,
