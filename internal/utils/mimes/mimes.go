@@ -2,9 +2,11 @@ package mimes
 
 const (
 	// multipart
+
 	Multipart_form_data = "multipart/form-data" // multipart/form-data
 
 	// application
+
 	App_x_www_form_urlencoded = "application/x-www-form-urlencoded" // application/x-www-form-urlencoded
 	App_json                  = "application/json"                  // application/json
 	App_xml                   = "application/xml"                   // application/xml
@@ -16,6 +18,7 @@ const (
 	App_x_7z_compressed       = "application/x-7z-compressed"       // application/x-7z-compressed
 
 	// text
+
 	Text_html       = "text/html"       // "text/html
 	Text_javascript = "text/javascript" // "text/javascript
 	Text_xml        = "text/xml"        // "text/xml
@@ -24,6 +27,7 @@ const (
 	Text_csv        = "text/csv"        // "text/csv
 
 	// image
+
 	Image_gif     = "image/gif"     // image/gif
 	Image_jpeg    = "image/jpeg"    // image/jpeg
 	Image_png     = "image/png"     // image/png
@@ -31,6 +35,7 @@ const (
 	Image_svg_xml = "image/svg+xml" // image/svg+xml
 
 	// audio
+
 	Audio_aac   = "audio/aac"   // audio/aac
 	Audio_ogg   = "audio/ogg"   // audio/ogg
 	Audio_wav   = "audio/wav"   // audio/wav
@@ -40,6 +45,7 @@ const (
 	Audio_mpeg  = "audio/mpeg"  // audio/mpeg "mp3"
 
 	// video
+
 	Video_mpeg      = "video/mpeg"      // video/mpeg
 	Video_mp4       = "video/mp4"       // video/mp4
 	Video_webm      = "video/webm"      // video/webm
