@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"strconv"
 	"time"
@@ -14,7 +13,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/google"
 	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/rs/zerolog"
 )
 
@@ -59,25 +58,7 @@ func oauthlogin(_ auth.Repository) http.HandlerFunc {
 
 		state := oauth.GenerateRandomState()
 		verifier := oauth.GenerateVerifier()
-		maxAge := int(time.Hour.Seconds())
-		http.SetCookie(w, &http.Cookie{
-			Name:     "oauth_state",
-			Value:    state,
-			HttpOnly: true,
-			Secure:   appenv.IsProdOrStag(),
-			SameSite: http.SameSiteLaxMode,
-			Path:     "/auth/oidc",
-			MaxAge:   maxAge,
-		})
-		http.SetCookie(w, &http.Cookie{
-			Name:     "oauth_verifier",
-			Value:    verifier,
-			HttpOnly: true,
-			Secure:   appenv.IsProdOrStag(),
-			SameSite: http.SameSiteLaxMode,
-			Path:     "/auth/oidc",
-			MaxAge:   maxAge,
-		})
+		setOauthStateAndVerifierCookies(w, state, verifier)
 
 		var redirectUrl string
 		provider.Fold(oauth.OauthProviderFoldActions{
@@ -88,6 +69,47 @@ func oauthlogin(_ auth.Repository) http.HandlerFunc {
 		})
 		http.Redirect(w, r, redirectUrl, http.StatusFound)
 	}
+}
+
+func setOauthStateAndVerifierCookies(w http.ResponseWriter, state, verifier string) {
+	maxAge := int(time.Hour.Seconds())
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_state",
+		Value:    state,
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/auth/oidc",
+		MaxAge:   maxAge,
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_verifier",
+		Value:    verifier,
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+		SameSite: http.SameSiteLaxMode,
+		Path:     "/auth/oidc",
+		MaxAge:   maxAge,
+	})
+}
+
+func removeOauthStateAndVerifierCookies(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_state",
+		Value:    "",
+		Path:     "/auth/oidc",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+	})
+	http.SetCookie(w, &http.Cookie{
+		Name:     "oauth_verifier",
+		Value:    "",
+		Path:     "/auth/oidc",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   appenv.IsProdOrStag(),
+	})
 }
 
 func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
@@ -112,6 +134,8 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 		}
 		oauthStateFromCookie := oauthStateCookie.Value
 		oauthVerifierFromCookie := oauthVerifierCookie.Value
+
+		removeOauthStateAndVerifierCookies(w)
 
 		code := r.FormValue("code")
 		if len(code) == 0 {
@@ -160,14 +184,9 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		installation, ok := auth.InstallationFromContext(ctx)
-		utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
+		installation := auth.MustInstallationFromContext(ctx)
 
-		requestIpAddres, err := netip.ParseAddr(r.RemoteAddr)
-		if err != nil {
-			zlog.Err(err).Msg("can not parse the remoteAddr using netip pkg")
-			return
-		}
+		requestIpAddres := tracker.MustReqIPFromContext(ctx)
 
 		user, token, err := authRepo.LoginOrCreateUserWithOidc(
 			ctx,
@@ -179,23 +198,6 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			writeError(ctx, w, r, http.StatusBadRequest, err)
 			return
 		}
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     "oauth_state",
-			Value:    "",
-			Path:     "/auth/oidc",
-			MaxAge:   -1,
-			HttpOnly: true,
-			Secure:   appenv.IsProdOrStag(),
-		})
-		http.SetCookie(w, &http.Cookie{
-			Name:     "oauth_verifier",
-			Value:    "",
-			Path:     "/auth/oidc",
-			MaxAge:   -1,
-			HttpOnly: true,
-			Secure:   appenv.IsProdOrStag(),
-		})
 
 		setAuthorizationCookie(w, token)
 

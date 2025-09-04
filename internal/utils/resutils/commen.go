@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/mimes"
 )
 
 func WriteError(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, errs ...error) {
@@ -15,7 +16,7 @@ func WriteError(ctx context.Context, w http.ResponseWriter, r *http.Request, cod
 		}
 	}
 
-	if r.Header.Get("Accept") == "application/json" {
+	if r.Header.Get("Accept") == mimes.App_json {
 		apiWriteError(ctx, w, code, errs...)
 	} else {
 		webWriteError(ctx, w, code, errs...)
@@ -23,7 +24,7 @@ func WriteError(ctx context.Context, w http.ResponseWriter, r *http.Request, cod
 }
 
 func WriteResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, code int, payload any) {
-	if r.Header.Get("Accept") == "application/json" {
+	if r.Header.Get("Accept") == mimes.App_json {
 		apiWriteJson(ctx, w, code, payload)
 	} else {
 		// TODO: what?

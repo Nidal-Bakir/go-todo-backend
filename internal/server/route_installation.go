@@ -9,7 +9,6 @@ import (
 	"github.com/Nidal-Bakir/go-semver"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"golang.org/x/text/language"
 )
 
@@ -119,8 +118,7 @@ func updateInstallation(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		installation, ok := auth.InstallationFromContext(ctx)
-		utils.Assert(ok, "we shuld find the installation in the context but we did not. something is wrong")
+		installation := auth.MustInstallationFromContext(ctx)
 
 		err := authRepo.UpdateInstallation(ctx, installation.InstallationToken, params)
 		if err != nil {

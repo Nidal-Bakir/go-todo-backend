@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -13,13 +12,12 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
-	"github.com/rs/zerolog"
 )
 
 func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
@@ -340,8 +338,7 @@ func createTempPasswordAccount(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		installation, ok := auth.InstallationFromContext(ctx)
-		utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
+		installation := auth.MustInstallationFromContext(ctx)
 		if installation.AttachTo != nil {
 			err = apperr.ErrInstallationTokenInUse
 			writeError(ctx, w, r, return400IfAppErrOr500(err), err)
@@ -516,7 +513,6 @@ type passwordLoginParams struct {
 func passwordLogin(authRepo auth.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		zlog := zerolog.Ctx(ctx)
 
 		err := r.ParseForm()
 		if err != nil {
@@ -530,14 +526,8 @@ func passwordLogin(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		installation, ok := auth.InstallationFromContext(ctx)
-		utils.Assert(ok, "we should find the installation in the context tree, but we did not. something is wrong.")
-
-		requestIpAddres, err := netip.ParseAddr(r.RemoteAddr)
-		if err != nil {
-			zlog.Err(err).Msg("can not parse the remoteAddr using netip pkg")
-			return
-		}
+		installation := auth.MustInstallationFromContext(ctx)
+		requestIpAddres := tracker.MustReqIPFromContext(ctx)
 
 		user, token, err := authRepo.PasswordLogin(
 			ctx,
@@ -645,11 +635,8 @@ func logout(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "the user should be in the ctx")
-
-		installation, ok := auth.InstallationFromContext(ctx)
-		utils.Assert(ok, "the installation should be in the ctx")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
+		installation := auth.MustInstallationFromContext(ctx)
 
 		err = authRepo.Logout(
 			ctx,
@@ -706,8 +693,7 @@ func changeUserPassword(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		err = authRepo.ChangePasswordForAllPasswordLoginIdentities(ctx, int(userAndSession.UserID), params.oldPassword, params.newPassword)
 		if err != nil {
@@ -941,8 +927,7 @@ func userProfile(authRepo auth.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		loginIdentities, err := authRepo.GetAllLoginIdentitiesForUser(ctx, int(userAndSession.UserID))
 		if err != nil {

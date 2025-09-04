@@ -10,7 +10,6 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/todo"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/paginate"
 )
 
@@ -50,8 +49,7 @@ func createTodo(todoRepo todo.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		todoData, err := extractTodoData(r)
 		if err != nil {
@@ -124,8 +122,7 @@ func updateTodo(todoRepo todo.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		todoData, err := extractTodoData(r)
 		if err != nil {
@@ -153,8 +150,7 @@ func todoIndex(todoRepo todo.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		paginatedDate, err := paginate.NewSimplePaginatedAction(
 			func(offset, limit int) ([]todo.TodoItem, error) {
@@ -188,8 +184,7 @@ func todoShow(todoRepo todo.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		res, err := todoRepo.GetTodo(ctx, int(userAndSession.UserID), todoId)
 		if err != nil {
@@ -211,8 +206,7 @@ func deleteTodo(todoRepo todo.Repository) http.HandlerFunc {
 			return
 		}
 
-		userAndSession, ok := auth.UserAndSessionFromContext(ctx)
-		utils.Assert(ok, "we should find the user in the context tree, but we did not. something is wrong.")
+		userAndSession := auth.MustUserAndSessionFromContext(ctx)
 
 		err = todoRepo.DeleteTodo(ctx, int(userAndSession.UserID), todoId)
 		if err != nil {

@@ -10,7 +10,6 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/l10n"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/resutils"
 )
 
@@ -23,8 +22,7 @@ func writeResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, 
 }
 
 func apiWriteOperationDoneSuccessfullyJson(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	localizer, ok := l10n.LocalizerFromContext(ctx)
-	utils.Assert(ok, "we should find the localizer in the context tree, but we did not. something is wrong.")
+	localizer := l10n.MustLocalizerFromContext(ctx)
 	writeResponse(ctx, w, r, http.StatusOK, map[string]string{"msg": localizer.GetWithId(l10n.OperationDoneSuccessfullyTrId)})
 }
 
