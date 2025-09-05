@@ -40,22 +40,25 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
-		corsMiddleware,
 		s.LoggerInjector,
+		corsMiddleware,
 		// required for the rate limiter to function correctly and for logging
 		middleware.RealIp(),
 		middleware.RequestUUIDMiddleware,
 		middleware.LocalizerInjector,
-		middleware.RequestLoggerWithHeaderSkipFn(
-			func(headerName string) bool {
-				if (headerName == "A-Installation" ||
-					headerName == "Authorization" ||
-					headerName == "Postman-Token") &&
-					appenv.IsStagOrLocal() {
-					return false
-				}
-				return true
-			},
+		middleware.If(
+			appenv.IsLocal(),
+			middleware.RequestLoggerWithHeaderSkipFn(
+				func(headerName string) bool {
+					if (headerName == "A-Installation" ||
+						headerName == "Authorization" ||
+						headerName == "Postman-Token") &&
+						appenv.IsStagOrLocal() {
+						return false
+					}
+					return true
+				},
+			),
 		),
 		middleware.StripSlashes,
 		rateLimitGlobal,
@@ -65,18 +68,15 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 }
 
 func corsMiddleware(next http.Handler) http.HandlerFunc {
-	isStagOrLocal := appenv.IsStagOrLocal()
-	if isStagOrLocal {
-		o := cors.Options{
-			Debug:            isStagOrLocal,
-			AllowedOrigins:   FrontendDomains,
-			AllowedMethods:   []string{"OPTIONS", "HEAD", "GET", "POST", "DELETE", "PUT", "PATCH"},
-			AllowedHeaders:   []string{"*"},
-			AllowCredentials: true,
-		}
-		return middleware.Cors(o)(next)
+	o := cors.Options{
+		Debug:            appenv.IsLocal(),
+		AllowedOrigins:   FrontendDomains,
+		AllowedMethods:   []string{"OPTIONS", "HEAD", "GET", "POST", "DELETE", "PUT", "PATCH"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Accept", "Accept-Language"},
+		AllowCredentials: true,
+		MaxAge:           10, // 10 sec
 	}
-	return next.ServeHTTP
+	return middleware.Cors(o)(next)
 }
 
 func apiRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {

@@ -23,6 +23,10 @@ const (
 	colorMagenta
 	colorCyan
 	colorWhite
+
+	logDir          = "/var/log/todo_proj"
+	logFile         = "todo_proj.log"
+	logFileFullPath = logDir + "/" + logFile
 )
 
 func NewLogger(shouldOutputToConcole bool) *zerolog.Logger {
@@ -36,8 +40,13 @@ func NewLogger(shouldOutputToConcole bool) *zerolog.Logger {
 			FormatFieldName:  formatFieldName,
 		}
 	} else { // its on server. so log to file
+		err := os.MkdirAll(logDir, os.ModeSticky|os.ModePerm)
+		if err != nil {
+			os.Stderr.Write(fmt.Appendf(nil, "Error creating the dir %s, Error: %v", logDir, err))
+			os.Exit(1)
+		}
 		file, err := os.OpenFile(
-			"/var/log/todo_proj/todo_proj.log",
+			logFileFullPath,
 			os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 			0664,
 		)

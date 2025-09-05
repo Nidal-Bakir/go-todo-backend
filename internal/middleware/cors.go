@@ -9,8 +9,6 @@ import (
 func Cors(options cors.Options) func(next http.Handler) http.HandlerFunc {
 	c := cors.New(options)
 	return func(next http.Handler) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			c.Handler(next).ServeHTTP(w, r)
-		}
+		return c.Handler(next).ServeHTTP
 	}
 }

@@ -40,18 +40,18 @@ func apiWriteError(ctx context.Context, w http.ResponseWriter, code int, errs ..
 		_logRes(code, err, *zerolog.Ctx(ctx))
 		err := apperr.ErrUnexpectedErrorOccurred.(apperr.AppErr)
 		err.SetTranslation(ctx)
-		_writeJson(ctx, w, code, err, false)
+		_writeJson(ctx, w, code, err)
 		return
 	}
 
-	_writeJson(ctx, w, code, err, true)
+	_writeJson(ctx, w, code, err)
 }
 
 func apiWriteJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
-	_writeJson(ctx, w, code, payload, appenv.IsStagOrLocal())
+	_writeJson(ctx, w, code, payload)
 }
 
-func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload any, shouldLog bool) {
+func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload any) {
 	zlog := *zerolog.Ctx(ctx)
 
 	bytes, err := json.Marshal(payload)
@@ -65,7 +65,7 @@ func _writeJson(ctx context.Context, w http.ResponseWriter, code int, payload an
 	w.WriteHeader(code)
 	w.Write(bytes)
 
-	if shouldLog {
+	if appenv.IsLocal() {
 		_logRes(code, payload, zlog)
 	}
 }

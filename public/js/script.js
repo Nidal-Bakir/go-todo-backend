@@ -7,7 +7,7 @@ document.getElementById("apiCallBtnInstallation").addEventListener("click", asyn
     params.append("app_version", "1.0.0");
     params.append("locale", "ar");
 
-    const response = await fetch("http://127.0.0.1:8080/api/v1/installation/create", {
+    const response = await fetch("http://todo.local.com/api/v1/installation/create", {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -27,7 +27,7 @@ document.getElementById("apiCallBtnInstallation").addEventListener("click", asyn
 
 document.getElementById("logout_btn").addEventListener("click", async () => {
   try {
-    const response = await fetch("http://127.0.0.1:8080/api/v1/auth/logout", {
+    const response = await fetch("http://todo.local.com/api/v1/auth/logout", {
       method: "POST",
       headers: {
         Accept: "application/json",

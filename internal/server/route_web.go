@@ -151,48 +151,17 @@ func oauthloginCallback(authRepo auth.Repository) http.HandlerFunc {
 			return
 		}
 
-		oidcAndOauthData := auth.LoginOrCreateUserWithOidcRepoParam{
-			OauthProvider: *provider,
-		}
-
-		err := provider.Fold(oauth.OauthProviderFoldActions{
-			OnGoogle: func() error {
-				oauthToken, err := google.AuthCodeExchange(r.Context(), code, oauthVerifierFromCookie)
-				if err != nil {
-					zlog.Err(err).Msg("can not exchange code with tokens")
-					return err
-				}
-				idToken, ok := oauthToken.Extra("id_token").(string)
-				if !ok {
-					missingIdTokenErr := errors.New("missing id_token from google")
-					zlog.Err(missingIdTokenErr).Msg("can not get the id token from the payload")
-					return missingIdTokenErr
-				}
-
-				oidcAndOauthData.AccessToken = oauthToken.AccessToken
-				oidcAndOauthData.RefreshToken = oauthToken.RefreshToken
-				oidcAndOauthData.OauthTokenType = oauthToken.TokenType
-				oidcAndOauthData.OidcToken = idToken
-				oidcAndOauthData.AccessTokenExpiresAt = oauthToken.Expiry
-				oidcAndOauthData.OauthScopes = *oauth.NewScops(google.OidcScops)
-
-				return nil
-			},
-		})
-		if err != nil {
-			writeError(ctx, w, r, http.StatusBadRequest, err)
-			return
-		}
-
 		installation := auth.MustInstallationFromContext(ctx)
-
 		requestIpAddres := tracker.MustReqIPFromContext(ctx)
-
 		user, token, err := authRepo.LoginOrCreateUserWithOidc(
 			ctx,
-			oidcAndOauthData,
 			requestIpAddres,
 			installation,
+			auth.LoginOrCreateUserWithOidcRepoParam{
+				OauthProvider: *provider,
+				Code:          code,
+				CodeVerifier:  oauthVerifierFromCookie,
+			},
 		)
 		if err != nil {
 			writeError(ctx, w, r, http.StatusBadRequest, err)

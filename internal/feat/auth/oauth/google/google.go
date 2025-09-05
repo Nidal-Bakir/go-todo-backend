@@ -40,12 +40,27 @@ func AuthCodeURL(ctx context.Context, state, verifier string) string {
 }
 
 func AuthCodeExchange(ctx context.Context, code, verifier string) (*oauth2.Token, error) {
+	authCodeOption := make([]oauth2.AuthCodeOption, 1)
+	if len(verifier) != 0 {
+		authCodeOption[0] = oauth2.VerifierOption(verifier)
+	}
 	oauth2Token, err := googleOpenIdConnectConfig.Exchange(
 		ctx,
 		code,
-		oauth2.VerifierOption(verifier),
+		authCodeOption...,
 	)
 	return oauth2Token, err
+}
+
+// parse the idTokne without validating it with google
+func ParseIdToken(ctx context.Context, idToken string) (*GoogleOidcIdTokenClaims, error) {
+	claims := new(GoogleOidcIdTokenClaims)
+	payload, err := idtoken.ParsePayload(idToken)
+	if err != nil {
+		return claims, err
+	}
+	claims = newGoogleOidcIdTokenClaimsFromIdTokenPayload(payload)
+	return claims, nil
 }
 
 func ValidatorIdToken(ctx context.Context, idToken string) (*GoogleOidcIdTokenClaims, error) {

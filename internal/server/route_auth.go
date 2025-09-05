@@ -9,6 +9,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
+	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
@@ -18,6 +19,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
 )
 
 func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
@@ -28,9 +30,9 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		middleware.MiddlewareChain(
 			createTempPasswordAccount(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
-			Installation(authRepo),
 			createAcccountRateLimiterByIP(ctx, s.rdb),
 			createAcccountRateLimiterByAccessKey(ctx, s.rdb),
+			Installation(authRepo),
 		),
 	)
 
@@ -40,6 +42,7 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 			vareifyAccount(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
 			verifyAccountRateLimiterById(ctx, s.rdb),
+			verifyAccountRateLimiterByIP(ctx, s.rdb),
 		),
 	)
 
@@ -48,8 +51,8 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		middleware.MiddlewareChain(
 			passwordLogin(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
-			Installation(authRepo),
 			loginRateLimiter(ctx, s.rdb),
+			Installation(authRepo),
 		),
 	)
 
@@ -58,8 +61,8 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		middleware.MiddlewareChain(
 			logout(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
-			Auth(authRepo),
 			Installation(authRepo),
+			Auth(authRepo),
 		),
 	)
 
@@ -99,6 +102,16 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		),
 	)
 
+	mux.HandleFunc(
+		"POST /oidc-login",
+		middleware.MiddlewareChain(
+			mobileOidcLogin(authRepo),
+			middleware.ACT_app_x_www_form_urlencoded,
+			mobileOidcLoginRateLimiterByIP(ctx, s.rdb),
+			Installation(authRepo),
+		),
+	)
+
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
 	)
@@ -116,7 +129,7 @@ func createAcccountRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(
 			rdb,
 			ratelimiter.Config{
 				PerTimeFrame: 100,
-				TimeFrame:    time.Hour * 24,
+				TimeFrame:    time.Hour * 12,
 				KeyPrefix:    "auth:create:account:ip",
 			},
 		),
@@ -201,7 +214,7 @@ func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Han
 			ratelimiter.Config{
 				PerTimeFrame: 10,
 				TimeFrame:    time.Hour * 12,
-				KeyPrefix:    "auth:login",
+				KeyPrefix:    "auth:login:password:identity",
 			},
 		),
 	)
@@ -224,6 +237,23 @@ func verifyAccountRateLimiterById(ctx context.Context, rdb *redis.Client) func(n
 				PerTimeFrame: 5,
 				TimeFrame:    time.Minute * 15,
 				KeyPrefix:    "auth:verify:account:id",
+			},
+		),
+	)
+}
+
+func verifyAccountRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiter(
+		func(r *http.Request) (string, error) {
+			return r.RemoteAddr, nil
+		},
+		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+			ctx,
+			rdb,
+			ratelimiter.Config{
+				PerTimeFrame: 25,
+				TimeFrame:    time.Hour,
+				KeyPrefix:    "auth:verify:account:ip",
 			},
 		),
 	)
@@ -261,7 +291,7 @@ func forgetPasswordRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(
 			rdb,
 			ratelimiter.Config{
 				PerTimeFrame: 100,
-				TimeFrame:    time.Hour * 24,
+				TimeFrame:    time.Hour * 12,
 				KeyPrefix:    "auth:forget:password:ip",
 			},
 		),
@@ -981,4 +1011,103 @@ func userProfile(authRepo auth.Repository) http.HandlerFunc {
 
 		writeResponse(ctx, w, r, http.StatusAccepted, publicUser)
 	}
+}
+
+//-----------------------------------------------------------------------------
+
+func mobileOidcLoginRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiter(
+		func(r *http.Request) (string, error) {
+			return r.RemoteAddr, nil
+		},
+		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+			ctx,
+			rdb,
+			ratelimiter.Config{
+				PerTimeFrame: 100,
+				TimeFrame:    time.Hour * 12,
+				KeyPrefix:    "auth:login:oidc:ip",
+			},
+		),
+	)
+}
+
+type mobileOidcLoginParams struct {
+	provider  *oauth.OauthProvider
+	code      string
+	oidcToken string
+}
+
+func mobileOidcLogin(authRepo auth.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		err := r.ParseForm()
+		if err != nil {
+			writeError(ctx, w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		oidcParam, errList := validateMobileOidcLoginParam(r)
+		if len(errList) != 0 {
+			writeError(ctx, w, r, http.StatusBadRequest, errList...)
+			return
+		}
+
+		zlog := zerolog.Ctx(ctx).With().Str("oauth_provider", oidcParam.provider.String()).Logger()
+		ctx = zlog.WithContext(ctx)
+
+		installation := auth.MustInstallationFromContext(ctx)
+		requestIpAddres := tracker.MustReqIPFromContext(ctx)
+
+		user, token, err := authRepo.LoginOrCreateUserWithOidc(
+			ctx,
+			requestIpAddres,
+			installation,
+			auth.LoginOrCreateUserWithOidcRepoParam{
+				OauthProvider: *oidcParam.provider,
+				Code:          oidcParam.code,
+				OidcToken:     oidcParam.oidcToken,
+			},
+		)
+		if err != nil {
+			writeError(ctx, w, r, http.StatusBadRequest, err)
+			return
+		}
+
+		response := struct {
+			User  publicUser `json:"user"`
+			Token string     `json:"token"`
+		}{
+			User:  NewPublicUserFromAuthUser(user),
+			Token: token,
+		}
+		writeResponse(ctx, w, r, http.StatusCreated, response)
+	}
+}
+
+func validateMobileOidcLoginParam(r *http.Request) (mobileOidcLoginParams, []error) {
+	errList := make([]error, 0, 3)
+
+	provider := oauth.ProviderFromString(r.PathValue("provider"))
+	if provider == nil {
+		errList = append(errList, errors.New("unknown oidc provider"))
+	}
+
+	code := r.FormValue("code")
+	if len(code) == 0 {
+		errList = append(errList, errors.New("the code is required"))
+	}
+	
+	oidcToken := r.FormValue("oidc_token")
+	if len(oidcToken) == 0 {
+		errList = append(errList, errors.New("the oidc_token is required"))
+	}
+
+	params := mobileOidcLoginParams{
+		code:      code,
+		oidcToken: oidcToken,
+		provider:  provider,
+	}
+	return params, errList
 }

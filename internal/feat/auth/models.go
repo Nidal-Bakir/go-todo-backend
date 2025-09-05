@@ -9,6 +9,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/oidc"
 	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
@@ -411,45 +412,20 @@ type PublicLoginOptionForProfile struct {
 }
 
 type LoginOrCreateUserWithOidcData struct {
-	InstallationId int32
-	IpAddress      netip.Addr
+	oauthProvider      oauth.OauthProvider
+	OauthTokenIssuedAt pgtype.Timestamp
+	UserUsername       string
+	InstallationId     int32
+	IpAddress          netip.Addr
 
-	UserFirstName    string
-	UserLastName     pgtype.Text
-	UserProfileImage pgtype.Text
-	UserUsername     string
-	UserRoleID       pgtype.Int4
-
-	OidcGivenName  pgtype.Text
-	OidcFamilyName pgtype.Text
-	OidcName       pgtype.Text
-	OidcSub        string
-	OidcEmail      pgtype.Text
-	OidcPicture    pgtype.Text
-	OidcIss        string
-	OidcAud        string
-	OidcIat        pgtype.Timestamp
-
-	oauthProvider              oauth.OauthProvider
-	OauthProviderIsOidcCapable bool
-
-	OauthScopes         oauth.Scops
-	OauthAccessToken    string
-	OauthRefreshToken   pgtype.Text
-	OauthTokenType      pgtype.Text
-	OauthTokenExpiresAt pgtype.Timestamp
-	OauthTokenIssuedAt  pgtype.Timestamp
+	oidc.OidcData
 }
 
 type LoginOrCreateUserWithOidcRepoParam struct {
-	OauthProvider        oauth.OauthProvider
-	AccessToken          string
-	RefreshToken         string
-	AccessTokenExpiresAt time.Time
-	OidcToken            string
-	OauthScopes          oauth.Scops
-	UserRoleID           *int32
-	OauthTokenType       string
+	OauthProvider oauth.OauthProvider
+	Code          string
+	CodeVerifier  string
+	OidcToken     string
 }
 
 type Installation struct {

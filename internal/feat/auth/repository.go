@@ -8,8 +8,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/google"
-	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/oidc"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/otp"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/gateway"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
@@ -51,7 +50,7 @@ type Repository interface {
 	ForgetPassword(ctx context.Context, accessKey PasswordLoginAccessKey) (uuid.UUID, error)
 	ResetPassword(ctx context.Context, id uuid.UUID, providedOTP, newPassword string) error
 	GetAllLoginIdentitiesForUser(ctx context.Context, userId int) ([]PublicLoginOptionForProfile, error)
-	LoginOrCreateUserWithOidc(ctx context.Context, data LoginOrCreateUserWithOidcRepoParam, ipAddress netip.Addr, installation Installation) (user User, token string, err error)
+	LoginOrCreateUserWithOidc(ctx context.Context, ipAddress netip.Addr, installation Installation, data LoginOrCreateUserWithOidcRepoParam) (user User, token string, err error)
 }
 
 func NewRepository(ds DataSource, gatewaysProvider gateway.Provider, passwordHasher password_hasher.PasswordHasher, authJWT *AuthJWT) Repository {
@@ -662,74 +661,46 @@ func (repo repositoryImpl) GetAllLoginIdentitiesForUser(ctx context.Context, use
 	return loginOptionSlice, nil
 }
 
+func (repo repositoryImpl) checkIfOidcEmailIsUsedInNormalPasswordLoginIdentity(ctx context.Context, email string) error {
+	zlog := zerolog.Ctx(ctx)
+	if emailvalidator.IsValidEmail(email) {
+		isUsed, err := repo.dataSource.IsEmailUsedInPasswordLoginIdentity(ctx, email)
+		if err != nil {
+			zlog.Err(err).Msg("can not check if oidc email is used in  email password login identity")
+			return err
+		}
+		if isUsed {
+			return apperr.ErrAlreadyUsedEmailWithPasswordLogin
+		}
+	}
+	return nil
+}
+
 func (repo repositoryImpl) LoginOrCreateUserWithOidc(
 	ctx context.Context,
-	params LoginOrCreateUserWithOidcRepoParam,
 	ipAddress netip.Addr,
 	installation Installation,
+	params LoginOrCreateUserWithOidcRepoParam,
 ) (User, string, error) {
 	zlog := zerolog.Ctx(ctx)
 
-	data := LoginOrCreateUserWithOidcData{
-		oauthProvider:              params.OauthProvider,
-		InstallationId:             installation.ID,
-		IpAddress:                  ipAddress,
-		OauthAccessToken:           params.AccessToken,
-		OauthRefreshToken:          dbutils.ToPgTypeText(params.RefreshToken),
-		OauthTokenType:             dbutils.ToPgTypeText(params.OauthTokenType),
-		OauthScopes:                params.OauthScopes,
-		UserRoleID:                 dbutils.ToPgTypeInt4(params.UserRoleID),
-		OauthTokenExpiresAt:        dbutils.ToPgTypeTimestamp(params.AccessTokenExpiresAt),
-		OauthProviderIsOidcCapable: true,
-		OauthTokenIssuedAt:         dbutils.ToPgTypeTimestamp(time.Now()),
-		UserUsername:               uuid.NewString(),
-	}
-
-	onGoogle := func() error {
-		res, err := google.ValidatorIdToken(ctx, params.OidcToken)
-		if err != nil {
-			zlog.Err(err).Msg("can not validate google id token")
-			return err
-		}
-
-		if emailvalidator.IsValidEmail(res.Email) {
-			isUsed, err := repo.dataSource.IsEmailUsedInPasswordLoginIdentity(ctx, res.Email)
-			if err != nil {
-				zlog.Err(err).Msg("can not check if oidc email is used in normal email password login identity")
-				return err
-			}
-			if isUsed {
-				return apperr.ErrAlreadyUsedEmailWithPasswordLogin
-			}
-		}
-
-		data.OidcAud = res.Audience
-		data.OidcIss = res.Issuer
-		data.OidcIat = dbutils.ToPgTypeTimestamp(res.IssuedAt)
-
-		data.OidcSub = res.Sub
-		data.OidcEmail = dbutils.ToPgTypeText(res.Email)
-
-		data.OidcGivenName = dbutils.ToPgTypeText(res.GivenName)
-		data.OidcFamilyName = dbutils.ToPgTypeText(res.FamilyName)
-		data.OidcName = dbutils.ToPgTypeText(res.Name)
-		data.OidcPicture = dbutils.ToPgTypeText(res.Picture)
-
-		data.UserFirstName = res.GivenName
-		data.UserLastName = dbutils.ToPgTypeText(res.FamilyName)
-		data.UserProfileImage = dbutils.ToPgTypeText(res.Picture)
-
-		return nil
-	}
-
-	err := params.OauthProvider.Fold(
-		oauth.OauthProviderFoldActions{
-			OnGoogle: onGoogle,
-		},
-	)
+	oidcData, err := oidc.NewOidc(params.OauthProvider).Exec(ctx, params.Code, params.CodeVerifier, params.OidcToken)
 	if err != nil {
 		zlog.Err(err).Msgf("error while running oidc action for provider: %s", params.OauthProvider.String())
 		return User{}, "", err
+	}
+
+	if err = repo.checkIfOidcEmailIsUsedInNormalPasswordLoginIdentity(ctx, oidcData.OidcEmail.String); err != nil {
+		return User{}, "", err
+	}
+
+	data := LoginOrCreateUserWithOidcData{
+		oauthProvider:      params.OauthProvider,
+		InstallationId:     installation.ID,
+		IpAddress:          ipAddress,
+		OauthTokenIssuedAt: dbutils.ToPgTypeTimestamp(time.Now()),
+		UserUsername:       uuid.NewString(),
+		OidcData:           oidcData,
 	}
 
 	var token string
