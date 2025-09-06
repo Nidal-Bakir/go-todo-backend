@@ -396,7 +396,8 @@ func (ds dataSourceImpl) CreateInstallation(ctx context.Context, data CreateInst
 
 func (ds dataSourceImpl) UpdateInstallation(ctx context.Context, installationToken string, data UpdateInstallationData) error {
 	return ds.db.Queries.InstallationUpdateInstallation(
-		ctx, database_queries.InstallationUpdateInstallationParams{
+		ctx,
+		database_queries.InstallationUpdateInstallationParams{
 			InstallationToken:       installationToken,
 			NotificationToken:       dbutils.ToPgTypeText(data.NotificationToken),
 			Locale:                  data.Locale,

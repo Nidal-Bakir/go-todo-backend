@@ -40,9 +40,9 @@ func AuthCodeURL(ctx context.Context, state, verifier string) string {
 }
 
 func AuthCodeExchange(ctx context.Context, code, verifier string) (*oauth2.Token, error) {
-	authCodeOption := make([]oauth2.AuthCodeOption, 1)
+	authCodeOption := make([]oauth2.AuthCodeOption, 0)
 	if len(verifier) != 0 {
-		authCodeOption[0] = oauth2.VerifierOption(verifier)
+		authCodeOption = append(authCodeOption, oauth2.VerifierOption(verifier))
 	}
 	oauth2Token, err := googleOpenIdConnectConfig.Exchange(
 		ctx,

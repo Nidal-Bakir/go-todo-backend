@@ -1089,7 +1089,7 @@ func mobileOidcLogin(authRepo auth.Repository) http.HandlerFunc {
 func validateMobileOidcLoginParam(r *http.Request) (mobileOidcLoginParams, []error) {
 	errList := make([]error, 0, 3)
 
-	provider := oauth.ProviderFromString(r.PathValue("provider"))
+	provider := oauth.ProviderFromString(r.FormValue("provider"))
 	if provider == nil {
 		errList = append(errList, errors.New("unknown oidc provider"))
 	}

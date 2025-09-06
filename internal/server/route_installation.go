@@ -14,8 +14,14 @@ import (
 
 func installationRouter(_ context.Context, authRepo auth.Repository) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /create", createInstallation(authRepo))
-	mux.HandleFunc("POST /update",
+
+	mux.HandleFunc(
+		"POST /create",
+		createInstallation(authRepo),
+	)
+
+	mux.HandleFunc(
+		"POST /update",
 		middleware.MiddlewareChain(
 			updateInstallation(authRepo),
 			Installation(authRepo),
@@ -94,7 +100,7 @@ func validateCreateInstallationParams(r *http.Request) (param auth.CreateInstall
 	}
 
 	deviceOsVersion := r.FormValue("device_os_version")
-	if len(deviceOsVersion) < 10 {
+	if len(deviceOsVersion) < 50 {
 		param.DeviceOSVersion = deviceOsVersion
 	} else {
 		errs = append(errs, errors.New("too long device OS version"))
