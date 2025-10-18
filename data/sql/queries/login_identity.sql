@@ -294,3 +294,148 @@ WHERE id = @id;
 --     RETURNING token
 -- )
 -- SELECT token FROM new_session;
+
+
+-- name: LoginIdentityCreateNewUserAndOIDCLoginIdentity :one
+WITH new_user AS (
+  INSERT INTO users (
+    username,
+    profile_image,
+    first_name,
+    last_name,
+    role_id
+  )
+  VALUES (
+    @user_username::text,
+    sqlc.narg(user_profile_image)::text,
+    @user_first_name::text,
+    sqlc.narg(user_last_name)::text,
+    sqlc.narg(user_role_id)::int
+  )
+  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+),
+new_identity AS (
+  INSERT INTO login_identity (
+    user_id,
+    identity_type
+  )
+  VALUES (
+    (SELECT user_id FROM new_user),
+    'oidc'
+  )
+  RETURNING id
+),
+oauth_provider_record AS (
+    SELECT
+        @oauth_provider_name::text AS provider_name,
+        @oauth_provider_is_oidc_capable::bool AS is_oidc_capable
+),
+oauth_provider_record_merge_op AS (
+    MERGE INTO oauth_provider AS target
+    USING oauth_provider_record AS r
+    ON target.name = r.provider_name AND target.is_oidc_capable = r.is_oidc_capable
+    WHEN NOT MATCHED THEN
+        INSERT (name, is_oidc_capable)
+        VALUES (r.provider_name, r.is_oidc_capable)
+),
+oauth_connection_record AS (
+    SELECT
+        (SELECT provider_name from oauth_provider_record) AS provider_name,
+        @oauth_scopes::text[] AS scopes
+),
+oauth_connection_record_merge_op AS (
+    MERGE INTO oauth_connection AS target
+    USING oauth_connection_record AS r
+    ON target.provider_name = r.provider_name AND target.scopes = r.scopes
+    WHEN NOT MATCHED THEN
+        INSERT (provider_name, scopes)
+        VALUES (r.provider_name, r.scopes)
+    RETURNING target.*
+),
+oauth_connection_row AS (
+    SELECT id, provider_name, scopes, created_at, updated_at, deleted_at FROM oauth_connection_record_merge_op
+    UNION ALL
+    SELECT id, provider_name, scopes, created_at, updated_at, deleted_at from oauth_connection
+        WHERE provider_name = (SELECT provider_name from oauth_provider_record)
+            AND scopes = (SELECT scopes from oauth_connection_record)
+),
+new_oauth_integration AS (
+    INSERT INTO oauth_integration (
+        oauth_connection_id,
+        integration_type
+    )
+    VALUES (
+        (SELECT id FROM oauth_connection_row),
+        'user'
+    )
+    RETURNING id
+),
+new_oauth_token AS (
+	INSERT INTO oauth_token (
+	    oauth_integration_id,
+	    access_token,
+	    refresh_token,
+	    token_type,
+	    expires_at,
+	    issued_at
+	)
+	SELECT
+	    (SELECT id FROM new_oauth_integration),
+	    sqlc.narg(oauth_access_token)::text,
+	    sqlc.narg(oauth_refresh_token)::text,
+	    sqlc.narg(oauth_token_type)::text,
+	    @oauth_token_expires_at::timestamp,
+	    @oauth_token_issued_at::timestamp
+	WHERE (
+	    sqlc.narg(oauth_access_token)::text IS NOT NULL AND sqlc.narg(oauth_access_token)::text <> ''
+	) OR (
+	    sqlc.narg(oauth_refresh_token)::text IS NOT NULL AND sqlc.narg(oauth_refresh_token)::text <> ''
+	)
+),
+new_user_integration AS (
+    INSERT INTO user_integration (
+        oauth_integration_id,
+        user_id
+    )
+    VALUES (
+        (SELECT id FROM new_oauth_integration),
+        (SELECT user_id FROM new_user)
+    )
+    RETURNING id
+),
+new_oidc_data AS (
+    INSERT INTO oidc_data (
+        provider_name,
+        sub,
+        email,
+        iss,
+        aud,
+        given_name,
+        family_name,
+        name,
+        picture
+    )
+    VALUES (
+        (SELECT provider_name from oauth_provider_record),
+        @oidc_sub::text,
+        sqlc.narg(oidc_email)::text,
+        @oidc_iss::text,
+        @oidc_aud::text,
+        sqlc.narg(oidc_given_name)::text,
+        sqlc.narg(oidc_family_name)::text,
+        sqlc.narg(oidc_name)::text,
+        sqlc.narg(oidc_picture)::text
+    )
+    RETURNING id
+),
+new_oidc_login_identity AS (
+    INSERT INTO oidc_login_identity (
+        login_identity_id,
+        oidc_data_id
+    )
+    VALUES (
+        (SELECT id FROM new_identity),
+        (SELECT id FROM new_oidc_data)
+    )
+)
+SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i;

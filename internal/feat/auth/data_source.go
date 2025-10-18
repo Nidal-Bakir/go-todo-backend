@@ -570,6 +570,7 @@ func oidcCreateAccountAndLogin(ctx context.Context, queries *database_queries.Qu
 	result, err := queries.LoginIdentityCreateNewUserAndOIDCLoginIdentity(
 		ctx,
 		database_queries.LoginIdentityCreateNewUserAndOIDCLoginIdentityParams{
+			
 			UserUsername:               oidcParamData.UserUsername,
 			UserProfileImage:           oidcParamData.UserProfileImage,
 			UserFirstName:              oidcParamData.UserFirstName,
