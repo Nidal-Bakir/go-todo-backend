@@ -59,7 +59,7 @@ type ActiveOauthProvider struct {
 type ActiveOauthToken struct {
 	ID                 int32              `json:"id"`
 	OauthIntegrationID int32              `json:"oauth_integration_id"`
-	AccessToken        string             `json:"access_token"`
+	AccessToken        pgtype.Text        `json:"access_token"`
 	RefreshToken       pgtype.Text        `json:"refresh_token"`
 	TokenType          string             `json:"token_type"`
 	ExpiresAt          pgtype.Timestamp   `json:"expires_at"`
@@ -69,29 +69,29 @@ type ActiveOauthToken struct {
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type ActiveOidcLoginIdentity struct {
-	ID                        int32              `json:"id"`
-	LoginIdentityID           int32              `json:"login_identity_id"`
-	OidcUserIntegrationDataID int32              `json:"oidc_user_integration_data_id"`
-	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+type ActiveOidcDatum struct {
+	ID           int32              `json:"id"`
+	ProviderName string             `json:"provider_name"`
+	Sub          string             `json:"sub"`
+	Email        pgtype.Text        `json:"email"`
+	Iss          string             `json:"iss"`
+	Aud          string             `json:"aud"`
+	GivenName    pgtype.Text        `json:"given_name"`
+	FamilyName   pgtype.Text        `json:"family_name"`
+	Name         pgtype.Text        `json:"name"`
+	Picture      pgtype.Text        `json:"picture"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type ActiveOidcUserIntegrationDatum struct {
-	ID                int32              `json:"id"`
-	UserIntegrationID int32              `json:"user_integration_id"`
-	Sub               string             `json:"sub"`
-	Email             pgtype.Text        `json:"email"`
-	Iss               string             `json:"iss"`
-	Aud               string             `json:"aud"`
-	GivenName         pgtype.Text        `json:"given_name"`
-	FamilyName        pgtype.Text        `json:"family_name"`
-	Name              pgtype.Text        `json:"name"`
-	Picture           pgtype.Text        `json:"picture"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+type ActiveOidcLoginIdentity struct {
+	ID              int32              `json:"id"`
+	LoginIdentityID int32              `json:"login_identity_id"`
+	OidcDataID      int32              `json:"oidc_data_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type ActivePasswordLoginIdentity struct {
@@ -174,6 +174,24 @@ type LoginIdentity struct {
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type NotDeletedInstallation struct {
+	ID                      int32              `json:"id"`
+	InstallationToken       string             `json:"installation_token"`
+	NotificationToken       pgtype.Text        `json:"notification_token"`
+	Locale                  string             `json:"locale"`
+	TimezoneOffsetInMinutes int32              `json:"timezone_offset_in_minutes"`
+	DeviceManufacturer      pgtype.Text        `json:"device_manufacturer"`
+	DeviceOs                string             `json:"device_os"`
+	ClientType              string             `json:"client_type"`
+	DeviceOsVersion         pgtype.Text        `json:"device_os_version"`
+	AppVersion              string             `json:"app_version"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt               pgtype.Timestamptz `json:"deleted_at"`
+	AttachTo                pgtype.Int4        `json:"attach_to"`
+	LastAttachTo            pgtype.Int4        `json:"last_attach_to"`
+}
+
 type NotDeletedUser struct {
 	ID           int32              `json:"id"`
 	Username     string             `json:"username"`
@@ -218,7 +236,7 @@ type OauthProvider struct {
 type OauthToken struct {
 	ID                 int32              `json:"id"`
 	OauthIntegrationID int32              `json:"oauth_integration_id"`
-	AccessToken        string             `json:"access_token"`
+	AccessToken        pgtype.Text        `json:"access_token"`
 	RefreshToken       pgtype.Text        `json:"refresh_token"`
 	TokenType          string             `json:"token_type"`
 	ExpiresAt          pgtype.Timestamp   `json:"expires_at"`
@@ -228,29 +246,29 @@ type OauthToken struct {
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type OidcLoginIdentity struct {
-	ID                        int32              `json:"id"`
-	LoginIdentityID           int32              `json:"login_identity_id"`
-	OidcUserIntegrationDataID int32              `json:"oidc_user_integration_data_id"`
-	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+type OidcDatum struct {
+	ID           int32              `json:"id"`
+	ProviderName string             `json:"provider_name"`
+	Sub          string             `json:"sub"`
+	Email        pgtype.Text        `json:"email"`
+	Iss          string             `json:"iss"`
+	Aud          string             `json:"aud"`
+	GivenName    pgtype.Text        `json:"given_name"`
+	FamilyName   pgtype.Text        `json:"family_name"`
+	Name         pgtype.Text        `json:"name"`
+	Picture      pgtype.Text        `json:"picture"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
 }
 
-type OidcUserIntegrationDatum struct {
-	ID                int32              `json:"id"`
-	UserIntegrationID int32              `json:"user_integration_id"`
-	Sub               string             `json:"sub"`
-	Email             pgtype.Text        `json:"email"`
-	Iss               string             `json:"iss"`
-	Aud               string             `json:"aud"`
-	GivenName         pgtype.Text        `json:"given_name"`
-	FamilyName        pgtype.Text        `json:"family_name"`
-	Name              pgtype.Text        `json:"name"`
-	Picture           pgtype.Text        `json:"picture"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+type OidcLoginIdentity struct {
+	ID              int32              `json:"id"`
+	LoginIdentityID int32              `json:"login_identity_id"`
+	OidcDataID      int32              `json:"oidc_data_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type PasswordLoginIdentity struct {

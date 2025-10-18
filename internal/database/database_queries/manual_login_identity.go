@@ -81,22 +81,26 @@ new_oauth_integration AS (
     RETURNING id
 ),
 new_oauth_token AS (
-    INSERT INTO oauth_token (
-        oauth_integration_id,
-        access_token,
-        refresh_token,
-        token_type,
-        expires_at,
-        issued_at
-    )
-    VALUES (
-        (SELECT id FROM new_oauth_integration),
-        $9::text,
-        $10::text,
-        $11::text,
-        $12::timestamp,
-        $13::timestamp
-    )
+	INSERT INTO oauth_token (
+	    oauth_integration_id,
+	    access_token,
+	    refresh_token,
+	    token_type,
+	    expires_at,
+	    issued_at
+	)
+	SELECT
+	    (SELECT id FROM new_oauth_integration),
+	    $9::text,
+	    $10::text,
+	    $11::text,
+	    $12::timestamp,
+	    $13::timestamp
+	WHERE (
+	    $9::text IS NOT NULL AND $9::text <> ''
+	) OR (
+	    $10::text IS NOT NULL AND $10::text <> ''
+	)
 ),
 new_user_integration AS (
     INSERT INTO user_integration (
@@ -109,9 +113,9 @@ new_user_integration AS (
     )
     RETURNING id
 ),
-new_oidc_user_integration_data AS (
-    INSERT INTO oidc_user_integration_data (
-        user_integration_id,
+new_oidc_data AS (
+    INSERT INTO oidc_data (
+        provider_name,
         sub,
         email,
         iss,
@@ -122,7 +126,7 @@ new_oidc_user_integration_data AS (
         picture
     )
     VALUES (
-        (SELECT id FROM new_user_integration),
+        (SELECT provider_name from oauth_provider_record),
         $14::text,
         $15::text,
         $16::text,
@@ -137,11 +141,11 @@ new_oidc_user_integration_data AS (
 new_oidc_login_identity AS (
     INSERT INTO oidc_login_identity (
         login_identity_id,
-        oidc_user_integration_data_id
+        oidc_data_id
     )
     VALUES (
         (SELECT id FROM new_identity),
-        (SELECT id FROM new_oidc_user_integration_data)
+        (SELECT id FROM new_oidc_data)
     )
 )
 SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i
@@ -156,7 +160,7 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityParams struct {
 	OauthProviderName          string           `json:"oauth_provider_name"`
 	OauthProviderIsOidcCapable bool             `json:"oauth_provider_is_oidc_capable"`
 	OauthScopes                []string         `json:"oauth_scopes"`
-	OauthAccessToken           string           `json:"oauth_access_token"`
+	OauthAccessToken           pgtype.Text      `json:"oauth_access_token"`
 	OauthRefreshToken          pgtype.Text      `json:"oauth_refresh_token"`
 	OauthTokenType             pgtype.Text      `json:"oauth_token_type"`
 	OauthTokenExpiresAt        pgtype.Timestamp `json:"oauth_token_expires_at"`
@@ -187,8 +191,6 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 	NewLoginIdentityID int32              `json:"new_login_identity_id"`
 }
 
-// LoginIdentityCreateNewUserAndOIDCLoginIdentity
-//
 // WITH new_user AS (
 //
 //	INSERT INTO users (
@@ -288,13 +290,17 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 //	    expires_at,
 //	    issued_at
 //	)
-//	VALUES (
+//	SELECT
 //	    (SELECT id FROM new_oauth_integration),
 //	    $9::text,
 //	    $10::text,
 //	    $11::text,
 //	    $12::timestamp,
 //	    $13::timestamp
+//	WHERE (
+//	    $9::text IS NOT NULL AND $9::text <> ''
+//	) OR (
+//	    $10::text IS NOT NULL AND $10::text <> ''
 //	)
 //
 // ),
@@ -311,9 +317,9 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 //	RETURNING id
 //
 // ),
-// new_oidc_user_integration_data AS (
+// new_oidc_data AS (
 //
-//	INSERT INTO oidc_user_integration_data (
+//	INSERT INTO oidc_data (
 //	    user_integration_id,
 //	    sub,
 //	    email,
@@ -342,11 +348,11 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 //
 //	INSERT INTO oidc_login_identity (
 //	    login_identity_id,
-//	    oidc_user_integration_data_id
+//	    oidc_data_id
 //	)
 //	VALUES (
 //	    (SELECT id FROM new_identity),
-//	    (SELECT id FROM new_oidc_user_integration_data)
+//	    (SELECT id FROM new_oidc_data)
 //	)
 //
 // )

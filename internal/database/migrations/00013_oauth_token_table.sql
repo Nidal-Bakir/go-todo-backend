@@ -2,7 +2,7 @@
 CREATE TABLE oauth_token (
   id SERIAL PRIMARY KEY NOT NULL,
   oauth_integration_id INTEGER NOT NULL UNIQUE REFERENCES oauth_integration(id),
-  access_token VARCHAR(2048) NOT NULL,
+  access_token VARCHAR(2048),
   refresh_token VARCHAR(2048),
   token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',
   expires_at TIMESTAMP,

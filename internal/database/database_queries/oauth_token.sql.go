@@ -11,9 +11,67 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const oauthTokenCreate = `-- name: OauthTokenCreate :exec
+INSERT INTO oauth_token (
+	    oauth_integration_id,
+	    access_token,
+	    refresh_token,
+	    token_type,
+	    expires_at,
+	    issued_at
+	)
+	VALUES (
+	    $1,
+	    $2::text,
+        $3::text,
+        $4::text,
+        $5,
+        $6
+	)
+`
+
+type OauthTokenCreateParams struct {
+	OauthIntegrationID int32            `json:"oauth_integration_id"`
+	AccessToken        pgtype.Text      `json:"access_token"`
+	RefreshToken       pgtype.Text      `json:"refresh_token"`
+	TokenType          pgtype.Text      `json:"token_type"`
+	ExpiresAt          pgtype.Timestamp `json:"expires_at"`
+	IssuedAt           pgtype.Timestamp `json:"issued_at"`
+}
+
+// OauthTokenCreate
+//
+//	INSERT INTO oauth_token (
+//		    oauth_integration_id,
+//		    access_token,
+//		    refresh_token,
+//		    token_type,
+//		    expires_at,
+//		    issued_at
+//		)
+//		VALUES (
+//		    $1,
+//		    $2::text,
+//	        $3::text,
+//	        $4::text,
+//	        $5,
+//	        $6
+//		)
+func (q *Queries) OauthTokenCreate(ctx context.Context, arg OauthTokenCreateParams) error {
+	_, err := q.db.Exec(ctx, oauthTokenCreate,
+		arg.OauthIntegrationID,
+		arg.AccessToken,
+		arg.RefreshToken,
+		arg.TokenType,
+		arg.ExpiresAt,
+		arg.IssuedAt,
+	)
+	return err
+}
+
 const oauthTokenUpdate = `-- name: OauthTokenUpdate :exec
 UPDATE oauth_token
-SET access_token = $1,
+SET access_token = $1::text,
     refresh_token = $2::text,
     token_type = $3::text,
     expires_at = $4,
@@ -22,7 +80,7 @@ WHERE id = $6
 `
 
 type OauthTokenUpdateParams struct {
-	AccessToken  string           `json:"access_token"`
+	AccessToken  pgtype.Text      `json:"access_token"`
 	RefreshToken pgtype.Text      `json:"refresh_token"`
 	TokenType    pgtype.Text      `json:"token_type"`
 	ExpiresAt    pgtype.Timestamp `json:"expires_at"`
@@ -33,7 +91,7 @@ type OauthTokenUpdateParams struct {
 // OauthTokenUpdate
 //
 //	UPDATE oauth_token
-//	SET access_token = $1,
+//	SET access_token = $1::text,
 //	    refresh_token = $2::text,
 //	    token_type = $3::text,
 //	    expires_at = $4,

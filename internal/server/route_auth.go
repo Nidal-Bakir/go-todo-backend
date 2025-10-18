@@ -1095,10 +1095,10 @@ func validateMobileOidcLoginParam(r *http.Request) (mobileOidcLoginParams, []err
 	}
 
 	code := r.FormValue("code")
-	if len(code) == 0 {
-		errList = append(errList, errors.New("the code is required"))
+	if len(code) > 2500 {
+		errList = append(errList, errors.New("the code is too big"))
 	}
-	
+
 	oidcToken := r.FormValue("oidc_token")
 	if len(oidcToken) == 0 {
 		errList = append(errList, errors.New("the oidc_token is required"))

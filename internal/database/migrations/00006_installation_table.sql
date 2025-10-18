@@ -20,5 +20,15 @@ CREATE TABLE installation (
 CREATE TRIGGER update_installation_updated_at_column BEFORE
 UPDATE ON installation FOR EACH ROW EXECUTE PROCEDURE trigger_set_updated_at_column ();
 
+CREATE VIEW not_deleted_installation AS
+SELECT
+    *
+FROM
+    installation
+WHERE
+    deleted_at IS NULL;
+
+
 -- +goose Down
+DROP VIEW not_deleted_installation;
 DROP TABLE installation;

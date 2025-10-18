@@ -7,7 +7,95 @@ package database_queries
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const oauthIntegrationGetByUserAndScopes = `-- name: OauthIntegrationGetByUserAndScopes :one
+SELECT
+    ui.id AS user_integration_id,
+    ui.user_id AS user_integration_user_id,
+
+    oi.id AS oauth_integration_id,
+    oi.id AS oauth_integration_type,
+
+    ot.id AS oauth_token_id,
+
+    oc.id AS oauth_connection_id,
+    oc.scopes AS oauth_connection_scopes,
+    oc.provider_name AS oauth_connection_provider_name
+from active_user_integration AS ui
+JOIN active_oauth_integration AS oi
+    ON ui.oauth_integration_id = oi.id
+JOIN active_oauth_connection AS oc
+    ON oi.oauth_connection_id = oc.id
+LEFT JOIN active_oauth_token AS ot
+    ON ot.oauth_integration_id = oi.id
+
+WHERE ui.user_id = $1::INTEGER
+    AND oc.scopes = $2::text[]
+    AND oc.provider_name = $3::text
+LIMIT 1
+`
+
+type OauthIntegrationGetByUserAndScopesParams struct {
+	UserID       int32    `json:"user_id"`
+	OauthScopes  []string `json:"oauth_scopes"`
+	ProviderName string   `json:"provider_name"`
+}
+
+type OauthIntegrationGetByUserAndScopesRow struct {
+	UserIntegrationID           int32       `json:"user_integration_id"`
+	UserIntegrationUserID       int32       `json:"user_integration_user_id"`
+	OauthIntegrationID          int32       `json:"oauth_integration_id"`
+	OauthIntegrationType        int32       `json:"oauth_integration_type"`
+	OauthTokenID                pgtype.Int4 `json:"oauth_token_id"`
+	OauthConnectionID           int32       `json:"oauth_connection_id"`
+	OauthConnectionScopes       []string    `json:"oauth_connection_scopes"`
+	OauthConnectionProviderName string      `json:"oauth_connection_provider_name"`
+}
+
+// OauthIntegrationGetByUserAndScopes
+//
+//	SELECT
+//	    ui.id AS user_integration_id,
+//	    ui.user_id AS user_integration_user_id,
+//
+//	    oi.id AS oauth_integration_id,
+//	    oi.id AS oauth_integration_type,
+//
+//	    ot.id AS oauth_token_id,
+//
+//	    oc.id AS oauth_connection_id,
+//	    oc.scopes AS oauth_connection_scopes,
+//	    oc.provider_name AS oauth_connection_provider_name
+//	from active_user_integration AS ui
+//	JOIN active_oauth_integration AS oi
+//	    ON ui.oauth_integration_id = oi.id
+//	JOIN active_oauth_connection AS oc
+//	    ON oi.oauth_connection_id = oc.id
+//	LEFT JOIN active_oauth_token AS ot
+//	    ON ot.oauth_integration_id = oi.id
+//
+//	WHERE ui.user_id = $1::INTEGER
+//	    AND oc.scopes = $2::text[]
+//	    AND oc.provider_name = $3::text
+//	LIMIT 1
+func (q *Queries) OauthIntegrationGetByUserAndScopes(ctx context.Context, arg OauthIntegrationGetByUserAndScopesParams) (OauthIntegrationGetByUserAndScopesRow, error) {
+	row := q.db.QueryRow(ctx, oauthIntegrationGetByUserAndScopes, arg.UserID, arg.OauthScopes, arg.ProviderName)
+	var i OauthIntegrationGetByUserAndScopesRow
+	err := row.Scan(
+		&i.UserIntegrationID,
+		&i.UserIntegrationUserID,
+		&i.OauthIntegrationID,
+		&i.OauthIntegrationType,
+		&i.OauthTokenID,
+		&i.OauthConnectionID,
+		&i.OauthConnectionScopes,
+		&i.OauthConnectionProviderName,
+	)
+	return i, err
+}
 
 const oauthIntegrationUpdateToOauthConnectionBasedOnNewScopes = `-- name: OauthIntegrationUpdateToOauthConnectionBasedOnNewScopes :exec
 WITH oauth_connection_record AS (

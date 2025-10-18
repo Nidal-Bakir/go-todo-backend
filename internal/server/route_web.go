@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/google"
 	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
@@ -35,7 +36,11 @@ func webRouter(_ context.Context, authRepo auth.Repository) http.Handler {
 		),
 	)
 
-	mux.HandleFunc("/auth/oidc/{provider}/login", oauthlogin(authRepo))
+	mux.HandleFunc("/auth/oidc/{provider}/login",
+		middleware.MiddlewareChain(
+			oauthlogin(authRepo),
+			Installation(authRepo),
+		))
 	mux.HandleFunc("/auth/oidc/{provider}/callback",
 		middleware.MiddlewareChain(
 			oauthloginCallback(authRepo),
@@ -49,6 +54,12 @@ func webRouter(_ context.Context, authRepo auth.Repository) http.Handler {
 func oauthlogin(_ auth.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+
+		installation := auth.MustInstallationFromContext(ctx)
+		if installation.AttachTo != nil {
+			writeError(ctx, w, r, http.StatusBadRequest, apperr.ErrInstallationTokenInUse)
+			return
+		}
 
 		provider := oauth.ProviderFromString(r.PathValue("provider"))
 		if provider == nil {

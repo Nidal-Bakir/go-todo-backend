@@ -67,31 +67,31 @@ func googleOidcFunc(ctx context.Context, code, codeVerifier, oidcToken string) (
 		if err != nil {
 			return data, err
 		}
-		// TODO:(nidal) there maybe no code to exchange it with tokens. do not enforce the code.
-		err = exchangeCode()
-		if err != nil {
-			return data, err
+		if len(code) != 0 {
+			err = exchangeCode()
+			if err != nil {
+				return data, err
+			}
 		}
 	}
 
-	data.OauthAccessToken = oauthToken.AccessToken
-	data.OauthRefreshToken = dbutils.ToPgTypeText(oauthToken.RefreshToken)
-	data.OauthTokenType = dbutils.ToPgTypeText(oauthToken.TokenType)
-	data.OauthTokenExpiresAt = dbutils.ToPgTypeTimestamp(oauthToken.Expiry)
-	data.OauthScopes = *oauth.NewScops(google.OidcScops)
+	if oauthToken != nil {
+		data.OauthAccessToken = dbutils.ToPgTypeText(oauthToken.AccessToken)
+		data.OauthRefreshToken = dbutils.ToPgTypeText(oauthToken.RefreshToken)
+		data.OauthTokenType = dbutils.ToPgTypeText(oauthToken.TokenType)
+		data.OauthTokenExpiresAt = dbutils.ToPgTypeTimestamp(oauthToken.Expiry)
+	}
 
+	data.OauthScopes = *oauth.NewScopes(google.OidcScops)
 	data.OidcAud = claims.Audience
 	data.OidcIss = claims.Issuer
 	data.OidcIat = dbutils.ToPgTypeTimestamp(claims.IssuedAt)
-
 	data.OidcSub = claims.Sub
 	data.OidcEmail = dbutils.ToPgTypeText(claims.Email)
-
 	data.OidcGivenName = dbutils.ToPgTypeText(claims.GivenName)
 	data.OidcFamilyName = dbutils.ToPgTypeText(claims.FamilyName)
 	data.OidcName = dbutils.ToPgTypeText(claims.Name)
 	data.OidcPicture = dbutils.ToPgTypeText(claims.Picture)
-
 	data.UserFirstName = claims.GivenName
 	data.UserLastName = dbutils.ToPgTypeText(claims.FamilyName)
 	data.UserProfileImage = dbutils.ToPgTypeText(claims.Picture)

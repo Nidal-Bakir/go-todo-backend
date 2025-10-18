@@ -313,18 +313,16 @@ SELECT
   gli.device_id AS guest_device_id,
 
   -- OIDC-based
-  oud.id AS oidc_data_id,
-  oud.sub AS oidc_data_sub,
-  oud.email AS oidc_data_email,
-  oud.iss AS oidc_data_issuer,
-  oud.aud AS oidc_data_audience,
-  oud.given_name AS oidc_data_given_name,
-  oud.family_name AS oidc_data_family_name,
-  oud.name AS oidc_data_name,
-  oud.picture AS oidc_data_picture,
-
-  -- oauth_provider
-  op.name AS oauth_provider_name
+  oidc_data.id AS oidc_data_id,
+  oidc_data.sub AS oidc_data_sub,
+  oidc_data.email AS oidc_data_email,
+  oidc_data.iss AS oidc_data_issuer,
+  oidc_data.aud AS oidc_data_audience,
+  oidc_data.given_name AS oidc_data_given_name,
+  oidc_data.family_name AS oidc_data_family_name,
+  oidc_data.name AS oidc_data_name,
+  oidc_data.picture AS oidc_data_picture,
+  oidc_data.provider_name AS oauth_provider_name
 
 FROM active_login_identity AS li
 LEFT JOIN active_password_login_identity AS pli
@@ -333,16 +331,8 @@ LEFT JOIN active_guest_login_identity AS gli
   ON li.id = gli.login_identity_id
 LEFT JOIN active_oidc_login_identity AS oli
   ON li.id = oli.login_identity_id
-LEFT JOIN active_oidc_user_integration_data AS oud
-  ON oli.oidc_user_integration_data_id = oud.id
-LEFT JOIN user_integration AS ui
-  ON oud.user_integration_id = ui.id
-LEFT JOIN oauth_integration AS oi
-  ON ui.oauth_integration_id = oi.id
-LEFT JOIN oauth_connection AS oc
-  ON oi.oauth_connection_id = oc.id
-LEFT JOIN oauth_provider AS op
-  ON oc.provider_name = op.name
+LEFT JOIN active_oidc_data AS oidc_data
+  ON oli.oidc_data_id = oidc_data.id
 
 WHERE li.user_id = $1
 ORDER BY li.is_primary DESC, li.last_used_at DESC
@@ -396,18 +386,16 @@ type LoginIdentityGetAllByUserIdRow struct {
 //	  gli.device_id AS guest_device_id,
 //
 //	  -- OIDC-based
-//	  oud.id AS oidc_data_id,
-//	  oud.sub AS oidc_data_sub,
-//	  oud.email AS oidc_data_email,
-//	  oud.iss AS oidc_data_issuer,
-//	  oud.aud AS oidc_data_audience,
-//	  oud.given_name AS oidc_data_given_name,
-//	  oud.family_name AS oidc_data_family_name,
-//	  oud.name AS oidc_data_name,
-//	  oud.picture AS oidc_data_picture,
-//
-//	  -- oauth_provider
-//	  op.name AS oauth_provider_name
+//	  oidc_data.id AS oidc_data_id,
+//	  oidc_data.sub AS oidc_data_sub,
+//	  oidc_data.email AS oidc_data_email,
+//	  oidc_data.iss AS oidc_data_issuer,
+//	  oidc_data.aud AS oidc_data_audience,
+//	  oidc_data.given_name AS oidc_data_given_name,
+//	  oidc_data.family_name AS oidc_data_family_name,
+//	  oidc_data.name AS oidc_data_name,
+//	  oidc_data.picture AS oidc_data_picture,
+//	  oidc_data.provider_name AS oauth_provider_name
 //
 //	FROM active_login_identity AS li
 //	LEFT JOIN active_password_login_identity AS pli
@@ -416,16 +404,8 @@ type LoginIdentityGetAllByUserIdRow struct {
 //	  ON li.id = gli.login_identity_id
 //	LEFT JOIN active_oidc_login_identity AS oli
 //	  ON li.id = oli.login_identity_id
-//	LEFT JOIN active_oidc_user_integration_data AS oud
-//	  ON oli.oidc_user_integration_data_id = oud.id
-//	LEFT JOIN user_integration AS ui
-//	  ON oud.user_integration_id = ui.id
-//	LEFT JOIN oauth_integration AS oi
-//	  ON ui.oauth_integration_id = oi.id
-//	LEFT JOIN oauth_connection AS oc
-//	  ON oi.oauth_connection_id = oc.id
-//	LEFT JOIN oauth_provider AS op
-//	  ON oc.provider_name = op.name
+//	LEFT JOIN active_oidc_data AS oidc_data
+//	  ON oli.oidc_data_id = oidc_data.id
 //
 //	WHERE li.user_id = $1
 //	ORDER BY li.is_primary DESC, li.last_used_at DESC
@@ -576,32 +556,20 @@ SELECT
     u.updated_at AS user_updated_at,
     u.role_id as user_role_id,
     li.id AS login_identity_id,
-    ot.id AS oauth_token_id,
-    oc.id AS oauth_connection_id,
-    oc.scopes AS oauth_connection_scopes,
-    oi.id AS oauth_integration_id,
-    ouid.id AS oidc_user_integration_data_id
-from active_oidc_user_integration_data AS ouid
-JOIN active_user_integration AS ui
-    ON ouid.user_integration_id = ui.id
-JOIN active_oauth_integration AS oi
-    ON ui.oauth_integration_id = oi.id
-JOIN active_oauth_token AS ot
-    ON oi.id = ot.oauth_integration_id
-JOIN active_oauth_connection AS oc
-    ON oi.oauth_connection_id = oc.id
-JOIN active_oauth_provider AS op
-    ON oc.provider_name = op.name
+    od.name AS oauth_provider_name,
+    od.id AS oidc_data_id
+
+from active_oidc_data AS od
 JOIN active_oidc_login_identity AS oli
-    ON ouid.id = oli.oidc_user_integration_data_id
+    ON od.id = oli.oidc_data_id
 JOIN active_login_identity AS li
     ON oli.login_identity_id = li.id
 JOIN not_deleted_users AS u
     ON li.user_id = u.id
-WHERE ouid.sub = $1::text
+
+WHERE od.sub = $1::text
     AND li.identity_type = 'oidc'
-    AND oi.integration_type = 'user'
-    AND op.name = $2::text
+    AND od.provider_name = $2::text
 LIMIT 1
 `
 
@@ -611,23 +579,20 @@ type LoginIdentityGetOIDCDataBySubParams struct {
 }
 
 type LoginIdentityGetOIDCDataBySubRow struct {
-	UserID                    int32              `json:"user_id"`
-	UserUsername              string             `json:"user_username"`
-	UserProfileImage          pgtype.Text        `json:"user_profile_image"`
-	UserFirstName             string             `json:"user_first_name"`
-	UserMiddleName            pgtype.Text        `json:"user_middle_name"`
-	UserLastName              pgtype.Text        `json:"user_last_name"`
-	UserBlockedAt             pgtype.Timestamptz `json:"user_blocked_at"`
-	UserBlockedUntil          pgtype.Timestamptz `json:"user_blocked_until"`
-	UserCreatedAt             pgtype.Timestamptz `json:"user_created_at"`
-	UserUpdatedAt             pgtype.Timestamptz `json:"user_updated_at"`
-	UserRoleID                pgtype.Int4        `json:"user_role_id"`
-	LoginIdentityID           int32              `json:"login_identity_id"`
-	OauthTokenID              int32              `json:"oauth_token_id"`
-	OauthConnectionID         int32              `json:"oauth_connection_id"`
-	OauthConnectionScopes     []string           `json:"oauth_connection_scopes"`
-	OauthIntegrationID        int32              `json:"oauth_integration_id"`
-	OidcUserIntegrationDataID int32              `json:"oidc_user_integration_data_id"`
+	UserID            int32              `json:"user_id"`
+	UserUsername      string             `json:"user_username"`
+	UserProfileImage  pgtype.Text        `json:"user_profile_image"`
+	UserFirstName     string             `json:"user_first_name"`
+	UserMiddleName    pgtype.Text        `json:"user_middle_name"`
+	UserLastName      pgtype.Text        `json:"user_last_name"`
+	UserBlockedAt     pgtype.Timestamptz `json:"user_blocked_at"`
+	UserBlockedUntil  pgtype.Timestamptz `json:"user_blocked_until"`
+	UserCreatedAt     pgtype.Timestamptz `json:"user_created_at"`
+	UserUpdatedAt     pgtype.Timestamptz `json:"user_updated_at"`
+	UserRoleID        pgtype.Int4        `json:"user_role_id"`
+	LoginIdentityID   int32              `json:"login_identity_id"`
+	OauthProviderName pgtype.Text        `json:"oauth_provider_name"`
+	OidcDataID        int32              `json:"oidc_data_id"`
 }
 
 // LoginIdentityGetOIDCDataBySub
@@ -645,32 +610,20 @@ type LoginIdentityGetOIDCDataBySubRow struct {
 //	    u.updated_at AS user_updated_at,
 //	    u.role_id as user_role_id,
 //	    li.id AS login_identity_id,
-//	    ot.id AS oauth_token_id,
-//	    oc.id AS oauth_connection_id,
-//	    oc.scopes AS oauth_connection_scopes,
-//	    oi.id AS oauth_integration_id,
-//	    ouid.id AS oidc_user_integration_data_id
-//	from active_oidc_user_integration_data AS ouid
-//	JOIN active_user_integration AS ui
-//	    ON ouid.user_integration_id = ui.id
-//	JOIN active_oauth_integration AS oi
-//	    ON ui.oauth_integration_id = oi.id
-//	JOIN active_oauth_token AS ot
-//	    ON oi.id = ot.oauth_integration_id
-//	JOIN active_oauth_connection AS oc
-//	    ON oi.oauth_connection_id = oc.id
-//	JOIN active_oauth_provider AS op
-//	    ON oc.provider_name = op.name
+//	    od.name AS oauth_provider_name,
+//	    od.id AS oidc_data_id
+//
+//	from active_oidc_data AS od
 //	JOIN active_oidc_login_identity AS oli
-//	    ON ouid.id = oli.oidc_user_integration_data_id
+//	    ON od.id = oli.oidc_data_id
 //	JOIN active_login_identity AS li
 //	    ON oli.login_identity_id = li.id
 //	JOIN not_deleted_users AS u
 //	    ON li.user_id = u.id
-//	WHERE ouid.sub = $1::text
+//
+//	WHERE od.sub = $1::text
 //	    AND li.identity_type = 'oidc'
-//	    AND oi.integration_type = 'user'
-//	    AND op.name = $2::text
+//	    AND od.provider_name = $2::text
 //	LIMIT 1
 func (q *Queries) LoginIdentityGetOIDCDataBySub(ctx context.Context, arg LoginIdentityGetOIDCDataBySubParams) (LoginIdentityGetOIDCDataBySubRow, error) {
 	row := q.db.QueryRow(ctx, loginIdentityGetOIDCDataBySub, arg.OidcSub, arg.OidcProviderName)
@@ -688,113 +641,8 @@ func (q *Queries) LoginIdentityGetOIDCDataBySub(ctx context.Context, arg LoginId
 		&i.UserUpdatedAt,
 		&i.UserRoleID,
 		&i.LoginIdentityID,
-		&i.OauthTokenID,
-		&i.OauthConnectionID,
-		&i.OauthConnectionScopes,
-		&i.OauthIntegrationID,
-		&i.OidcUserIntegrationDataID,
-	)
-	return i, err
-}
-
-const loginIdentityGetOIDCLoginIdentity = `-- name: LoginIdentityGetOIDCLoginIdentity :one
-SELECT
-    li.id AS login_identity_id,
-    li.user_id,
-    li.identity_type,
-    li.is_primary,
-    li.last_used_at,
-
-    oli.id AS oidc_login_identity_id,
-
-    oidc_data.id AS oidc_data_id,
-    oidc_data.user_integration_id AS oidc_data_user_integration_id,
-    oidc_data.sub AS oidc_data_sub,
-    oidc_data.email AS oidc_data_email,
-    oidc_data.iss AS oidc_data_iss,
-    oidc_data.aud AS oidc_data_aud,
-    oidc_data.given_name AS oidc_data_given_name,
-    oidc_data.family_name AS oidc_data_family_name,
-    oidc_data.name AS oidc_data_name,
-    oidc_data.picture AS oidc_data_picture
-FROM active_login_identity AS li
-    JOIN active_oidc_login_identity oli
-        ON li.id = oli.login_identity_id
-    JOIN active_oidc_user_integration_data AS oidc_data
-        ON oli.oidc_user_integration_data_id = oidc_data.id
-WHERE li.identity_type = 'oidc'
-    AND oidc_data.sub = $1::text
-LIMIT 1
-`
-
-type LoginIdentityGetOIDCLoginIdentityRow struct {
-	LoginIdentityID           int32              `json:"login_identity_id"`
-	UserID                    int32              `json:"user_id"`
-	IdentityType              string             `json:"identity_type"`
-	IsPrimary                 pgtype.Bool        `json:"is_primary"`
-	LastUsedAt                pgtype.Timestamptz `json:"last_used_at"`
-	OidcLoginIdentityID       int32              `json:"oidc_login_identity_id"`
-	OidcDataID                int32              `json:"oidc_data_id"`
-	OidcDataUserIntegrationID int32              `json:"oidc_data_user_integration_id"`
-	OidcDataSub               string             `json:"oidc_data_sub"`
-	OidcDataEmail             pgtype.Text        `json:"oidc_data_email"`
-	OidcDataIss               string             `json:"oidc_data_iss"`
-	OidcDataAud               string             `json:"oidc_data_aud"`
-	OidcDataGivenName         pgtype.Text        `json:"oidc_data_given_name"`
-	OidcDataFamilyName        pgtype.Text        `json:"oidc_data_family_name"`
-	OidcDataName              pgtype.Text        `json:"oidc_data_name"`
-	OidcDataPicture           pgtype.Text        `json:"oidc_data_picture"`
-}
-
-// LoginIdentityGetOIDCLoginIdentity
-//
-//	SELECT
-//	    li.id AS login_identity_id,
-//	    li.user_id,
-//	    li.identity_type,
-//	    li.is_primary,
-//	    li.last_used_at,
-//
-//	    oli.id AS oidc_login_identity_id,
-//
-//	    oidc_data.id AS oidc_data_id,
-//	    oidc_data.user_integration_id AS oidc_data_user_integration_id,
-//	    oidc_data.sub AS oidc_data_sub,
-//	    oidc_data.email AS oidc_data_email,
-//	    oidc_data.iss AS oidc_data_iss,
-//	    oidc_data.aud AS oidc_data_aud,
-//	    oidc_data.given_name AS oidc_data_given_name,
-//	    oidc_data.family_name AS oidc_data_family_name,
-//	    oidc_data.name AS oidc_data_name,
-//	    oidc_data.picture AS oidc_data_picture
-//	FROM active_login_identity AS li
-//	    JOIN active_oidc_login_identity oli
-//	        ON li.id = oli.login_identity_id
-//	    JOIN active_oidc_user_integration_data AS oidc_data
-//	        ON oli.oidc_user_integration_data_id = oidc_data.id
-//	WHERE li.identity_type = 'oidc'
-//	    AND oidc_data.sub = $1::text
-//	LIMIT 1
-func (q *Queries) LoginIdentityGetOIDCLoginIdentity(ctx context.Context, oidcSub string) (LoginIdentityGetOIDCLoginIdentityRow, error) {
-	row := q.db.QueryRow(ctx, loginIdentityGetOIDCLoginIdentity, oidcSub)
-	var i LoginIdentityGetOIDCLoginIdentityRow
-	err := row.Scan(
-		&i.LoginIdentityID,
-		&i.UserID,
-		&i.IdentityType,
-		&i.IsPrimary,
-		&i.LastUsedAt,
-		&i.OidcLoginIdentityID,
+		&i.OauthProviderName,
 		&i.OidcDataID,
-		&i.OidcDataUserIntegrationID,
-		&i.OidcDataSub,
-		&i.OidcDataEmail,
-		&i.OidcDataIss,
-		&i.OidcDataAud,
-		&i.OidcDataGivenName,
-		&i.OidcDataFamilyName,
-		&i.OidcDataName,
-		&i.OidcDataPicture,
 	)
 	return i, err
 }
@@ -1034,12 +882,12 @@ func (q *Queries) LoginIdentityIsEmailUsed(ctx context.Context, email pgtype.Tex
 }
 
 const loginIdentityIsOidcEmailUsed = `-- name: LoginIdentityIsOidcEmailUsed :one
-SELECT COUNT(*) FROM active_oidc_user_integration_data WHERE email = $1
+SELECT COUNT(*) FROM active_oidc_data WHERE email = $1
 `
 
 // LoginIdentityIsOidcEmailUsed
 //
-//	SELECT COUNT(*) FROM active_oidc_user_integration_data WHERE email = $1
+//	SELECT COUNT(*) FROM active_oidc_data WHERE email = $1
 func (q *Queries) LoginIdentityIsOidcEmailUsed(ctx context.Context, email pgtype.Text) (int64, error) {
 	row := q.db.QueryRow(ctx, loginIdentityIsOidcEmailUsed, email)
 	var count int64

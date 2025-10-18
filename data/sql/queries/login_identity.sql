@@ -92,32 +92,20 @@ SELECT
     u.updated_at AS user_updated_at,
     u.role_id as user_role_id,
     li.id AS login_identity_id,
-    ot.id AS oauth_token_id,
-    oc.id AS oauth_connection_id,
-    oc.scopes AS oauth_connection_scopes,
-    oi.id AS oauth_integration_id,
-    ouid.id AS oidc_user_integration_data_id
-from active_oidc_user_integration_data AS ouid
-JOIN active_user_integration AS ui
-    ON ouid.user_integration_id = ui.id
-JOIN active_oauth_integration AS oi
-    ON ui.oauth_integration_id = oi.id
-JOIN active_oauth_token AS ot
-    ON oi.id = ot.oauth_integration_id
-JOIN active_oauth_connection AS oc
-    ON oi.oauth_connection_id = oc.id
-JOIN active_oauth_provider AS op
-    ON oc.provider_name = op.name
+    od.name AS oauth_provider_name,
+    od.id AS oidc_data_id
+
+from active_oidc_data AS od
 JOIN active_oidc_login_identity AS oli
-    ON ouid.id = oli.oidc_user_integration_data_id
+    ON od.id = oli.oidc_data_id
 JOIN active_login_identity AS li
     ON oli.login_identity_id = li.id
 JOIN not_deleted_users AS u
     ON li.user_id = u.id
-WHERE ouid.sub = @oidc_sub::text
+
+WHERE od.sub = @oidc_sub::text
     AND li.identity_type = 'oidc'
-    AND oi.integration_type = 'user'
-    AND op.name = @oidc_provider_name::text
+    AND od.provider_name = @oidc_provider_name::text
 LIMIT 1;
 
 
@@ -185,36 +173,6 @@ WHERE li.identity_type = @identity_type::text
 LIMIT 1;
 
 
--- name: LoginIdentityGetOIDCLoginIdentity :one
-SELECT
-    li.id AS login_identity_id,
-    li.user_id,
-    li.identity_type,
-    li.is_primary,
-    li.last_used_at,
-
-    oli.id AS oidc_login_identity_id,
-
-    oidc_data.id AS oidc_data_id,
-    oidc_data.user_integration_id AS oidc_data_user_integration_id,
-    oidc_data.sub AS oidc_data_sub,
-    oidc_data.email AS oidc_data_email,
-    oidc_data.iss AS oidc_data_iss,
-    oidc_data.aud AS oidc_data_aud,
-    oidc_data.given_name AS oidc_data_given_name,
-    oidc_data.family_name AS oidc_data_family_name,
-    oidc_data.name AS oidc_data_name,
-    oidc_data.picture AS oidc_data_picture
-FROM active_login_identity AS li
-    JOIN active_oidc_login_identity oli
-        ON li.id = oli.login_identity_id
-    JOIN active_oidc_user_integration_data AS oidc_data
-        ON oli.oidc_user_integration_data_id = oidc_data.id
-WHERE li.identity_type = 'oidc'
-    AND oidc_data.sub = @oidc_sub::text
-LIMIT 1;
-
-
 -- name: LoginIdentityGetAllByUserId :many
 SELECT
   li.id AS login_identity_id,
@@ -236,18 +194,16 @@ SELECT
   gli.device_id AS guest_device_id,
 
   -- OIDC-based
-  oud.id AS oidc_data_id,
-  oud.sub AS oidc_data_sub,
-  oud.email AS oidc_data_email,
-  oud.iss AS oidc_data_issuer,
-  oud.aud AS oidc_data_audience,
-  oud.given_name AS oidc_data_given_name,
-  oud.family_name AS oidc_data_family_name,
-  oud.name AS oidc_data_name,
-  oud.picture AS oidc_data_picture,
-
-  -- oauth_provider
-  op.name AS oauth_provider_name
+  oidc_data.id AS oidc_data_id,
+  oidc_data.sub AS oidc_data_sub,
+  oidc_data.email AS oidc_data_email,
+  oidc_data.iss AS oidc_data_issuer,
+  oidc_data.aud AS oidc_data_audience,
+  oidc_data.given_name AS oidc_data_given_name,
+  oidc_data.family_name AS oidc_data_family_name,
+  oidc_data.name AS oidc_data_name,
+  oidc_data.picture AS oidc_data_picture,
+  oidc_data.provider_name AS oauth_provider_name
 
 FROM active_login_identity AS li
 LEFT JOIN active_password_login_identity AS pli
@@ -256,16 +212,8 @@ LEFT JOIN active_guest_login_identity AS gli
   ON li.id = gli.login_identity_id
 LEFT JOIN active_oidc_login_identity AS oli
   ON li.id = oli.login_identity_id
-LEFT JOIN active_oidc_user_integration_data AS oud
-  ON oli.oidc_user_integration_data_id = oud.id
-LEFT JOIN user_integration AS ui
-  ON oud.user_integration_id = ui.id
-LEFT JOIN oauth_integration AS oi
-  ON ui.oauth_integration_id = oi.id
-LEFT JOIN oauth_connection AS oc
-  ON oi.oauth_connection_id = oc.id
-LEFT JOIN oauth_provider AS op
-  ON oc.provider_name = op.name
+LEFT JOIN active_oidc_data AS oidc_data
+  ON oli.oidc_data_id = oidc_data.id
 
 WHERE li.user_id = $1
 ORDER BY li.is_primary DESC, li.last_used_at DESC;
@@ -311,7 +259,7 @@ SELECT COUNT(*) FROM active_password_login_identity WHERE email = $1;
 SELECT COUNT(*) FROM active_password_login_identity WHERE phone = $1;
 
 -- name: LoginIdentityIsOidcEmailUsed :one
-SELECT COUNT(*) FROM active_oidc_user_integration_data WHERE email = $1;
+SELECT COUNT(*) FROM active_oidc_data WHERE email = $1;
 
 
 -- name: LoginIdentityUpdateLastUsedAtToNow :exec

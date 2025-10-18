@@ -21,8 +21,8 @@ type OidcData struct {
 	OidcAud        string
 	OidcIat        pgtype.Timestamp
 
-	OauthScopes         oauth.Scops
-	OauthAccessToken    string
+	OauthScopes         oauth.Scopes
+	OauthAccessToken    pgtype.Text
 	OauthRefreshToken   pgtype.Text
 	OauthTokenType      pgtype.Text
 	OauthTokenExpiresAt pgtype.Timestamp

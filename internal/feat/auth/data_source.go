@@ -499,175 +499,62 @@ func (ds dataSourceImpl) ExpAllTokensAndUnlinkThemFromInstallation(ctx context.C
 
 func (ds dataSourceImpl) LoginOrCreateUserWithOidc(
 	ctx context.Context,
-	data LoginOrCreateUserWithOidcData,
+	oidcParamData LoginOrCreateUserWithOidcData,
 	tokenGenerator func(userId int32) (string, time.Time, error),
 ) (database_queries.User, error) {
-	user := database_queries.User{}
-	var loginIdentityId int32
-	var userId int32
 
-	loginOnly := func(queries *database_queries.Queries, oidcUser database_queries.LoginIdentityGetOIDCDataBySubRow) error {
-		if !data.OauthScopes.EqualArray(oidcUser.OauthConnectionScopes) {
-			err := queries.OauthIntegrationUpdateToOauthConnectionBasedOnNewScopes(
+	var user database_queries.User
+
+	fn := func(queries *database_queries.Queries) error {
+		var loginIdentityId int32 = -1
+		var userId int32 = -1
+
+		oidcUser, err := queries.LoginIdentityGetOIDCDataBySub(
+			ctx,
+			database_queries.LoginIdentityGetOIDCDataBySubParams{
+				OidcSub:          oidcParamData.OidcSub,
+				OidcProviderName: oidcParamData.oauthProvider.String(),
+			},
+		)
+		if err != nil {
+			if dbutils.IsErrPgxNoRows(err) {
+				loginIdentityId, user, err = oidcCreateAccountAndLogin(ctx, queries, oidcParamData)
+				if err != nil {
+					return err
+				}
+				userId = user.ID
+			} else {
+				return err
+			}
+		} else {
+			loginIdentityId = oidcUser.LoginIdentityID
+			userId = oidcUser.UserID
+
+			user, err = oidcLoginOnly(ctx, queries, oidcParamData, oidcUser)
+			if err != nil {
+				return err
+			}
+		}
+
+		{
+			token, expiresAt, err := tokenGenerator(userId)
+			if err != nil {
+				return err
+			}
+			err = ds.createNewSessionAndAttachUserToInstallation(
 				ctx,
-				database_queries.OauthIntegrationUpdateToOauthConnectionBasedOnNewScopesParams{
-					IntegrationID: oidcUser.OauthIntegrationID,
-					ProviderName:  data.oauthProvider.String(),
-					OauthScopes:   data.OauthScopes.Array(),
-				},
+				loginIdentityId,
+				oidcParamData.InstallationId,
+				token,
+				oidcParamData.IpAddress,
+				expiresAt,
+				queries,
 			)
 			if err != nil {
 				return err
 			}
 		}
 
-		err := queries.OauthTokenUpdate(
-			ctx,
-			database_queries.OauthTokenUpdateParams{
-				ID:           oidcUser.OauthTokenID,
-				AccessToken:  data.OauthAccessToken,
-				RefreshToken: data.OauthRefreshToken,
-				TokenType:    data.OauthTokenType,
-				ExpiresAt:    data.OauthTokenExpiresAt,
-				IssuedAt:     data.OauthTokenIssuedAt,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		err = queries.OidcUserIntegrationDataUpdate(
-			ctx,
-			database_queries.OidcUserIntegrationDataUpdateParams{
-				ID:         oidcUser.OidcUserIntegrationDataID,
-				Email:      data.OidcEmail,
-				GivenName:  data.OidcGivenName,
-				FamilyName: data.OidcFamilyName,
-				Name:       data.OidcName,
-				Picture:    data.OidcPicture,
-			},
-		)
-		if err != nil {
-			return err
-		}
-		loginIdentityId = oidcUser.LoginIdentityID
-		userId = oidcUser.UserID
-
-		err = ds.db.Queries.LoginIdentityUpdateLastUsedAtToNow(ctx, loginIdentityId)
-		if err != nil {
-			zerolog.Ctx(ctx).Err(err).Int32("login_identity_id", loginIdentityId).Msg("can not update the last used at for login identitiy")
-			return err
-		}
-
-		user = database_queries.User{
-			ID:           oidcUser.UserID,
-			Username:     oidcUser.UserUsername,
-			FirstName:    oidcUser.UserFirstName,
-			ProfileImage: oidcUser.UserProfileImage,
-			MiddleName:   oidcUser.UserMiddleName,
-			LastName:     oidcUser.UserLastName,
-			CreatedAt:    oidcUser.UserCreatedAt,
-			UpdatedAt:    oidcUser.UserUpdatedAt,
-			BlockedAt:    oidcUser.UserBlockedAt,
-			BlockedUntil: oidcUser.UserBlockedUntil,
-			RoleID:       oidcUser.UserRoleID,
-		}
-		return nil
-	}
-
-	createAccountAndLogin := func(queries *database_queries.Queries) error {
-		result, err := queries.LoginIdentityCreateNewUserAndOIDCLoginIdentity(
-			ctx,
-			database_queries.LoginIdentityCreateNewUserAndOIDCLoginIdentityParams{
-				UserUsername:               data.UserUsername,
-				UserProfileImage:           data.UserProfileImage,
-				UserFirstName:              data.UserFirstName,
-				UserLastName:               data.UserLastName,
-				UserRoleID:                 data.UserRoleID,
-				OauthProviderName:          data.oauthProvider.String(),
-				OauthProviderIsOidcCapable: true,
-				OauthScopes:                data.OauthScopes.Array(),
-				OauthAccessToken:           data.OauthAccessToken,
-				OauthRefreshToken:          data.OauthRefreshToken,
-				OauthTokenType:             data.OauthTokenType,
-				OauthTokenExpiresAt:        data.OauthTokenExpiresAt,
-				OauthTokenIssuedAt:         data.OauthTokenIssuedAt,
-				OidcSub:                    data.OidcSub,
-				OidcEmail:                  data.OidcEmail,
-				OidcIss:                    data.OidcIss,
-				OidcAud:                    data.OidcAud,
-				OidcGivenName:              data.OidcGivenName,
-				OidcFamilyName:             data.OidcFamilyName,
-				OidcName:                   data.OidcName,
-				OidcPicture:                data.OidcPicture,
-			},
-		)
-		if err != nil {
-			return err
-		}
-		loginIdentityId = result.NewLoginIdentityID
-		userId = result.UserID
-
-		user = database_queries.User{
-			ID:           result.UserID,
-			Username:     result.Username,
-			FirstName:    result.FirstName,
-			ProfileImage: result.ProfileImage,
-			MiddleName:   result.MiddleName,
-			LastName:     result.LastName,
-			CreatedAt:    result.CreatedAt,
-			UpdatedAt:    result.UpdatedAt,
-			BlockedAt:    result.BlockedAt,
-			BlockedUntil: result.BlockedUntil,
-			RoleID:       result.RoleID,
-		}
-
-		return nil
-	}
-
-	createSessionAndAttachUserFn := func(queries *database_queries.Queries, loginIdentityId int32) error {
-		token, expiresAt, err := tokenGenerator(userId)
-		if err != nil {
-			return err
-		}
-		return ds.createNewSessionAndAttachUserToInstallation(
-			ctx,
-			loginIdentityId,
-			data.InstallationId,
-			token,
-			data.IpAddress,
-			expiresAt,
-			queries,
-		)
-	}
-
-	fn := func(queries *database_queries.Queries) error {
-		oidcUser, err := queries.LoginIdentityGetOIDCDataBySub(
-			ctx,
-			database_queries.LoginIdentityGetOIDCDataBySubParams{
-				OidcSub:          data.OidcSub,
-				OidcProviderName: data.oauthProvider.String(),
-			},
-		)
-
-		if err == nil {
-			err = loginOnly(queries, oidcUser)
-			if err != nil {
-				return err
-			}
-		} else if dbutils.IsErrPgxNoRows(err) {
-			err = createAccountAndLogin(queries)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-
-		err = createSessionAndAttachUserFn(queries, loginIdentityId)
-		if err != nil {
-			return err
-		}
 		return nil
 	}
 
@@ -676,6 +563,191 @@ func (ds dataSourceImpl) LoginOrCreateUserWithOidc(
 		return database_queries.User{}, err
 	}
 
+	return user, nil
+}
+
+func oidcCreateAccountAndLogin(ctx context.Context, queries *database_queries.Queries, oidcParamData LoginOrCreateUserWithOidcData) (loginIdentityId int32, user database_queries.User, err error) {
+	result, err := queries.LoginIdentityCreateNewUserAndOIDCLoginIdentity(
+		ctx,
+		database_queries.LoginIdentityCreateNewUserAndOIDCLoginIdentityParams{
+			UserUsername:               oidcParamData.UserUsername,
+			UserProfileImage:           oidcParamData.UserProfileImage,
+			UserFirstName:              oidcParamData.UserFirstName,
+			UserLastName:               oidcParamData.UserLastName,
+			UserRoleID:                 oidcParamData.UserRoleID,
+			OauthProviderName:          oidcParamData.oauthProvider.String(),
+			OauthProviderIsOidcCapable: true,
+			OauthScopes:                oidcParamData.OauthScopes.Array(),
+			OauthAccessToken:           oidcParamData.OauthAccessToken,
+			OauthRefreshToken:          oidcParamData.OauthRefreshToken,
+			OauthTokenType:             oidcParamData.OauthTokenType,
+			OauthTokenExpiresAt:        oidcParamData.OauthTokenExpiresAt,
+			OauthTokenIssuedAt:         oidcParamData.OauthTokenIssuedAt,
+			OidcSub:                    oidcParamData.OidcSub,
+			OidcEmail:                  oidcParamData.OidcEmail,
+			OidcIss:                    oidcParamData.OidcIss,
+			OidcAud:                    oidcParamData.OidcAud,
+			OidcGivenName:              oidcParamData.OidcGivenName,
+			OidcFamilyName:             oidcParamData.OidcFamilyName,
+			OidcName:                   oidcParamData.OidcName,
+			OidcPicture:                oidcParamData.OidcPicture,
+		},
+	)
+	if err != nil {
+		return -1, database_queries.User{}, err
+	}
+
+	user = database_queries.User{
+		ID:           result.UserID,
+		Username:     result.Username,
+		FirstName:    result.FirstName,
+		ProfileImage: result.ProfileImage,
+		MiddleName:   result.MiddleName,
+		LastName:     result.LastName,
+		CreatedAt:    result.CreatedAt,
+		UpdatedAt:    result.UpdatedAt,
+		BlockedAt:    result.BlockedAt,
+		BlockedUntil: result.BlockedUntil,
+		RoleID:       result.RoleID,
+	}
+
+	return result.NewLoginIdentityID, user, nil
+}
+
+func oidcLoginOnly(
+	ctx context.Context,
+	queries *database_queries.Queries,
+	oidcParamData LoginOrCreateUserWithOidcData,
+	oidcUser database_queries.LoginIdentityGetOIDCDataBySubRow,
+) (database_queries.User, error) {
+	// 1. Check if the user already has an OAuth integration associated with the
+	//    provided scopes (`data.OauthScopes`).
+	//
+	//    - If yes:
+	//      a. If an access/refresh token is present in `oidcParamData`:
+	//         • Update the existing OAuth token in the database.
+	//         • Or create a new token record if none exists for this integration.
+	//      b. If no access/refresh token is present in `oidcParamData`:
+	//         • Do nothing and keep the current state.
+	//         • If an old token exists for this scope, keep it until it either:
+	//           - Expires, or
+	//           - Is explicitly rejected by the OAuth provider.
+	//           Once that happens, the token should be deleted.
+	//
+	//    - If no existing integration is found:
+	//      a. Create a new connection if one is not found with a new `oauth_integration`
+	//         and `user_integration` record.
+	//      b. If an access/refresh token is present in `oidcParamData`:
+	//         • Create a new `oauth_token` record and link it to the
+	//           `oauth_integration`.
+	//      c. If no access/refresh token is provided:
+	//         • No further action is required.
+	//
+	// 2. Update the user's `oidc_data` with the values from the `oidcParamData` param.
+
+	integration, err := queries.OauthIntegrationGetByUserAndScopes(
+		ctx,
+		database_queries.OauthIntegrationGetByUserAndScopesParams{
+			UserID:       oidcUser.UserID,
+			OauthScopes:  oidcParamData.OauthScopes.Array(),
+			ProviderName: oidcParamData.oauthProvider.String(),
+		},
+	)
+	if err != nil {
+		if !dbutils.IsErrPgxNoRows(err) {
+			return database_queries.User{}, err
+		}
+		// No existing connection found for this user with the given scopes and provider.
+		// Create a new connection.
+		err = queries.OauthCreateConnectionWithIntegrationDataAndTokens(
+			ctx,
+			database_queries.OauthCreateConnectionWithIntegrationDataAndTokensParams{
+				UserID:       oidcUser.UserID,
+				ProviderName: oidcUser.OauthProviderName.String,
+				Scopes:       oidcParamData.OauthScopes.Array(),
+				AccessToken:  oidcParamData.OauthAccessToken,
+				RefreshToken: oidcParamData.OauthRefreshToken,
+				TokenType:    oidcParamData.OauthTokenType,
+				ExpiresAt:    oidcParamData.OauthTokenExpiresAt,
+				IssuedAt:     oidcParamData.OauthTokenIssuedAt,
+			},
+		)
+		if err != nil {
+			return database_queries.User{}, err
+		}
+
+	} else {
+		// A connection exists for the user with the same scopes and provider.
+		// Update the access tokens if present.
+		if oidcParamData.OauthAccessToken.Valid || oidcParamData.OauthRefreshToken.Valid {
+			if integration.OauthTokenID.Valid { // there is a token data record just update its data
+				err := queries.OauthTokenUpdate(
+					ctx,
+					database_queries.OauthTokenUpdateParams{
+						ID:           integration.OauthTokenID.Int32,
+						AccessToken:  oidcParamData.OauthAccessToken,
+						RefreshToken: oidcParamData.OauthRefreshToken,
+						TokenType:    oidcParamData.OauthTokenType,
+						ExpiresAt:    oidcParamData.OauthTokenExpiresAt,
+						IssuedAt:     oidcParamData.OauthTokenIssuedAt,
+					},
+				)
+				if err != nil {
+					return database_queries.User{}, err
+				}
+			} else { // there is no record for oauth token create one for this integration
+				err := queries.OauthTokenCreate(
+					ctx,
+					database_queries.OauthTokenCreateParams{
+						OauthIntegrationID: integration.OauthIntegrationID,
+						AccessToken:        oidcParamData.OauthAccessToken,
+						RefreshToken:       oidcParamData.OauthRefreshToken,
+						TokenType:          oidcParamData.OauthTokenType,
+						ExpiresAt:          oidcParamData.OauthTokenExpiresAt,
+						IssuedAt:           oidcParamData.OauthTokenIssuedAt,
+					},
+				)
+				if err != nil {
+					return database_queries.User{}, err
+				}
+			}
+		}
+	}
+
+	err = queries.OidcDataUpdateRecored(
+		ctx,
+		database_queries.OidcDataUpdateRecoredParams{
+			ID:         oidcUser.OidcDataID,
+			Email:      oidcParamData.OidcEmail,
+			GivenName:  oidcParamData.OidcGivenName,
+			FamilyName: oidcParamData.OidcFamilyName,
+			Name:       oidcParamData.OidcName,
+			Picture:    oidcParamData.OidcPicture,
+		},
+	)
+	if err != nil {
+		return database_queries.User{}, err
+	}
+
+	err = queries.LoginIdentityUpdateLastUsedAtToNow(ctx, oidcUser.LoginIdentityID)
+	if err != nil {
+		zerolog.Ctx(ctx).Err(err).Int32("login_identity_id", oidcUser.LoginIdentityID).Msg("can not update the last used at for login identitiy")
+		return database_queries.User{}, err
+	}
+
+	user := database_queries.User{
+		ID:           oidcUser.UserID,
+		Username:     oidcUser.UserUsername,
+		FirstName:    oidcUser.UserFirstName,
+		ProfileImage: oidcUser.UserProfileImage,
+		MiddleName:   oidcUser.UserMiddleName,
+		LastName:     oidcUser.UserLastName,
+		CreatedAt:    oidcUser.UserCreatedAt,
+		UpdatedAt:    oidcUser.UserUpdatedAt,
+		BlockedAt:    oidcUser.UserBlockedAt,
+		BlockedUntil: oidcUser.UserBlockedUntil,
+		RoleID:       oidcUser.UserRoleID,
+	}
 	return user, nil
 }
 
