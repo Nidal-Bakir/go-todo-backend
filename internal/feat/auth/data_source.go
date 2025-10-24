@@ -570,7 +570,7 @@ func oidcCreateAccountAndLogin(ctx context.Context, queries *database_queries.Qu
 	result, err := queries.LoginIdentityCreateNewUserAndOIDCLoginIdentity(
 		ctx,
 		database_queries.LoginIdentityCreateNewUserAndOIDCLoginIdentityParams{
-			
+
 			UserUsername:               oidcParamData.UserUsername,
 			UserProfileImage:           oidcParamData.UserProfileImage,
 			UserFirstName:              oidcParamData.UserFirstName,
@@ -664,7 +664,7 @@ func oidcLoginOnly(
 			ctx,
 			database_queries.OauthCreateConnectionWithIntegrationDataAndTokensParams{
 				UserID:       oidcUser.UserID,
-				ProviderName: oidcUser.OauthProviderName.String,
+				ProviderName: oidcUser.OauthProviderName,
 				Scopes:       oidcParamData.OauthScopes.Array(),
 				AccessToken:  oidcParamData.OauthAccessToken,
 				RefreshToken: oidcParamData.OauthRefreshToken,

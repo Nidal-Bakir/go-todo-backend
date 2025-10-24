@@ -14,7 +14,12 @@ var (
 	clientSecretJsonFileData  []byte
 	googleOpenIdConnectConfig *oauth2.Config
 	googleIdTokenValidator    *idtoken.Validator
-	OidcScops                 = []string{"openid", "profile", "email"}
+	OidcWebScopes             = []string{
+		"openid",
+		"https://www.googleapis.com/auth/userinfo.profile",
+		"https://www.googleapis.com/auth/userinfo.email",
+	}
+	OidcOpenIdScope = []string{"openid"}
 )
 
 func init() {
@@ -29,7 +34,7 @@ func init() {
 }
 
 func AuthCodeURL(ctx context.Context, state, verifier string) string {
-	googleOpenIdConnectConfig.Scopes = OidcScops
+	googleOpenIdConnectConfig.Scopes = OidcWebScopes
 	authUrl := googleOpenIdConnectConfig.AuthCodeURL(
 		state,
 		oauth2.AccessTypeOffline,
@@ -63,7 +68,7 @@ func ParseIdToken(ctx context.Context, idToken string) (*GoogleOidcIdTokenClaims
 	return claims, nil
 }
 
-func ValidatorIdToken(ctx context.Context, idToken string) (*GoogleOidcIdTokenClaims, error) {
+func ValidateIdToken(ctx context.Context, idToken string) (*GoogleOidcIdTokenClaims, error) {
 	claims := new(GoogleOidcIdTokenClaims)
 
 	if googleIdTokenValidator == nil {

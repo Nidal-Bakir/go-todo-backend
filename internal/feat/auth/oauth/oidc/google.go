@@ -23,12 +23,19 @@ func googleOidcFunc(ctx context.Context, code, codeVerifier, oidcToken string) (
 			zlog.Err(err).Msg("can not exchange code with tokens")
 			return err
 		}
+
+		if scopes := oauth.NewScopesFromOauthToken(t); scopes.Len() == 0 {
+			data.OauthScopes = *oauth.NewScopes(google.OidcWebScopes)
+		} else {
+			data.OauthScopes = *scopes
+		}
+
 		oauthToken = t
 		return nil
 	}
 
 	validateIdTokenFn := func(idToken string) error {
-		res, err := google.ValidatorIdToken(ctx, idToken)
+		res, err := google.ValidateIdToken(ctx, idToken)
 		if err != nil {
 			zlog.Err(err).Msg("can not validate google id token")
 			return err
@@ -67,6 +74,7 @@ func googleOidcFunc(ctx context.Context, code, codeVerifier, oidcToken string) (
 		if err != nil {
 			return data, err
 		}
+		data.OauthScopes = *oauth.NewScopes(google.OidcOpenIdScope)
 		if len(code) != 0 {
 			err = exchangeCode()
 			if err != nil {
@@ -82,7 +90,6 @@ func googleOidcFunc(ctx context.Context, code, codeVerifier, oidcToken string) (
 		data.OauthTokenExpiresAt = dbutils.ToPgTypeTimestamp(oauthToken.Expiry)
 	}
 
-	data.OauthScopes = *oauth.NewScopes(google.OidcScops)
 	data.OidcAud = claims.Audience
 	data.OidcIss = claims.Issuer
 	data.OidcIat = dbutils.ToPgTypeTimestamp(claims.IssuedAt)

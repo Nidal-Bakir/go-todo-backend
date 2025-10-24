@@ -92,7 +92,7 @@ SELECT
     u.updated_at AS user_updated_at,
     u.role_id as user_role_id,
     li.id AS login_identity_id,
-    od.name AS oauth_provider_name,
+    od.provider_name AS oauth_provider_name,
     od.id AS oidc_data_id
 
 from active_oidc_data AS od

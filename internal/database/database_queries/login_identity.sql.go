@@ -963,7 +963,7 @@ SELECT
     u.updated_at AS user_updated_at,
     u.role_id as user_role_id,
     li.id AS login_identity_id,
-    od.name AS oauth_provider_name,
+    od.provider_name AS oauth_provider_name,
     od.id AS oidc_data_id
 
 from active_oidc_data AS od
@@ -998,7 +998,7 @@ type LoginIdentityGetOIDCDataBySubRow struct {
 	UserUpdatedAt     pgtype.Timestamptz `json:"user_updated_at"`
 	UserRoleID        pgtype.Int4        `json:"user_role_id"`
 	LoginIdentityID   int32              `json:"login_identity_id"`
-	OauthProviderName pgtype.Text        `json:"oauth_provider_name"`
+	OauthProviderName string             `json:"oauth_provider_name"`
 	OidcDataID        int32              `json:"oidc_data_id"`
 }
 
@@ -1017,7 +1017,7 @@ type LoginIdentityGetOIDCDataBySubRow struct {
 //	    u.updated_at AS user_updated_at,
 //	    u.role_id as user_role_id,
 //	    li.id AS login_identity_id,
-//	    od.name AS oauth_provider_name,
+//	    od.provider_name AS oauth_provider_name,
 //	    od.id AS oidc_data_id
 //
 //	from active_oidc_data AS od

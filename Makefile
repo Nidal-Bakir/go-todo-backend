@@ -99,6 +99,15 @@ goose-version:
 goose-fix:
 	@${GOOSE_CMD} fix
 
+# connection to the redis server
+REDIS_CLI= redis-cli -h ${REDIS_ADDR} -p ${REDIS_PORT} --user ${REDIS_USERNAME} --pass ${REDIS_PASSWORD}
+
+redis-flushall:
+	@${REDIS_CLI} FLUSHALL
+
+fresh-server: goose-fresh redis-flushall
+	@echo "Done"
+
 # Clean the binary
 clean:
 	@echo "Cleaning..."

@@ -1,6 +1,10 @@
 package oauth
 
-import "slices"
+import (
+	"slices"
+
+	"golang.org/x/oauth2"
+)
 
 type Scopes struct {
 	scopesSlice []string
@@ -9,6 +13,11 @@ type Scopes struct {
 // Array returns a copy of the underlying scopes slice.
 func (s Scopes) Array() []string {
 	return slices.Clone(s.scopesSlice)
+}
+
+// Scopes count
+func (s Scopes) Len() int {
+	return len(s.scopesSlice)
 }
 
 // Equal reports whether two Scopes are equal.
@@ -32,4 +41,11 @@ func NewScopes(s []string) *Scopes {
 	return &Scopes{
 		scopesSlice: scopesSlice,
 	}
+}
+
+func NewScopesFromOauthToken(oauthToken *oauth2.Token) *Scopes {
+	if scopes, ok := oauthToken.Extra("scope").([]string); ok {
+		return NewScopes(scopes)
+	}
+	return NewScopes([]string{})
 }

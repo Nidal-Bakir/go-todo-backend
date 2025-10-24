@@ -2,6 +2,7 @@ package redisdb
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"runtime"
 	"strconv"
@@ -28,7 +29,7 @@ func NewRedisClient(ctx context.Context) *redis.Client {
 
 	readTimeout := 50 * time.Second
 	client := redis.NewClient(&redis.Options{
-		Addr:             addr,
+		Addr:             fmt.Sprint(addr, ":", port),
 		Network:          "tcp",
 		Password:         password,
 		Username:         username,
