@@ -319,6 +319,13 @@ type Session struct {
 	UsedInstallation int32              `json:"used_installation"`
 }
 
+type Setting struct {
+	Label     string             `json:"label"`
+	Value     pgtype.Text        `json:"value"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type SystemIntegration struct {
 	ID                 int32              `json:"id"`
 	OauthIntegrationID int32              `json:"oauth_integration_id"`
