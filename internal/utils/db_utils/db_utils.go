@@ -6,10 +6,15 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/redis/go-redis/v9"
 )
 
 func IsErrPgxNoRows(err error) bool {
 	return errors.Is(err, pgx.ErrNoRows)
+}
+
+func IsErrRedisNilNoRows(err error) bool {
+	return errors.Is(err, redis.Nil)
 }
 
 func ToPgTypeText(str string) pgtype.Text {

@@ -11,6 +11,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const settingsDeleteByLable = `-- name: SettingsDeleteByLable :exec
+DELETE FROM settings
+WHERE label = $1::TEXT
+`
+
+// SettingsDeleteByLable
+//
+//	DELETE FROM settings
+//	WHERE label = $1::TEXT
+func (q *Queries) SettingsDeleteByLable(ctx context.Context, label string) error {
+	_, err := q.db.Exec(ctx, settingsDeleteByLable, label)
+	return err
+}
+
 const settingsGetByLable = `-- name: SettingsGetByLable :one
 SELECT label, value, created_at, updated_at FROM settings
 WHERE label = $1::TEXT

@@ -3,6 +3,9 @@ SELECT * FROM settings
 WHERE label = @label::TEXT
 LIMIT 1;
 
+-- name: SettingsDeleteByLable :exec
+DELETE FROM settings
+WHERE label = @label::TEXT;
 
 -- name: SettingsSetSetting :exec
 INSERT INTO settings (
