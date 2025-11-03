@@ -60,12 +60,19 @@ func NewConnection(ctx context.Context) *Service {
 		Queries:  database_queries.New(connectionPool),
 	}
 
-	zlog.Info().Msg("Migrating the database to the latest version...")
+	zlog.Info().Msg("Start: Migrating the database to the latest version...")
 	err = runMigrationsUp(connectionPool)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("con not run the migration up on database start up connection")
 	}
-	zlog.Info().Msg("Done from migrating the database to the latest version")
+	zlog.Info().Msg("Finish: Migrating the database to the latest version")
+
+	zlog.Info().Msg("Start: Running the seeder on the database...")
+	err = seed(ctx, dbInstance)
+	if err != nil {
+		zlog.Fatal().Err(err).Msg("error while running the seeder")
+	}
+	zlog.Info().Msg("Finish: seeding the database")
 
 	return dbInstance
 }
