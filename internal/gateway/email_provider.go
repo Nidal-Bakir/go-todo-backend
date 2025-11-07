@@ -16,8 +16,7 @@ func (p simpleEmailProvider) Send(ctx context.Context, target, content string) e
 		return err
 	}
 
-	zlog := zerolog.Ctx(ctx).With().Str("target", target).Str("content", content).Logger()
-	zlog.Debug().Msg("Sending Email")
+	zerolog.Ctx(ctx).Debug().Str("target", target).Str("content", content).Msg("Sending Email")
 	return nil
 }
 
