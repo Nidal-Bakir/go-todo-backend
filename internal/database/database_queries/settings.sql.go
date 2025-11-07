@@ -11,6 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const settingsCreateLabel = `-- name: SettingsCreateLabel :exec
+INSERT INTO settings (
+    label
+)
+VALUES (
+    $1::TEXT
+)
+ON CONFLICT (label)
+DO NOTHING
+`
+
+// SettingsCreateLabel
+//
+//	INSERT INTO settings (
+//	    label
+//	)
+//	VALUES (
+//	    $1::TEXT
+//	)
+//	ON CONFLICT (label)
+//	DO NOTHING
+func (q *Queries) SettingsCreateLabel(ctx context.Context, label string) error {
+	_, err := q.db.Exec(ctx, settingsCreateLabel, label)
+	return err
+}
+
 const settingsDeleteByLable = `-- name: SettingsDeleteByLable :exec
 DELETE FROM settings
 WHERE label = $1::TEXT

@@ -6,6 +6,9 @@ import (
 	"slices"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings/labels"
+	dbutils "github.com/Nidal-Bakir/go-todo-backend/internal/utils/db_utils"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog"
 )
@@ -15,8 +18,10 @@ type seeder struct {
 	seederFn func(ctx context.Context, dbTx database_queries.DBTX, queries *database_queries.Queries) error
 }
 
+// add new seeders here
 var seeders = []seeder{
 	v1_baseRollsAndPermission,
+	v2_settingsClientApiToken,
 }
 
 func seed(ctx context.Context, db *Service) (err error) {
@@ -42,7 +47,11 @@ func seed(ctx context.Context, db *Service) (err error) {
 	memoryVersion := seeders[len(seeders)-1].version
 	dbVersion, err := db.Queries.SeederVersionReadLatestAppliedVersion(ctx)
 	if err != nil {
-		return err
+		if dbutils.IsErrPgxNoRows(err) {
+			dbVersion = -1
+		} else {
+			return err
+		}
 	}
 	if memoryVersion == dbVersion {
 		zlog.Info().
@@ -133,6 +142,27 @@ var v1_baseRollsAndPermission = seeder{
 			return err
 		}
 
+		return nil
+	},
+}
+
+var v2_settingsClientApiToken = seeder{
+	version: 2,
+	seederFn: func(ctx context.Context, dbTx database_queries.DBTX, queries *database_queries.Queries) error {
+		err := queries.SettingsCreateLabel(
+			ctx,
+			labels.ClientApiTokenWeb,
+		)
+		if err != nil {
+			return err
+		}
+		err = queries.SettingsCreateLabel(
+			ctx,
+			labels.ClientApiTokenMobile,
+		)
+		if err != nil {
+			return err
+		}
 		return nil
 	},
 }

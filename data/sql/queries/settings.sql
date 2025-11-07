@@ -19,3 +19,13 @@ VALUES (
 ON CONFLICT (label)
 DO UPDATE
 SET value = EXCLUDED.value;
+
+-- name: SettingsCreateLabel :exec
+INSERT INTO settings (
+    label
+)
+VALUES (
+    @label::TEXT
+)
+ON CONFLICT (label)
+DO NOTHING;
