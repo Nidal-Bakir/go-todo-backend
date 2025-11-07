@@ -307,6 +307,12 @@ type RolePermission struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
+type SeederVersion struct {
+	ID        int64              `json:"id"`
+	Version   int32              `json:"version"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
 type Session struct {
 	ID               int32              `json:"id"`
 	Token            string             `json:"token"`
