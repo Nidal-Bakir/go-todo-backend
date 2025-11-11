@@ -11,41 +11,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const perRollAddPermissionToRole = `-- name: PerRollAddPermissionToRole :exec
-INSERT INTO role_permission(role_id, permission_id)
+const permAddPermissionToRole = `-- name: PermAddPermissionToRole :exec
+INSERT INTO role_permission(role_name, permission_name)
 VALUES($1, $2)
 `
 
-type PerRollAddPermissionToRoleParams struct {
-	RoleID       int32 `json:"role_id"`
-	PermissionID int32 `json:"permission_id"`
+type PermAddPermissionToRoleParams struct {
+	RoleName       string `json:"role_name"`
+	PermissionName string `json:"permission_name"`
 }
 
-// PerRollAddPermissionToRole
+// PermAddPermissionToRole
 //
-//	INSERT INTO role_permission(role_id, permission_id)
+//	INSERT INTO role_permission(role_name, permission_name)
 //	VALUES($1, $2)
-func (q *Queries) PerRollAddPermissionToRole(ctx context.Context, arg PerRollAddPermissionToRoleParams) error {
-	_, err := q.db.Exec(ctx, perRollAddPermissionToRole, arg.RoleID, arg.PermissionID)
+func (q *Queries) PermAddPermissionToRole(ctx context.Context, arg PermAddPermissionToRoleParams) error {
+	_, err := q.db.Exec(ctx, permAddPermissionToRole, arg.RoleName, arg.PermissionName)
 	return err
 }
 
-const perRollCreateNewPermission = `-- name: PerRollCreateNewPermission :one
+const permCreateNewPermission = `-- name: PermCreateNewPermission :one
 INSERT INTO permission(name)
 VALUES($1)
-RETURNING id, name, created_at, updated_at, deleted_at
+RETURNING name, created_at, updated_at, deleted_at
 `
 
-// PerRollCreateNewPermission
+// PermCreateNewPermission
 //
 //	INSERT INTO permission(name)
 //	VALUES($1)
-//	RETURNING id, name, created_at, updated_at, deleted_at
-func (q *Queries) PerRollCreateNewPermission(ctx context.Context, name string) (Permission, error) {
-	row := q.db.QueryRow(ctx, perRollCreateNewPermission, name)
+//	RETURNING name, created_at, updated_at, deleted_at
+func (q *Queries) PermCreateNewPermission(ctx context.Context, name string) (Permission, error) {
+	row := q.db.QueryRow(ctx, permCreateNewPermission, name)
 	var i Permission
 	err := row.Scan(
-		&i.ID,
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -54,22 +53,21 @@ func (q *Queries) PerRollCreateNewPermission(ctx context.Context, name string) (
 	return i, err
 }
 
-const perRollCreateNewRole = `-- name: PerRollCreateNewRole :one
+const permCreateNewRole = `-- name: PermCreateNewRole :one
 INSERT INTO role(name)
 VALUES($1)
-RETURNING id, name, created_at, updated_at, deleted_at
+RETURNING name, created_at, updated_at, deleted_at
 `
 
-// PerRollCreateNewRole
+// PermCreateNewRole
 //
 //	INSERT INTO role(name)
 //	VALUES($1)
-//	RETURNING id, name, created_at, updated_at, deleted_at
-func (q *Queries) PerRollCreateNewRole(ctx context.Context, name string) (Role, error) {
-	row := q.db.QueryRow(ctx, perRollCreateNewRole, name)
+//	RETURNING name, created_at, updated_at, deleted_at
+func (q *Queries) PermCreateNewRole(ctx context.Context, name string) (Role, error) {
+	row := q.db.QueryRow(ctx, permCreateNewRole, name)
 	var i Role
 	err := row.Scan(
-		&i.ID,
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -78,43 +76,37 @@ func (q *Queries) PerRollCreateNewRole(ctx context.Context, name string) (Role, 
 	return i, err
 }
 
-const perRollGetAllPermissions = `-- name: PerRollGetAllPermissions :many
-SELECT id,
+const permGetAllPermissions = `-- name: PermGetAllPermissions :many
+SELECT
     name,
     created_at,
     updated_at
 FROM permission
 `
 
-type PerRollGetAllPermissionsRow struct {
-	ID        int32              `json:"id"`
+type PermGetAllPermissionsRow struct {
 	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-// PerRollGetAllPermissions
+// PermGetAllPermissions
 //
-//	SELECT id,
+//	SELECT
 //	    name,
 //	    created_at,
 //	    updated_at
 //	FROM permission
-func (q *Queries) PerRollGetAllPermissions(ctx context.Context) ([]PerRollGetAllPermissionsRow, error) {
-	rows, err := q.db.Query(ctx, perRollGetAllPermissions)
+func (q *Queries) PermGetAllPermissions(ctx context.Context) ([]PermGetAllPermissionsRow, error) {
+	rows, err := q.db.Query(ctx, permGetAllPermissions)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PerRollGetAllPermissionsRow{}
+	items := []PermGetAllPermissionsRow{}
 	for rows.Next() {
-		var i PerRollGetAllPermissionsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i PermGetAllPermissionsRow
+		if err := rows.Scan(&i.Name, &i.CreatedAt, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -125,43 +117,37 @@ func (q *Queries) PerRollGetAllPermissions(ctx context.Context) ([]PerRollGetAll
 	return items, nil
 }
 
-const perRollGetAllRole = `-- name: PerRollGetAllRole :many
-SELECT id,
+const permGetAllRoles = `-- name: PermGetAllRoles :many
+SELECT
     name,
     created_at,
     updated_at
 FROM role
 `
 
-type PerRollGetAllRoleRow struct {
-	ID        int32              `json:"id"`
+type PermGetAllRolesRow struct {
 	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
-// PerRollGetAllRole
+// PermGetAllRoles
 //
-//	SELECT id,
+//	SELECT
 //	    name,
 //	    created_at,
 //	    updated_at
 //	FROM role
-func (q *Queries) PerRollGetAllRole(ctx context.Context) ([]PerRollGetAllRoleRow, error) {
-	rows, err := q.db.Query(ctx, perRollGetAllRole)
+func (q *Queries) PermGetAllRoles(ctx context.Context) ([]PermGetAllRolesRow, error) {
+	rows, err := q.db.Query(ctx, permGetAllRoles)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PerRollGetAllRoleRow{}
+	items := []PermGetAllRolesRow{}
 	for rows.Next() {
-		var i PerRollGetAllRoleRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var i PermGetAllRolesRow
+		if err := rows.Scan(&i.Name, &i.CreatedAt, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -172,49 +158,40 @@ func (q *Queries) PerRollGetAllRole(ctx context.Context) ([]PerRollGetAllRoleRow
 	return items, nil
 }
 
-const perRollGetRoleWithItsPermissions = `-- name: PerRollGetRoleWithItsPermissions :many
-SELECT r.id as role_id,
+const permGetRoleWithItsPermissions = `-- name: PermGetRoleWithItsPermissions :many
+SELECT
     r.name as role_name,
-    p.id as permission_id,
     p.name as permission_name
 FROM role AS r
-    JOIN role_permission AS rp ON r.id = rp.role_id
-    JOIN permission AS p ON p.id = rp.permission_id
-WHERE r.id = $1
+    JOIN role_permission AS rp ON r.name = rp.role_name
+    JOIN permission AS p ON p.name = rp.permission_name
+WHERE r.name = $1
 `
 
-type PerRollGetRoleWithItsPermissionsRow struct {
-	RoleID         int32  `json:"role_id"`
+type PermGetRoleWithItsPermissionsRow struct {
 	RoleName       string `json:"role_name"`
-	PermissionID   int32  `json:"permission_id"`
 	PermissionName string `json:"permission_name"`
 }
 
-// PerRollGetRoleWithItsPermissions
+// PermGetRoleWithItsPermissions
 //
-//	SELECT r.id as role_id,
+//	SELECT
 //	    r.name as role_name,
-//	    p.id as permission_id,
 //	    p.name as permission_name
 //	FROM role AS r
-//	    JOIN role_permission AS rp ON r.id = rp.role_id
-//	    JOIN permission AS p ON p.id = rp.permission_id
-//	WHERE r.id = $1
-func (q *Queries) PerRollGetRoleWithItsPermissions(ctx context.Context, id int32) ([]PerRollGetRoleWithItsPermissionsRow, error) {
-	rows, err := q.db.Query(ctx, perRollGetRoleWithItsPermissions, id)
+//	    JOIN role_permission AS rp ON r.name = rp.role_name
+//	    JOIN permission AS p ON p.name = rp.permission_name
+//	WHERE r.name = $1
+func (q *Queries) PermGetRoleWithItsPermissions(ctx context.Context, name string) ([]PermGetRoleWithItsPermissionsRow, error) {
+	rows, err := q.db.Query(ctx, permGetRoleWithItsPermissions, name)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []PerRollGetRoleWithItsPermissionsRow{}
+	items := []PermGetRoleWithItsPermissionsRow{}
 	for rows.Next() {
-		var i PerRollGetRoleWithItsPermissionsRow
-		if err := rows.Scan(
-			&i.RoleID,
-			&i.RoleName,
-			&i.PermissionID,
-			&i.PermissionName,
-		); err != nil {
+		var i PermGetRoleWithItsPermissionsRow
+		if err := rows.Scan(&i.RoleName, &i.PermissionName); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -225,55 +202,55 @@ func (q *Queries) PerRollGetRoleWithItsPermissions(ctx context.Context, id int32
 	return items, nil
 }
 
-const perRollRemovePermissionFromRole = `-- name: PerRollRemovePermissionFromRole :exec
+const permRemovePermissionFromRole = `-- name: PermRemovePermissionFromRole :exec
 DELETE FROM role_permission
-WHERE role_id = $1
-    AND permission_id = $2
+WHERE role_name = $1
+    AND permission_name = $2
 `
 
-type PerRollRemovePermissionFromRoleParams struct {
-	RoleID       int32 `json:"role_id"`
-	PermissionID int32 `json:"permission_id"`
+type PermRemovePermissionFromRoleParams struct {
+	RoleName       string `json:"role_name"`
+	PermissionName string `json:"permission_name"`
 }
 
-// PerRollRemovePermissionFromRole
+// PermRemovePermissionFromRole
 //
 //	DELETE FROM role_permission
-//	WHERE role_id = $1
-//	    AND permission_id = $2
-func (q *Queries) PerRollRemovePermissionFromRole(ctx context.Context, arg PerRollRemovePermissionFromRoleParams) error {
-	_, err := q.db.Exec(ctx, perRollRemovePermissionFromRole, arg.RoleID, arg.PermissionID)
+//	WHERE role_name = $1
+//	    AND permission_name = $2
+func (q *Queries) PermRemovePermissionFromRole(ctx context.Context, arg PermRemovePermissionFromRoleParams) error {
+	_, err := q.db.Exec(ctx, permRemovePermissionFromRole, arg.RoleName, arg.PermissionName)
 	return err
 }
 
-const perRollSoftDeletePermission = `-- name: PerRollSoftDeletePermission :exec
+const permSoftDeletePermission = `-- name: PermSoftDeletePermission :exec
 UPDATE permission
 SET deleted_at = NOW()
-WHERE id = $1
+WHERE name = $1
 `
 
-// PerRollSoftDeletePermission
+// PermSoftDeletePermission
 //
 //	UPDATE permission
 //	SET deleted_at = NOW()
-//	WHERE id = $1
-func (q *Queries) PerRollSoftDeletePermission(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, perRollSoftDeletePermission, id)
+//	WHERE name = $1
+func (q *Queries) PermSoftDeletePermission(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, permSoftDeletePermission, name)
 	return err
 }
 
-const perRollSoftDeleteRole = `-- name: PerRollSoftDeleteRole :exec
+const permSoftDeleteRole = `-- name: PermSoftDeleteRole :exec
 UPDATE role
 SET deleted_at = NOW()
-WHERE id = $1
+WHERE name = $1
 `
 
-// PerRollSoftDeleteRole
+// PermSoftDeleteRole
 //
 //	UPDATE role
 //	SET deleted_at = NOW()
-//	WHERE id = $1
-func (q *Queries) PerRollSoftDeleteRole(ctx context.Context, id int32) error {
-	_, err := q.db.Exec(ctx, perRollSoftDeleteRole, id)
+//	WHERE name = $1
+func (q *Queries) PermSoftDeleteRole(ctx context.Context, name string) error {
+	_, err := q.db.Exec(ctx, permSoftDeleteRole, name)
 	return err
 }

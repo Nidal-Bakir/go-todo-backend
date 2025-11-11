@@ -1,26 +1,24 @@
 -- +goose Up
 CREATE TABLE permission (
-    id SERIAL PRIMARY KEY NOT NULL,
-    name VARCHAR(100) UNIQUE NOT NULL CHECK (char_length(name) >= 1),
+    name VARCHAR(100) PRIMARY KEY NOT NULL CHECK (char_length(name) >= 1),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE role (
-    id SERIAL PRIMARY KEY NOT NULL,
-    name VARCHAR(100) UNIQUE NOT NULL CHECK (char_length(name) >= 1),
+    name VARCHAR(100) PRIMARY KEY NOT NULL CHECK (char_length(name) >= 1),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     deleted_at TIMESTAMPTZ
 );
 
 CREATE TABLE role_permission (
-    role_id INTEGER NOT NULL REFERENCES role(id),
-    permission_id INTEGER NOT NULL REFERENCES permission(id),
+    role_name VARCHAR(100) NOT NULL REFERENCES role(name),
+    permission_name VARCHAR(100) NOT NULL REFERENCES permission(name),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    PRIMARY KEY (role_id, permission_id)
+    PRIMARY KEY (role_name, permission_name)
 );
 
 CREATE TRIGGER update_permission_updated_at_column BEFORE

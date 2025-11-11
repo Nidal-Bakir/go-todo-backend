@@ -10,7 +10,7 @@ SELECT
     u.blocked_until,
     u.created_at,
     u.updated_at,
-    u.role_id
+    u.role_name
 FROM not_deleted_users AS u
 WHERE id = $1
 LIMIT 1;
@@ -30,7 +30,7 @@ SELECT s.id as session_id,
     u.last_name as user_last_name,
     u.blocked_at as user_blocked_at,
     u.blocked_until as user_blocked_until,
-    u.role_id as user_role_id
+    u.role_name as user_role_name
 FROM active_session AS s
     JOIN active_login_identity AS li ON s.originated_from = li.id
     JOIN not_deleted_users AS u ON u.id = li.user_id
@@ -48,7 +48,7 @@ INSERT INTO users (
         profile_image,
         first_name,
         last_name,
-        role_id
+        role_name
     )
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
@@ -59,7 +59,7 @@ SET username = $2,
     profile_image = $3,
     first_name = $4,
     last_name = $5,
-    role_id = $6
+    role_name = $6
 WHERE id = $1
 RETURNING *;
 

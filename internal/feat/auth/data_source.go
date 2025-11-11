@@ -158,7 +158,7 @@ func (ds dataSourceImpl) CreatePasswordUser(ctx context.Context, userArgs Create
 			UserUsername:     userArgs.Username,
 			UserLastName:     dbutils.ToPgTypeText(userArgs.Lname),
 			UserProfileImage: dbutils.ToPgTypeText(userArgs.ProfileImagePath),
-			UserRoleID:       dbutils.ToPgTypeInt4(userArgs.RoleID),
+			UserRoleName:     dbutils.ToPgTypeText(userArgs.RoleName),
 
 			IdentityType:       userArgs.LoginIdentityType.String(),
 			PasswordEmail:      dbutils.ToPgTypeText(userArgs.Email),
@@ -180,7 +180,7 @@ func (ds dataSourceImpl) CreatePasswordUser(ctx context.Context, userArgs Create
 		UpdatedAt:    userRow.UpdatedAt,
 		BlockedAt:    userRow.BlockedAt,
 		DeletedAt:    userRow.DeletedAt,
-		RoleID:       userRow.RoleID,
+		RoleName:     userRow.RoleName,
 	}
 
 	return user, err
@@ -575,7 +575,7 @@ func oidcCreateAccountAndLogin(ctx context.Context, queries *database_queries.Qu
 			UserProfileImage:           oidcParamData.UserProfileImage,
 			UserFirstName:              oidcParamData.UserFirstName,
 			UserLastName:               oidcParamData.UserLastName,
-			UserRoleID:                 oidcParamData.UserRoleID,
+			UserRoleName:               oidcParamData.UserRoleName,
 			OauthProviderName:          oidcParamData.oauthProvider.String(),
 			OauthProviderIsOidcCapable: true,
 			OauthScopes:                oidcParamData.OauthScopes.Array(),
@@ -609,7 +609,7 @@ func oidcCreateAccountAndLogin(ctx context.Context, queries *database_queries.Qu
 		UpdatedAt:    result.UpdatedAt,
 		BlockedAt:    result.BlockedAt,
 		BlockedUntil: result.BlockedUntil,
-		RoleID:       result.RoleID,
+		RoleName:     result.RoleName,
 	}
 
 	return result.NewLoginIdentityID, user, nil
@@ -747,7 +747,7 @@ func oidcLoginOnly(
 		UpdatedAt:    oidcUser.UserUpdatedAt,
 		BlockedAt:    oidcUser.UserBlockedAt,
 		BlockedUntil: oidcUser.UserBlockedUntil,
-		RoleID:       oidcUser.UserRoleID,
+		RoleName:     oidcUser.UserRoleName,
 	}
 	return user, nil
 }

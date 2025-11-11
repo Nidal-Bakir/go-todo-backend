@@ -17,10 +17,10 @@ INSERT INTO users (
         profile_image,
         first_name,
         last_name,
-        role_id
+        role_name
     )
 VALUES ($1, $2, $3, $4, $5)
-RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 `
 
 type UsersCreateNewUserParams struct {
@@ -28,7 +28,7 @@ type UsersCreateNewUserParams struct {
 	ProfileImage pgtype.Text `json:"profile_image"`
 	FirstName    string      `json:"first_name"`
 	LastName     pgtype.Text `json:"last_name"`
-	RoleID       pgtype.Int4 `json:"role_id"`
+	RoleName     pgtype.Text `json:"role_name"`
 }
 
 // UsersCreateNewUser
@@ -38,17 +38,17 @@ type UsersCreateNewUserParams struct {
 //	        profile_image,
 //	        first_name,
 //	        last_name,
-//	        role_id
+//	        role_name
 //	    )
 //	VALUES ($1, $2, $3, $4, $5)
-//	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+//	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 func (q *Queries) UsersCreateNewUser(ctx context.Context, arg UsersCreateNewUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, usersCreateNewUser,
 		arg.Username,
 		arg.ProfileImage,
 		arg.FirstName,
 		arg.LastName,
-		arg.RoleID,
+		arg.RoleName,
 	)
 	var i User
 	err := row.Scan(
@@ -63,7 +63,7 @@ func (q *Queries) UsersCreateNewUser(ctx context.Context, arg UsersCreateNewUser
 		&i.BlockedAt,
 		&i.BlockedUntil,
 		&i.DeletedAt,
-		&i.RoleID,
+		&i.RoleName,
 	)
 	return i, err
 }
@@ -82,7 +82,7 @@ SELECT s.id as session_id,
     u.last_name as user_last_name,
     u.blocked_at as user_blocked_at,
     u.blocked_until as user_blocked_until,
-    u.role_id as user_role_id
+    u.role_name as user_role_name
 FROM active_session AS s
     JOIN active_login_identity AS li ON s.originated_from = li.id
     JOIN not_deleted_users AS u ON u.id = li.user_id
@@ -103,7 +103,7 @@ type UsersGetUserAndSessionDataBySessionTokenRow struct {
 	UserLastName            pgtype.Text        `json:"user_last_name"`
 	UserBlockedAt           pgtype.Timestamptz `json:"user_blocked_at"`
 	UserBlockedUntil        pgtype.Timestamptz `json:"user_blocked_until"`
-	UserRoleID              pgtype.Int4        `json:"user_role_id"`
+	UserRoleName            pgtype.Text        `json:"user_role_name"`
 }
 
 // UsersGetUserAndSessionDataBySessionToken
@@ -121,7 +121,7 @@ type UsersGetUserAndSessionDataBySessionTokenRow struct {
 //	    u.last_name as user_last_name,
 //	    u.blocked_at as user_blocked_at,
 //	    u.blocked_until as user_blocked_until,
-//	    u.role_id as user_role_id
+//	    u.role_name as user_role_name
 //	FROM active_session AS s
 //	    JOIN active_login_identity AS li ON s.originated_from = li.id
 //	    JOIN not_deleted_users AS u ON u.id = li.user_id
@@ -143,7 +143,7 @@ func (q *Queries) UsersGetUserAndSessionDataBySessionToken(ctx context.Context, 
 		&i.UserLastName,
 		&i.UserBlockedAt,
 		&i.UserBlockedUntil,
-		&i.UserRoleID,
+		&i.UserRoleName,
 	)
 	return i, err
 }
@@ -160,7 +160,7 @@ SELECT
     u.blocked_until,
     u.created_at,
     u.updated_at,
-    u.role_id
+    u.role_name
 FROM not_deleted_users AS u
 WHERE id = $1
 LIMIT 1
@@ -177,7 +177,7 @@ type UsersGetUserByIdRow struct {
 	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
+	RoleName     pgtype.Text        `json:"role_name"`
 }
 
 // UsersGetUserById
@@ -193,7 +193,7 @@ type UsersGetUserByIdRow struct {
 //	    u.blocked_until,
 //	    u.created_at,
 //	    u.updated_at,
-//	    u.role_id
+//	    u.role_name
 //	FROM not_deleted_users AS u
 //	WHERE id = $1
 //	LIMIT 1
@@ -211,7 +211,7 @@ func (q *Queries) UsersGetUserById(ctx context.Context, id int32) (UsersGetUserB
 		&i.BlockedUntil,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.RoleID,
+		&i.RoleName,
 	)
 	return i, err
 }
@@ -256,9 +256,9 @@ SET username = $2,
     profile_image = $3,
     first_name = $4,
     last_name = $5,
-    role_id = $6
+    role_name = $6
 WHERE id = $1
-RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 `
 
 type UsersUpdateUserDataParams struct {
@@ -267,7 +267,7 @@ type UsersUpdateUserDataParams struct {
 	ProfileImage pgtype.Text `json:"profile_image"`
 	FirstName    string      `json:"first_name"`
 	LastName     pgtype.Text `json:"last_name"`
-	RoleID       pgtype.Int4 `json:"role_id"`
+	RoleName     pgtype.Text `json:"role_name"`
 }
 
 // UsersUpdateUserData
@@ -277,9 +277,9 @@ type UsersUpdateUserDataParams struct {
 //	    profile_image = $3,
 //	    first_name = $4,
 //	    last_name = $5,
-//	    role_id = $6
+//	    role_name = $6
 //	WHERE id = $1
-//	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+//	RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 func (q *Queries) UsersUpdateUserData(ctx context.Context, arg UsersUpdateUserDataParams) (User, error) {
 	row := q.db.QueryRow(ctx, usersUpdateUserData,
 		arg.ID,
@@ -287,7 +287,7 @@ func (q *Queries) UsersUpdateUserData(ctx context.Context, arg UsersUpdateUserDa
 		arg.ProfileImage,
 		arg.FirstName,
 		arg.LastName,
-		arg.RoleID,
+		arg.RoleName,
 	)
 	var i User
 	err := row.Scan(
@@ -302,7 +302,7 @@ func (q *Queries) UsersUpdateUserData(ctx context.Context, arg UsersUpdateUserDa
 		&i.BlockedAt,
 		&i.BlockedUntil,
 		&i.DeletedAt,
-		&i.RoleID,
+		&i.RoleName,
 	)
 	return i, err
 }

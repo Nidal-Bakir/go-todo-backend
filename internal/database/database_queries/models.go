@@ -204,7 +204,7 @@ type NotDeletedUser struct {
 	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
 	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
+	RoleName     pgtype.Text        `json:"role_name"`
 }
 
 type OauthConnection struct {
@@ -285,7 +285,6 @@ type PasswordLoginIdentity struct {
 }
 
 type Permission struct {
-	ID        int32              `json:"id"`
 	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
@@ -293,7 +292,6 @@ type Permission struct {
 }
 
 type Role struct {
-	ID        int32              `json:"id"`
 	Name      string             `json:"name"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
@@ -301,10 +299,10 @@ type Role struct {
 }
 
 type RolePermission struct {
-	RoleID       int32              `json:"role_id"`
-	PermissionID int32              `json:"permission_id"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	RoleName       string             `json:"role_name"`
+	PermissionName string             `json:"permission_name"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type SeederVersion struct {
@@ -363,7 +361,7 @@ type User struct {
 	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
 	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
+	RoleName     pgtype.Text        `json:"role_name"`
 }
 
 type UserIntegration struct {

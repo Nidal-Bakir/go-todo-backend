@@ -268,7 +268,7 @@ type CreatePasswordUserArgs struct {
 	HashedPass        string
 	PassSalt          string
 	ProfileImagePath  string
-	RoleID            *int32
+	RoleName          string
 	VerifiedAt        time.Time
 }
 
@@ -283,7 +283,7 @@ type User struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
+	RoleName     pgtype.Text        `json:"role_name"`
 }
 
 func NewUserFromDatabaseUser(u database_queries.User) User {
@@ -298,7 +298,7 @@ func NewUserFromDatabaseUser(u database_queries.User) User {
 		UpdatedAt:    u.UpdatedAt,
 		BlockedAt:    u.BlockedAt,
 		DeletedAt:    u.DeletedAt,
-		RoleID:       u.RoleID,
+		RoleName:     u.RoleName,
 	}
 }
 
@@ -314,7 +314,7 @@ type UserAndSession struct {
 	UserBlockedAt    pgtype.Timestamptz `json:"user_blocked_at"`
 	UserBlockedUntil pgtype.Timestamptz `json:"user_blocked_until"`
 	UserDeletedAt    pgtype.Timestamptz `json:"user_deleted_at"`
-	UserRoleID       pgtype.Int4        `json:"user_role_id"`
+	UserRoleName     pgtype.Text        `json:"user_role_name"`
 
 	SessionID               int32              `json:"session_id"`
 	SessionToken            string             `json:"session_token"`
@@ -336,7 +336,7 @@ func NewUserAndSessionFromDatabaseUserAndSessionRow(u database_queries.UsersGetU
 		UserLastName:     u.UserLastName,
 		UserBlockedAt:    u.UserBlockedAt,
 		UserBlockedUntil: u.UserBlockedUntil,
-		UserRoleID:       u.UserRoleID,
+		UserRoleName:     u.UserRoleName,
 
 		SessionID:               u.SessionID,
 		SessionToken:            u.SessionToken,

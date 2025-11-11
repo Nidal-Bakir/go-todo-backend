@@ -5,14 +5,14 @@ WITH new_user AS (
     profile_image,
     first_name,
     last_name,
-    role_id
+    role_name
   )
   VALUES (
     @user_username::text,
     sqlc.narg(user_profile_image)::text,
     @user_first_name::text,
     sqlc.narg(user_last_name)::text,
-    sqlc.narg(user_role_id)::int
+    sqlc.narg(user_role_name)::text
   )
   RETURNING *
 ),
@@ -90,7 +90,7 @@ SELECT
     u.blocked_until AS user_blocked_until,
     u.created_at AS user_created_at,
     u.updated_at AS user_updated_at,
-    u.role_id as user_role_id,
+    u.role_name as user_role_name,
     li.id AS login_identity_id,
     od.provider_name AS oauth_provider_name,
     od.id AS oidc_data_id
@@ -158,7 +158,7 @@ SELECT
     u.last_name as user_last_name,
     u.blocked_at as user_blocked_at,
     u.blocked_until as user_blocked_until,
-    u.role_id as user_role_id
+    u.role_name as user_role_name
 FROM not_deleted_users AS u
     JOIN active_login_identity AS li
         ON u.id = li.user_id
@@ -303,16 +303,16 @@ WITH new_user AS (
     profile_image,
     first_name,
     last_name,
-    role_id
+    role_name
   )
   VALUES (
     @user_username::text,
     sqlc.narg(user_profile_image)::text,
     @user_first_name::text,
     sqlc.narg(user_last_name)::text,
-    sqlc.narg(user_role_id)::int
+    sqlc.narg(user_role_name)::text
   )
-  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 ),
 new_identity AS (
   INSERT INTO login_identity (
@@ -438,4 +438,4 @@ new_oidc_login_identity AS (
         (SELECT id FROM new_oidc_data)
     )
 )
-SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i;
+SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_name, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i;

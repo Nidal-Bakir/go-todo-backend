@@ -92,7 +92,7 @@ func (repo repositoryImpl) GetUserById(ctx context.Context, id int) (User, error
 		CreatedAt:    dbUser.CreatedAt,
 		UpdatedAt:    dbUser.UpdatedAt,
 		BlockedAt:    dbUser.BlockedAt,
-		RoleID:       dbUser.RoleID,
+		RoleName:     dbUser.RoleName,
 	}
 	return user, nil
 }
@@ -406,7 +406,7 @@ func (repo repositoryImpl) PasswordLogin(
 		FirstName:    userWithLoginIdentity.UserFirstName,
 		MiddleName:   userWithLoginIdentity.UserMiddleName,
 		LastName:     userWithLoginIdentity.UserLastName,
-		RoleID:       userWithLoginIdentity.UserRoleID,
+		RoleName:     userWithLoginIdentity.UserRoleName,
 		BlockedAt:    userWithLoginIdentity.UserBlockedAt,
 	}
 

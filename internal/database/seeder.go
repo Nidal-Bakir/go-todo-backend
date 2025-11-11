@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/perm/baseperm"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings/labels"
 	dbutils "github.com/Nidal-Bakir/go-todo-backend/internal/utils/db_utils"
 
@@ -91,51 +92,51 @@ func seed(ctx context.Context, db *Service) (err error) {
 var v1_baseRollsAndPermission = seeder{
 	version: 1,
 	seederFn: func(ctx context.Context, dbTx database_queries.DBTX, queries *database_queries.Queries) error {
-		adminRole, err := queries.PerRollCreateNewRole(ctx, "admin")
+		adminRole, err := queries.PermCreateNewRole(ctx, baseperm.BaseRollAdmin)
 		if err != nil {
 			return err
 		}
 
-		readAppSettingsPer, err := queries.PerRollCreateNewPermission(ctx, "read_app_settings")
+		readAppSettingsPer, err := queries.PermCreateNewPermission(ctx, baseperm.BasePermReadAppSettings)
 		if err != nil {
 			return err
 		}
-		writeAppSettingsPer, err := queries.PerRollCreateNewPermission(ctx, "write_app_settings")
+		writeAppSettingsPer, err := queries.PermCreateNewPermission(ctx, baseperm.BasePermWriteAppSettings)
 		if err != nil {
 			return err
 		}
-		deleteAppSettingsPer, err := queries.PerRollCreateNewPermission(ctx, "delete_app_settings")
+		deleteAppSettingsPer, err := queries.PermCreateNewPermission(ctx, baseperm.BasePermDeleteAppSettings)
 		if err != nil {
 			return err
 		}
 
-		err = queries.PerRollAddPermissionToRole(
+		err = queries.PermAddPermissionToRole(
 			ctx,
-			database_queries.PerRollAddPermissionToRoleParams{
-				RoleID:       adminRole.ID,
-				PermissionID: readAppSettingsPer.ID,
+			database_queries.PermAddPermissionToRoleParams{
+				RoleName:       adminRole.Name,
+				PermissionName: readAppSettingsPer.Name,
 			},
 		)
 		if err != nil {
 			return err
 		}
 
-		err = queries.PerRollAddPermissionToRole(
+		err = queries.PermAddPermissionToRole(
 			ctx,
-			database_queries.PerRollAddPermissionToRoleParams{
-				RoleID:       adminRole.ID,
-				PermissionID: writeAppSettingsPer.ID,
+			database_queries.PermAddPermissionToRoleParams{
+				RoleName:       adminRole.Name,
+				PermissionName: writeAppSettingsPer.Name,
 			},
 		)
 		if err != nil {
 			return err
 		}
 
-		err = queries.PerRollAddPermissionToRole(
+		err = queries.PermAddPermissionToRole(
 			ctx,
-			database_queries.PerRollAddPermissionToRoleParams{
-				RoleID:       adminRole.ID,
-				PermissionID: deleteAppSettingsPer.ID,
+			database_queries.PermAddPermissionToRoleParams{
+				RoleName:       adminRole.Name,
+				PermissionName: deleteAppSettingsPer.Name,
 			},
 		)
 		if err != nil {

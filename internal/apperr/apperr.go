@@ -129,4 +129,7 @@ var (
 
 	// todo
 	ErrUnsupportedTodoStatus = NewAppErrWithTr(errors.New("unsupported todo status"), l10n.UnsupportedTodoStatus, "todo_1")
+
+	// perm
+	ErrPermissionDenied = NewAppErrWithErrorCode(errors.New("permission denied"), "perm_1")
 )

@@ -141,16 +141,16 @@ WITH new_user AS (
     profile_image,
     first_name,
     last_name,
-    role_id
+    role_name
   )
   VALUES (
     $1::text,
     $2::text,
     $3::text,
     $4::text,
-    $5::int
+    $5::text
   )
-  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 ),
 new_identity AS (
   INSERT INTO login_identity (
@@ -276,7 +276,7 @@ new_oidc_login_identity AS (
         (SELECT id FROM new_oidc_data)
     )
 )
-SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i
+SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_name, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i
 `
 
 type LoginIdentityCreateNewUserAndOIDCLoginIdentityParams struct {
@@ -284,7 +284,7 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityParams struct {
 	UserProfileImage           pgtype.Text      `json:"user_profile_image"`
 	UserFirstName              string           `json:"user_first_name"`
 	UserLastName               pgtype.Text      `json:"user_last_name"`
-	UserRoleID                 pgtype.Int4      `json:"user_role_id"`
+	UserRoleName               pgtype.Text      `json:"user_role_name"`
 	OauthProviderName          string           `json:"oauth_provider_name"`
 	OauthProviderIsOidcCapable bool             `json:"oauth_provider_is_oidc_capable"`
 	OauthScopes                []string         `json:"oauth_scopes"`
@@ -315,7 +315,7 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 	BlockedAt          pgtype.Timestamptz `json:"blocked_at"`
 	BlockedUntil       pgtype.Timestamptz `json:"blocked_until"`
 	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
-	RoleID             pgtype.Int4        `json:"role_id"`
+	RoleName           pgtype.Text        `json:"role_name"`
 	NewLoginIdentityID int32              `json:"new_login_identity_id"`
 }
 
@@ -360,16 +360,16 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 //	    profile_image,
 //	    first_name,
 //	    last_name,
-//	    role_id
+//	    role_name
 //	  )
 //	  VALUES (
 //	    $1::text,
 //	    $2::text,
 //	    $3::text,
 //	    $4::text,
-//	    $5::int
+//	    $5::text
 //	  )
-//	  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+//	  RETURNING id AS user_id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 //	),
 //	new_identity AS (
 //	  INSERT INTO login_identity (
@@ -495,14 +495,14 @@ type LoginIdentityCreateNewUserAndOIDCLoginIdentityRow struct {
 //	        (SELECT id FROM new_oidc_data)
 //	    )
 //	)
-//	SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_id, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i
+//	SELECT u.user_id, u.username, u.profile_image, u.first_name, u.middle_name, u.last_name, u.created_at, u.updated_at, u.blocked_at, u.blocked_until, u.deleted_at, u.role_name, i.id AS new_login_identity_id FROM new_user AS u, new_identity AS i
 func (q *Queries) LoginIdentityCreateNewUserAndOIDCLoginIdentity(ctx context.Context, arg LoginIdentityCreateNewUserAndOIDCLoginIdentityParams) (LoginIdentityCreateNewUserAndOIDCLoginIdentityRow, error) {
 	row := q.db.QueryRow(ctx, loginIdentityCreateNewUserAndOIDCLoginIdentity,
 		arg.UserUsername,
 		arg.UserProfileImage,
 		arg.UserFirstName,
 		arg.UserLastName,
-		arg.UserRoleID,
+		arg.UserRoleName,
 		arg.OauthProviderName,
 		arg.OauthProviderIsOidcCapable,
 		arg.OauthScopes,
@@ -533,7 +533,7 @@ func (q *Queries) LoginIdentityCreateNewUserAndOIDCLoginIdentity(ctx context.Con
 		&i.BlockedAt,
 		&i.BlockedUntil,
 		&i.DeletedAt,
-		&i.RoleID,
+		&i.RoleName,
 		&i.NewLoginIdentityID,
 	)
 	return i, err
@@ -546,16 +546,16 @@ WITH new_user AS (
     profile_image,
     first_name,
     last_name,
-    role_id
+    role_name
   )
   VALUES (
     $1::text,
     $2::text,
     $3::text,
     $4::text,
-    $5::int
+    $5::text
   )
-  RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+  RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 ),
 new_identity AS (
   INSERT INTO login_identity (
@@ -586,7 +586,7 @@ final_insert AS (
     $11::timestamptz
   )
 )
-SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id FROM new_user
+SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name FROM new_user
 `
 
 type LoginIdentityCreateNewUserAndPasswordLoginIdentityParams struct {
@@ -594,7 +594,7 @@ type LoginIdentityCreateNewUserAndPasswordLoginIdentityParams struct {
 	UserProfileImage   pgtype.Text        `json:"user_profile_image"`
 	UserFirstName      string             `json:"user_first_name"`
 	UserLastName       pgtype.Text        `json:"user_last_name"`
-	UserRoleID         pgtype.Int4        `json:"user_role_id"`
+	UserRoleName       pgtype.Text        `json:"user_role_name"`
 	IdentityType       string             `json:"identity_type"`
 	PasswordEmail      pgtype.Text        `json:"password_email"`
 	PasswordPhone      pgtype.Text        `json:"password_phone"`
@@ -615,7 +615,7 @@ type LoginIdentityCreateNewUserAndPasswordLoginIdentityRow struct {
 	BlockedAt    pgtype.Timestamptz `json:"blocked_at"`
 	BlockedUntil pgtype.Timestamptz `json:"blocked_until"`
 	DeletedAt    pgtype.Timestamptz `json:"deleted_at"`
-	RoleID       pgtype.Int4        `json:"role_id"`
+	RoleName     pgtype.Text        `json:"role_name"`
 }
 
 // LoginIdentityCreateNewUserAndPasswordLoginIdentity
@@ -626,16 +626,16 @@ type LoginIdentityCreateNewUserAndPasswordLoginIdentityRow struct {
 //	    profile_image,
 //	    first_name,
 //	    last_name,
-//	    role_id
+//	    role_name
 //	  )
 //	  VALUES (
 //	    $1::text,
 //	    $2::text,
 //	    $3::text,
 //	    $4::text,
-//	    $5::int
+//	    $5::text
 //	  )
-//	  RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id
+//	  RETURNING id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name
 //	),
 //	new_identity AS (
 //	  INSERT INTO login_identity (
@@ -666,14 +666,14 @@ type LoginIdentityCreateNewUserAndPasswordLoginIdentityRow struct {
 //	    $11::timestamptz
 //	  )
 //	)
-//	SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_id FROM new_user
+//	SELECT id, username, profile_image, first_name, middle_name, last_name, created_at, updated_at, blocked_at, blocked_until, deleted_at, role_name FROM new_user
 func (q *Queries) LoginIdentityCreateNewUserAndPasswordLoginIdentity(ctx context.Context, arg LoginIdentityCreateNewUserAndPasswordLoginIdentityParams) (LoginIdentityCreateNewUserAndPasswordLoginIdentityRow, error) {
 	row := q.db.QueryRow(ctx, loginIdentityCreateNewUserAndPasswordLoginIdentity,
 		arg.UserUsername,
 		arg.UserProfileImage,
 		arg.UserFirstName,
 		arg.UserLastName,
-		arg.UserRoleID,
+		arg.UserRoleName,
 		arg.IdentityType,
 		arg.PasswordEmail,
 		arg.PasswordPhone,
@@ -694,7 +694,7 @@ func (q *Queries) LoginIdentityCreateNewUserAndPasswordLoginIdentity(ctx context
 		&i.BlockedAt,
 		&i.BlockedUntil,
 		&i.DeletedAt,
-		&i.RoleID,
+		&i.RoleName,
 	)
 	return i, err
 }
@@ -961,7 +961,7 @@ SELECT
     u.blocked_until AS user_blocked_until,
     u.created_at AS user_created_at,
     u.updated_at AS user_updated_at,
-    u.role_id as user_role_id,
+    u.role_name as user_role_name,
     li.id AS login_identity_id,
     od.provider_name AS oauth_provider_name,
     od.id AS oidc_data_id
@@ -996,7 +996,7 @@ type LoginIdentityGetOIDCDataBySubRow struct {
 	UserBlockedUntil  pgtype.Timestamptz `json:"user_blocked_until"`
 	UserCreatedAt     pgtype.Timestamptz `json:"user_created_at"`
 	UserUpdatedAt     pgtype.Timestamptz `json:"user_updated_at"`
-	UserRoleID        pgtype.Int4        `json:"user_role_id"`
+	UserRoleName      pgtype.Text        `json:"user_role_name"`
 	LoginIdentityID   int32              `json:"login_identity_id"`
 	OauthProviderName string             `json:"oauth_provider_name"`
 	OidcDataID        int32              `json:"oidc_data_id"`
@@ -1015,7 +1015,7 @@ type LoginIdentityGetOIDCDataBySubRow struct {
 //	    u.blocked_until AS user_blocked_until,
 //	    u.created_at AS user_created_at,
 //	    u.updated_at AS user_updated_at,
-//	    u.role_id as user_role_id,
+//	    u.role_name as user_role_name,
 //	    li.id AS login_identity_id,
 //	    od.provider_name AS oauth_provider_name,
 //	    od.id AS oidc_data_id
@@ -1046,7 +1046,7 @@ func (q *Queries) LoginIdentityGetOIDCDataBySub(ctx context.Context, arg LoginId
 		&i.UserBlockedUntil,
 		&i.UserCreatedAt,
 		&i.UserUpdatedAt,
-		&i.UserRoleID,
+		&i.UserRoleName,
 		&i.LoginIdentityID,
 		&i.OauthProviderName,
 		&i.OidcDataID,
@@ -1166,7 +1166,7 @@ SELECT
     u.last_name as user_last_name,
     u.blocked_at as user_blocked_at,
     u.blocked_until as user_blocked_until,
-    u.role_id as user_role_id
+    u.role_name as user_role_name
 FROM not_deleted_users AS u
     JOIN active_login_identity AS li
         ON u.id = li.user_id
@@ -1206,7 +1206,7 @@ type LoginIdentityGetPasswordLoginIdentityWithUserRow struct {
 	UserLastName            pgtype.Text        `json:"user_last_name"`
 	UserBlockedAt           pgtype.Timestamptz `json:"user_blocked_at"`
 	UserBlockedUntil        pgtype.Timestamptz `json:"user_blocked_until"`
-	UserRoleID              pgtype.Int4        `json:"user_role_id"`
+	UserRoleName            pgtype.Text        `json:"user_role_name"`
 }
 
 // LoginIdentityGetPasswordLoginIdentityWithUser
@@ -1233,7 +1233,7 @@ type LoginIdentityGetPasswordLoginIdentityWithUserRow struct {
 //	    u.last_name as user_last_name,
 //	    u.blocked_at as user_blocked_at,
 //	    u.blocked_until as user_blocked_until,
-//	    u.role_id as user_role_id
+//	    u.role_name as user_role_name
 //	FROM not_deleted_users AS u
 //	    JOIN active_login_identity AS li
 //	        ON u.id = li.user_id
@@ -1269,7 +1269,7 @@ func (q *Queries) LoginIdentityGetPasswordLoginIdentityWithUser(ctx context.Cont
 		&i.UserLastName,
 		&i.UserBlockedAt,
 		&i.UserBlockedUntil,
-		&i.UserRoleID,
+		&i.UserRoleName,
 	)
 	return i, err
 }

@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/perm"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/appjwt"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
@@ -17,5 +18,9 @@ func (s *Server) NewAuthRepository() auth.Repository {
 }
 
 func (s *Server) NewSettingsRepository() settings.Repository {
-	return settings.NewRepository(s.db, s.rdb)
+	return settings.NewRepository(s.db, s.rdb, s.NewPermRepository())
+}
+
+func (s *Server) NewPermRepository() perm.Repository {
+	return perm.NewRepository(s.db, s.rdb)
 }

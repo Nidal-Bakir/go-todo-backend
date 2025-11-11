@@ -1,52 +1,51 @@
--- name: PerRollGetAllPermissions :many
-SELECT id,
+-- name: PermGetAllPermissions :many
+SELECT
     name,
     created_at,
     updated_at
 FROM permission;
 
--- name: PerRollGetAllRole :many
-SELECT id,
+-- name: PermGetAllRoles :many
+SELECT
     name,
     created_at,
     updated_at
 FROM role;
 
--- name: PerRollGetRoleWithItsPermissions :many
-SELECT r.id as role_id,
+-- name: PermGetRoleWithItsPermissions :many
+SELECT
     r.name as role_name,
-    p.id as permission_id,
     p.name as permission_name
 FROM role AS r
-    JOIN role_permission AS rp ON r.id = rp.role_id
-    JOIN permission AS p ON p.id = rp.permission_id
-WHERE r.id = $1;
+    JOIN role_permission AS rp ON r.name = rp.role_name
+    JOIN permission AS p ON p.name = rp.permission_name
+WHERE r.name = $1;
 
--- name: PerRollCreateNewPermission :one
+-- name: PermCreateNewPermission :one
 INSERT INTO permission(name)
 VALUES($1)
 RETURNING *;
 
--- name: PerRollCreateNewRole :one
+-- name: PermCreateNewRole :one
 INSERT INTO role(name)
 VALUES($1)
 RETURNING *;
 
--- name: PerRollAddPermissionToRole :exec
-INSERT INTO role_permission(role_id, permission_id)
+-- name: PermAddPermissionToRole :exec
+INSERT INTO role_permission(role_name, permission_name)
 VALUES($1, $2);
 
--- name: PerRollRemovePermissionFromRole :exec
+-- name: PermRemovePermissionFromRole :exec
 DELETE FROM role_permission
-WHERE role_id = $1
-    AND permission_id = $2;
+WHERE role_name = $1
+    AND permission_name = $2;
 
--- name: PerRollSoftDeletePermission :exec
+-- name: PermSoftDeletePermission :exec
 UPDATE permission
 SET deleted_at = NOW()
-WHERE id = $1;
+WHERE name = $1;
 
--- name: PerRollSoftDeleteRole :exec
+-- name: PermSoftDeleteRole :exec
 UPDATE role
 SET deleted_at = NOW()
-WHERE id = $1;
+WHERE name = $1;

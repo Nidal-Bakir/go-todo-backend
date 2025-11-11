@@ -11,7 +11,7 @@ CREATE TABLE users (
     blocked_at TIMESTAMPTZ,
     blocked_until TIMESTAMPTZ,
     deleted_at TIMESTAMPTZ,
-    role_id INTEGER REFERENCES role(id)
+    role_name VARCHAR(100) REFERENCES role(name)
 );
 
 CREATE TRIGGER update_users_updated_at_column BEFORE

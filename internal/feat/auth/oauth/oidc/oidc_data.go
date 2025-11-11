@@ -9,7 +9,7 @@ type OidcData struct {
 	UserFirstName    string
 	UserLastName     pgtype.Text
 	UserProfileImage pgtype.Text
-	UserRoleID       pgtype.Int4
+	UserRoleName     pgtype.Text
 
 	OidcGivenName  pgtype.Text
 	OidcFamilyName pgtype.Text
