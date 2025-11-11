@@ -13,6 +13,7 @@ document.getElementById("apiCallBtnInstallation").addEventListener("click", asyn
         Accept: "application/json",
         "Accept-Language": "ar",
         "Content-Type": "application/x-www-form-urlencoded",
+        "A-Client-API-Token": "123",
       },
       body: params.toString(),
     });

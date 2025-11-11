@@ -9,6 +9,8 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings/labels"
 	"github.com/rs/zerolog"
 )
 
@@ -161,6 +163,42 @@ func Installation(authRepo auth.Repository) func(http.Handler) http.HandlerFunc 
 			ctx = zlog.With().Int32("installation_id", installation.ID).Logger().WithContext(ctx)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
+		}
+	}
+}
+
+func ClientTokenChecker(settings settings.Repository) func(http.Handler) http.HandlerFunc {
+	getClientTokenLableByRequest := func(r *http.Request) string {
+		if r.Header.Get("Sec-Fetch-Site") != "" || r.Header.Get("Origin") != "" {
+			// browser request
+			return labels.ClientApiTokenWeb
+		}
+		return labels.ClientApiTokenMobile
+	}
+
+	return func(next http.Handler) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			switch r.Method {
+			case "HEAD", "OPTIONS":
+				// Safe methods are always allowed.
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			clientTokenFromHeader := r.Header.Get("A-Client-API-Token")
+			clientToken, err := settings.GetSetting(ctx, nil, getClientTokenLableByRequest(r))
+			if err != nil {
+				writeError(ctx, w, r, return400IfApp404IfNoResultErrOr500(err), err)
+				return
+			}
+			if clientTokenFromHeader != clientToken {
+				writeError(ctx, w, r, http.StatusBadRequest, errors.New("invalid client api token"))
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+
 		}
 	}
 }

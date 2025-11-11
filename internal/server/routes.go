@@ -72,7 +72,7 @@ func corsMiddleware(next http.Handler) http.HandlerFunc {
 		Debug:            appenv.IsLocal(),
 		AllowedOrigins:   FrontendDomains,
 		AllowedMethods:   []string{"OPTIONS", "HEAD", "GET", "POST", "DELETE", "PUT", "PATCH"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", "Accept", "Accept-Language"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Accept", "Accept-Language", "A-Client-API-Token"},
 		AllowCredentials: true,
 		MaxAge:           10, // 10 sec
 	}
@@ -85,6 +85,7 @@ func apiRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Ha
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
+		ClientTokenChecker(s.NewSettingsRepository()),
 	)
 }
 

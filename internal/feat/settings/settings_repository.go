@@ -13,9 +13,9 @@ import (
 )
 
 type Repository interface {
-	GetSetting(ctx context.Context, userId int, label string) (string, error)
-	setSetting(ctx context.Context, userId int, label, value string) error
-	deleteSetting(ctx context.Context, userId int, label string) error
+	GetSetting(ctx context.Context, userId *int, label string) (string, error)
+	setSetting(ctx context.Context, userId *int, label, value string) error
+	deleteSetting(ctx context.Context, userId *int, label string) error
 }
 
 func NewRepository(db *database.Service, redis *redis.Client) Repository {
@@ -31,10 +31,11 @@ type repositoryImpl struct {
 
 const redisKey = "app:settings"
 
-func (r repositoryImpl) GetSetting(ctx context.Context, userId int, label string) (string, error) {
+func (r repositoryImpl) GetSetting(ctx context.Context, userId *int, label string) (string, error) {
 	zlog := zerolog.Ctx(ctx).With().Str("label", label).Logger()
 
 	// todo: check if the user have read permission on the app.settings
+	// if the userId is nil then its system call
 
 	if val := r.readSettingFromCache(ctx, label, zlog); val != nil {
 		return *val, nil
@@ -84,11 +85,11 @@ func (r repositoryImpl) addSettingToCache(ctx context.Context, label, value stri
 	}
 }
 
-func (r repositoryImpl) setSetting(ctx context.Context, userId int, label, value string) error {
+func (r repositoryImpl) setSetting(ctx context.Context, userId *int, label, value string) error {
 	zlog := zerolog.Ctx(ctx).With().Str("label", label).Str("value", value).Logger()
 
 	// todo: check if the user have write permission on the app.settings
-
+	// if the userId is nil then its system call
 	err := r.db.Queries.SettingsSetSetting(
 		ctx,
 		database_queries.SettingsSetSettingParams{
@@ -106,11 +107,11 @@ func (r repositoryImpl) setSetting(ctx context.Context, userId int, label, value
 	return nil
 }
 
-func (r repositoryImpl) deleteSetting(ctx context.Context, userId int, label string) error {
+func (r repositoryImpl) deleteSetting(ctx context.Context, userId *int, label string) error {
 	zlog := zerolog.Ctx(ctx).With().Str("label", label).Logger()
 
 	// todo: check if the user have delete permission on the app.settings
-
+	// if the userId is nil then its system call
 	if err := r.redis.HDel(ctx, redisKey, label).Err(); err != nil {
 		zlog.Err(err).Msg("could not delete the settign from cache")
 	}
