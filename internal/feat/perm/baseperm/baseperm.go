@@ -1,7 +1,8 @@
 package baseperm
 
 const (
-	BaseRollAdmin = "admin"
+	BaseRollAdmin  = "admin"
+	BaseRollSystem = "system"
 )
 
 const (

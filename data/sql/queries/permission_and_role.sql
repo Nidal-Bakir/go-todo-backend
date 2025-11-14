@@ -26,12 +26,24 @@ INSERT INTO permission(name)
 VALUES($1)
 RETURNING *;
 
+-- name: PermCreateNewPermissions :copyfrom
+INSERT INTO permission(name)
+VALUES($1);
+
 -- name: PermCreateNewRole :one
 INSERT INTO role(name)
 VALUES($1)
 RETURNING *;
 
+-- name: PermCreateNewRoles :copyfrom
+INSERT INTO role(name)
+VALUES($1);
+
 -- name: PermAddPermissionToRole :exec
+INSERT INTO role_permission(role_name, permission_name)
+VALUES($1, $2);
+
+-- name: PermAddPermissionsToRoles :copyfrom
 INSERT INTO role_permission(role_name, permission_name)
 VALUES($1, $2);
 

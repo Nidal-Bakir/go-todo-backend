@@ -92,53 +92,35 @@ func seed(ctx context.Context, db *Service) (err error) {
 var v1_baseRollsAndPermission = seeder{
 	version: 1,
 	seederFn: func(ctx context.Context, dbTx database_queries.DBTX, queries *database_queries.Queries) error {
-		adminRole, err := queries.PermCreateNewRole(ctx, baseperm.BaseRollAdmin)
+		baseRols := []string{
+			baseperm.BaseRollAdmin,
+			baseperm.BaseRollSystem,
+		}
+		basePerms := []string{
+			baseperm.BasePermReadAppSettings,
+			baseperm.BasePermWriteAppSettings,
+			baseperm.BasePermDeleteAppSettings,
+		}
+
+		_, err := queries.PermCreateNewRoles(ctx, baseRols)
+		if err != nil {
+			return err
+		}
+		_, err = queries.PermCreateNewPermissions(ctx, basePerms)
 		if err != nil {
 			return err
 		}
 
-		readAppSettingsPer, err := queries.PermCreateNewPermission(ctx, baseperm.BasePermReadAppSettings)
-		if err != nil {
-			return err
+		rolePerms := make([]database_queries.PermAddPermissionsToRolesParams, 0, len(baseRols)*len(basePerms))
+		for _, r := range baseRols {
+			for _, p := range basePerms {
+				rolePerms = append(rolePerms, database_queries.PermAddPermissionsToRolesParams{
+					RoleName:       r,
+					PermissionName: p,
+				})
+			}
 		}
-		writeAppSettingsPer, err := queries.PermCreateNewPermission(ctx, baseperm.BasePermWriteAppSettings)
-		if err != nil {
-			return err
-		}
-		deleteAppSettingsPer, err := queries.PermCreateNewPermission(ctx, baseperm.BasePermDeleteAppSettings)
-		if err != nil {
-			return err
-		}
-
-		err = queries.PermAddPermissionToRole(
-			ctx,
-			database_queries.PermAddPermissionToRoleParams{
-				RoleName:       adminRole.Name,
-				PermissionName: readAppSettingsPer.Name,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		err = queries.PermAddPermissionToRole(
-			ctx,
-			database_queries.PermAddPermissionToRoleParams{
-				RoleName:       adminRole.Name,
-				PermissionName: writeAppSettingsPer.Name,
-			},
-		)
-		if err != nil {
-			return err
-		}
-
-		err = queries.PermAddPermissionToRole(
-			ctx,
-			database_queries.PermAddPermissionToRoleParams{
-				RoleName:       adminRole.Name,
-				PermissionName: deleteAppSettingsPer.Name,
-			},
-		)
+		_, err = queries.PermAddPermissionsToRoles(ctx, rolePerms)
 		if err != nil {
 			return err
 		}

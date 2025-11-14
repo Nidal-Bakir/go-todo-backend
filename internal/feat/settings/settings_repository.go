@@ -7,7 +7,6 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/database/database_queries"
-	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/perm"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/perm/baseperm"
 	dbutils "github.com/Nidal-Bakir/go-todo-backend/internal/utils/db_utils"
@@ -16,9 +15,9 @@ import (
 )
 
 type Repository interface {
-	GetSetting(ctx context.Context, user *auth.User, label string) (string, error)
-	setSetting(ctx context.Context, user *auth.User, label, value string) error
-	deleteSetting(ctx context.Context, user *auth.User, label string) error
+	GetSetting(ctx context.Context, role, label string) (string, error)
+	SetSetting(ctx context.Context, role, label, value string) error
+	DeleteSetting(ctx context.Context, role, label string) error
 }
 
 func NewRepository(db *database.Service, redis *redis.Client, permRepo perm.Repository) Repository {
@@ -35,14 +34,12 @@ type repositoryImpl struct {
 
 const redisKey = "app:settings"
 
-func (r repositoryImpl) GetSetting(ctx context.Context, user *auth.User, label string) (string, error) {
+func (r repositoryImpl) GetSetting(ctx context.Context, role, label string) (string, error) {
 	zlog := zerolog.Ctx(ctx).With().Str("label", label).Logger()
 
-	if user != nil {
-		err := r.permRepo.HasPermissionErr(ctx, *user, baseperm.BasePermReadAppSettings)
-		if err != nil {
-			return "", err
-		}
+	err := r.permRepo.HasPermissionErr(ctx, role, baseperm.BasePermReadAppSettings)
+	if err != nil {
+		return "", err
 	}
 
 	if val := r.readSettingFromCache(ctx, label, zlog); val != nil {
@@ -93,17 +90,15 @@ func (r repositoryImpl) addSettingToCache(ctx context.Context, label, value stri
 	}
 }
 
-func (r repositoryImpl) setSetting(ctx context.Context, user *auth.User, label, value string) error {
+func (r repositoryImpl) SetSetting(ctx context.Context, role, label, value string) error {
 	zlog := zerolog.Ctx(ctx).With().Str("label", label).Str("value", value).Logger()
 
-	if user != nil {
-		err := r.permRepo.HasPermissionErr(ctx, *user, baseperm.BasePermWriteAppSettings)
-		if err != nil {
-			return err
-		}
+	err := r.permRepo.HasPermissionErr(ctx, role, baseperm.BasePermWriteAppSettings)
+	if err != nil {
+		return err
 	}
 
-	err := r.db.Queries.SettingsSetSetting(
+	err = r.db.Queries.SettingsSetSetting(
 		ctx,
 		database_queries.SettingsSetSettingParams{
 			Label: label,
@@ -120,21 +115,19 @@ func (r repositoryImpl) setSetting(ctx context.Context, user *auth.User, label, 
 	return nil
 }
 
-func (r repositoryImpl) deleteSetting(ctx context.Context, user *auth.User, label string) error {
+func (r repositoryImpl) DeleteSetting(ctx context.Context, role, label string) error {
 	zlog := zerolog.Ctx(ctx).With().Str("label", label).Logger()
 
-	if user != nil {
-		err := r.permRepo.HasPermissionErr(ctx, *user, baseperm.BasePermDeleteAppSettings)
-		if err != nil {
-			return err
-		}
+	err := r.permRepo.HasPermissionErr(ctx, role, baseperm.BasePermDeleteAppSettings)
+	if err != nil {
+		return err
 	}
 
 	if err := r.redis.HDel(ctx, redisKey, label).Err(); err != nil {
 		zlog.Err(err).Msg("could not delete the settign from cache")
 	}
 
-	err := r.db.Queries.SettingsDeleteByLable(ctx, label)
+	err = r.db.Queries.SettingsDeleteByLable(ctx, label)
 	if err != nil {
 		zlog.Err(err).Msg("can not delete setting")
 		return err

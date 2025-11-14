@@ -7,6 +7,7 @@ import (
 
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
@@ -17,8 +18,9 @@ func (s *Server) RegisterRoutes(ctx context.Context) http.Handler {
 	mux := http.NewServeMux()
 
 	authRepo := s.NewAuthRepository()
+	settingsRepo := s.NewSettingsRepository()
 
-	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(ctx, s, authRepo)))
+	mux.Handle("/api/", http.StripPrefix("/api", apiRouter(ctx, s, authRepo, settingsRepo)))
 	mux.Handle("/", webRouter(ctx, authRepo))
 
 	rateLimitGlobal := middleware.RateLimiter(
@@ -79,9 +81,9 @@ func corsMiddleware(next http.Handler) http.HandlerFunc {
 	return middleware.Cors(o)(next)
 }
 
-func apiRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
+func apiRouter(ctx context.Context, s *Server, authRepo auth.Repository, settingsRepo settings.Repository) http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(ctx, s, authRepo)))
+	mux.Handle("/v1/", http.StripPrefix("/v1", v1Router(ctx, s, authRepo, settingsRepo)))
 
 	return middleware.MiddlewareChain(
 		mux.ServeHTTP,
@@ -89,11 +91,12 @@ func apiRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.Ha
 	)
 }
 
-func v1Router(ctx context.Context, s *Server, authRepo auth.Repository) http.Handler {
+func v1Router(ctx context.Context, s *Server, authRepo auth.Repository, settingsRepo settings.Repository) http.Handler {
 	mux := http.NewServeMux()
 
 	registerAuthHandler(ctx, mux, s, authRepo)
 	registerInstallationHandler(ctx, mux, authRepo)
+	registerSettingsHandler(ctx, mux, settingsRepo, authRepo)
 
 	registerTodoHandler(ctx, mux, s, authRepo)
 
@@ -114,6 +117,19 @@ func registerAuthHandler(ctx context.Context, mux *http.ServeMux, s *Server, aut
 // handel: /installation/
 func registerInstallationHandler(ctx context.Context, mux *http.ServeMux, authRepo auth.Repository) {
 	mux.Handle("/installation/", http.StripPrefix("/installation", installationRouter(ctx, authRepo)))
+}
+
+// handel: /settings and /settings/
+//
+// Needs: Auth
+func registerSettingsHandler(ctx context.Context, mux *http.ServeMux, settingsRepo settings.Repository, authRepo auth.Repository) {
+	h := middleware.MiddlewareChain(
+		settingsRouter(ctx, settingsRepo).ServeHTTP,
+		Auth(authRepo),
+	)
+
+	mux.Handle("/settings", h)
+	mux.Handle("/settings/", h)
 }
 
 // handel: /todo and /todo/

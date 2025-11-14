@@ -30,6 +30,11 @@ func (q *Queries) PermAddPermissionToRole(ctx context.Context, arg PermAddPermis
 	return err
 }
 
+type PermAddPermissionsToRolesParams struct {
+	RoleName       string `json:"role_name"`
+	PermissionName string `json:"permission_name"`
+}
+
 const permCreateNewPermission = `-- name: PermCreateNewPermission :one
 INSERT INTO permission(name)
 VALUES($1)

@@ -9,6 +9,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/appenv"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/apperr"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/perm/baseperm"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/feat/settings/labels"
 	"github.com/rs/zerolog"
@@ -187,7 +188,7 @@ func ClientTokenChecker(settings settings.Repository) func(http.Handler) http.Ha
 			}
 
 			clientTokenFromHeader := r.Header.Get("A-Client-API-Token")
-			clientToken, err := settings.GetSetting(ctx, nil, getClientTokenLableByRequest(r))
+			clientToken, err := settings.GetSetting(ctx, baseperm.BaseRollSystem, getClientTokenLableByRequest(r))
 			if err != nil {
 				writeError(ctx, w, r, return400IfApp404IfNoResultErrOr500(err), err)
 				return
