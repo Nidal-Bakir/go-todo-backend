@@ -1,2 +1,2 @@
-FROM dpage/pgadmin4:latest
+FROM dpage/pgadmin4:9.9
 EXPOSE 80

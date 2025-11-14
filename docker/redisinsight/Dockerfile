@@ -1,2 +1,2 @@
-FROM redis/redisinsight:latest  
+FROM redis/redisinsight:2.70
 EXPOSE 5540
