@@ -13,7 +13,7 @@ import (
 
 var (
 	key            *rsa.PrivateKey
-	privateKeyPath = os.Getenv("RSA_PEM_PRIVATE_KEY_PATH")
+	privateKeyPath = os.Getenv("RSA_PEM_PRIVATE_KEY_FOR_JWS_PATH")
 	appName        = os.Getenv("APP_NAME")
 )
 
