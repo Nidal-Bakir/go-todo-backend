@@ -20,6 +20,11 @@ require (
 )
 
 require (
+	github.com/nyaruka/phonenumbers v1.6.7 // indirect
+	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
+)
+
+require (
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.8.0 // indirect

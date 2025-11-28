@@ -15,7 +15,7 @@ import (
 	"github.com/Nidal-Bakir/go-todo-backend/internal/middleware/ratelimiter/redis_ratelimiter"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/tracker"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
-	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/phonenumber"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/redis/go-redis/v9"
@@ -51,7 +51,8 @@ func authRouter(ctx context.Context, s *Server, authRepo auth.Repository) http.H
 		middleware.MiddlewareChain(
 			passwordLogin(authRepo),
 			middleware.ACT_app_x_www_form_urlencoded,
-			loginRateLimiter(ctx, s.rdb),
+			loginRateLimiterByAccessKey(ctx, s.rdb),
+			loginRateLimiterByIP(ctx, s.rdb),
 			Installation(authRepo),
 		),
 	)
@@ -137,23 +138,30 @@ func createAcccountRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(
 }
 
 func createAcccountRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
-	return middleware.RateLimiter(
-		func(r *http.Request) (string, error) {
-			err := r.ParseForm()
+	return middleware.RateLimiterWithOptionalLimit(
+		func(r *http.Request) (key string, shouldRateLimit bool, err error) {
+			shouldRateLimit = true
+
+			err = r.ParseForm()
 			if err != nil {
-				return "", err
+				return "", shouldRateLimit, err
 			}
 
 			createAccountParam, _ := validateCreateAccountParam(r)
-
-			key := ""
 			createAccountParam.LoginIdentityType.FoldOr(
 				auth.LoginIdentityFoldActions{
 					OnEmail: func() {
 						key = createAccountParam.Email
 					},
 					OnPhone: func() {
-						key = createAccountParam.PhoneNumber.ToAppStdForm()
+						if createAccountParam.PhoneNumber != nil {
+							key = createAccountParam.PhoneNumber.ToE164()
+						} else {
+							// Since the phone number cannot be determined (due to an error or invalid format),
+							// we can't apply phone-based rate limiting. Instead, we fall back to IP-based
+							// rate limiting and avoid applying the phone-specific limiter for this request.
+							shouldRateLimit = false
+						}
 					},
 				},
 				func() {
@@ -164,7 +172,7 @@ func createAcccountRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 					key = "unknown_login_identity_type"
 				},
 			)
-			return key, nil
+			return key, shouldRateLimit, nil
 		},
 		redis_ratelimiter.NewRedisSlidingWindowLimiter(
 			ctx,
@@ -178,24 +186,32 @@ func createAcccountRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 	)
 }
 
-func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
-	return middleware.RateLimiter(
-		func(r *http.Request) (string, error) {
-			err := r.ParseForm()
+func loginRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiterWithOptionalLimit(
+		func(r *http.Request) (key string, shouldRateLimit bool, err error) {
+			shouldRateLimit = true
+
+			err = r.ParseForm()
 			if err != nil {
-				return "", err
+				return "", shouldRateLimit, err
 			}
 
 			loginParam, _ := validatePasswordLoginParam(r)
 
-			key := ""
 			loginParam.LoginIdentityType.FoldOr(
 				auth.LoginIdentityFoldActions{
 					OnEmail: func() {
 						key = loginParam.Email
 					},
 					OnPhone: func() {
-						key = loginParam.PhoneNumber.ToAppStdForm()
+						if loginParam.PhoneNumber != nil {
+							key = loginParam.PhoneNumber.ToE164()
+						} else {
+							// Since the phone number cannot be determined (due to an error or invalid format),
+							// we can't apply phone-based rate limiting. Instead, we fall back to IP-based
+							// rate limiting and avoid applying the phone-specific limiter for this request.
+							shouldRateLimit = false
+						}
 					},
 				},
 				func() {
@@ -206,7 +222,7 @@ func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Han
 					key = "unknown_login_identity_type"
 				},
 			)
-			return key, nil
+			return key, shouldRateLimit, nil
 		},
 		redis_ratelimiter.NewRedisSlidingWindowLimiter(
 			ctx,
@@ -215,6 +231,23 @@ func loginRateLimiter(ctx context.Context, rdb *redis.Client) func(next http.Han
 				PerTimeFrame: 10,
 				TimeFrame:    time.Hour * 12,
 				KeyPrefix:    "auth:login:password:identity",
+			},
+		),
+	)
+}
+
+func loginRateLimiterByIP(ctx context.Context, rdb *redis.Client) func(next http.Handler) http.HandlerFunc {
+	return middleware.RateLimiter(
+		func(r *http.Request) (string, error) {
+			return r.RemoteAddr, nil
+		},
+		redis_ratelimiter.NewRedisSlidingWindowLimiter(
+			ctx,
+			rdb,
+			ratelimiter.Config{
+				PerTimeFrame: 100,
+				TimeFrame:    time.Hour * 12,
+				KeyPrefix:    "auth:create:account:ip",
 			},
 		),
 	)
@@ -315,7 +348,7 @@ func forgetPasswordRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 						key = param.Email
 					},
 					OnPhone: func() {
-						key = param.PhoneNumber.ToAppStdForm()
+						key = param.PhoneNumber.ToE164()
 					},
 				},
 				func() {
@@ -346,7 +379,7 @@ func forgetPasswordRateLimiterByAccessKey(ctx context.Context, rdb *redis.Client
 type createAccountParams struct {
 	LoginIdentityType auth.LoginIdentityType
 	Email             string
-	PhoneNumber       phonenumber.PhoneNumber
+	PhoneNumber       *phonenumber.PhoneNumber
 	Password          string
 	FirstName         string
 	LastName          string
@@ -400,65 +433,50 @@ func createTempPasswordAccount(authRepo auth.Repository) http.HandlerFunc {
 }
 
 func validateCreateAccountParam(r *http.Request) (createAccountParams, []error) {
-	loginIdentityTypeFormStr := r.FormValue("login_identity_type")
-
-	emailFormStr := r.FormValue("email")
-
-	phone := phonenumber.PhoneNumber{
-		CountryCode: r.FormValue("country_code"),
-		Number:      r.FormValue("phone_number"),
-	}
-
-	passwordFormStr := r.FormValue("password")
-
-	fNameFormStr := r.FormValue("f_name")
-	lNameFormStr := r.FormValue("l_name")
-
+	createAccountParam := createAccountParams{}
 	errList := make([]error, 0, 5)
 
+	loginIdentityTypeFormStr := r.FormValue("login_identity_type")
 	loginIdentityType, err := new(auth.LoginIdentityType).FromString(loginIdentityTypeFormStr)
 	if err != nil {
 		errList = append(errList, err)
+		return createAccountParam, errList
+	} else {
+		createAccountParam.LoginIdentityType = *loginIdentityType
 	}
 
-	errList = append(errList, validatePassword(passwordFormStr)...)
+	createAccountParam.Password = r.FormValue("password")
+	errList = append(errList, validatePassword(createAccountParam.Password)...)
 
 	loginIdentityType.FoldOr(
 		auth.LoginIdentityFoldActions{
 			OnEmail: func() {
-				if !emailvalidator.IsValidEmail(emailFormStr) {
+				createAccountParam.Email = r.FormValue("email")
+				if !emailvalidator.IsValidEmail(createAccountParam.Email) {
 					errList = append(errList, apperr.ErrInvalidEmail)
 				}
 			},
 			OnPhone: func() {
-				if !phone.IsValid() {
+				phone, err := phonenumber.ParseAndValidate(assumablePhoneNumberFromRequest(r))
+				if err != nil {
 					errList = append(errList, apperr.ErrInvalidPhoneNumber)
+				} else {
+					createAccountParam.PhoneNumber = phone
 				}
 			},
 		},
 		func() {
-			// no op
+			errList = append(errList, apperr.ErrUnsupportedLoginIdentityType)
 		},
 	)
 
-	if len(fNameFormStr) <= 2 {
+	createAccountParam.FirstName = r.FormValue("f_name")
+	if len(createAccountParam.FirstName) <= 2 {
 		errList = append(errList, apperr.ErrTooShortName)
 	}
-	if len(lNameFormStr) <= 2 {
+	createAccountParam.LastName = r.FormValue("l_name")
+	if len(createAccountParam.LastName) <= 2 {
 		errList = append(errList, apperr.ErrTooShortName)
-	}
-
-	if len(errList) != 0 {
-		return createAccountParams{}, errList
-	}
-
-	createAccountParam := createAccountParams{
-		LoginIdentityType: *loginIdentityType,
-		Email:             emailFormStr,
-		PhoneNumber:       phone,
-		Password:          passwordFormStr,
-		FirstName:         fNameFormStr,
-		LastName:          lNameFormStr,
 	}
 
 	return createAccountParam, errList
@@ -536,7 +554,7 @@ func validateVareifyAccountParams(r *http.Request) (vareifyAccountParams, []erro
 type passwordLoginParams struct {
 	LoginIdentityType auth.LoginIdentityType
 	Email             string
-	PhoneNumber       phonenumber.PhoneNumber
+	PhoneNumber       *phonenumber.PhoneNumber
 	Password          string
 }
 
@@ -591,54 +609,43 @@ func passwordLogin(authRepo auth.Repository) http.HandlerFunc {
 }
 
 func validatePasswordLoginParam(r *http.Request) (passwordLoginParams, []error) {
-	loginIdentityTypeFormStr := r.FormValue("login_identity_type")
-
-	emailFormStr := r.FormValue("email")
-
-	phone := phonenumber.PhoneNumber{
-		CountryCode: r.FormValue("country_code"),
-		Number:      r.FormValue("phone_number"),
-	}
-
-	passwordFormStr := r.FormValue("password")
-
+	loginParam := passwordLoginParams{}
 	errList := make([]error, 0, 3)
 
+	loginIdentityTypeFormStr := r.FormValue("login_identity_type")
 	loginIdentityType, err := new(auth.LoginIdentityType).FromString(loginIdentityTypeFormStr)
 	if err != nil {
 		errList = append(errList, err)
+		return loginParam, errList
 	}
+	loginParam.LoginIdentityType = *loginIdentityType
+
+	loginParam.Password = r.FormValue("password")
+	errList = append(errList, validatePassword(loginParam.Password)...)
 
 	loginIdentityType.FoldOr(
 		auth.LoginIdentityFoldActions{
 			OnEmail: func() {
+				emailFormStr := r.FormValue("email")
 				if !emailvalidator.IsValidEmail(emailFormStr) {
 					errList = append(errList, apperr.ErrInvalidEmail)
+				} else {
+					loginParam.Email = emailFormStr
 				}
 			},
 			OnPhone: func() {
-				if !phone.IsValid() {
+				phone, err := phonenumber.ParseAndValidate(assumablePhoneNumberFromRequest(r))
+				if err != nil {
 					errList = append(errList, apperr.ErrInvalidPhoneNumber)
+				} else {
+					loginParam.PhoneNumber = phone
 				}
 			},
 		},
 		func() {
-			// no op
+			errList = append(errList, apperr.ErrUnsupportedLoginIdentityType)
 		},
 	)
-
-	errList = append(errList, validatePassword(passwordFormStr)...)
-
-	if len(errList) != 0 {
-		return passwordLoginParams{}, errList
-	}
-
-	loginParam := passwordLoginParams{
-		LoginIdentityType: *loginIdentityType,
-		Email:             emailFormStr,
-		PhoneNumber:       phone,
-		Password:          passwordFormStr,
-	}
 
 	return loginParam, errList
 }
@@ -795,7 +802,7 @@ func NewPublicUserFromAuthUser(u auth.User) publicUser {
 type forgetPasswordParams struct {
 	LoginIdentityType auth.LoginIdentityType
 	Email             string
-	PhoneNumber       phonenumber.PhoneNumber
+	PhoneNumber       *phonenumber.PhoneNumber
 }
 
 func forgetPassword(authRepo auth.Repository) http.HandlerFunc {
@@ -834,50 +841,39 @@ func forgetPassword(authRepo auth.Repository) http.HandlerFunc {
 }
 
 func validateForgetPasswordParam(r *http.Request) (forgetPasswordParams, []error) {
+	params := forgetPasswordParams{}
 	errList := make([]error, 0, 2)
 
 	loginIdentityTypeFormStr := r.FormValue("login_identity_type")
-
-	emailFormStr := r.FormValue("email")
-
-	phone := phonenumber.PhoneNumber{
-		CountryCode: r.FormValue("country_code"),
-		Number:      r.FormValue("phone_number"),
-	}
-
 	loginIdentityType, err := new(auth.LoginIdentityType).FromString(loginIdentityTypeFormStr)
 	if err != nil {
 		errList = append(errList, err)
+		return params, errList
+	} else {
+		params.LoginIdentityType = *loginIdentityType
 	}
 
 	loginIdentityType.FoldOr(
 		auth.LoginIdentityFoldActions{
 			OnEmail: func() {
-				if !emailvalidator.IsValidEmail(emailFormStr) {
+				params.Email = r.FormValue("email")
+				if !emailvalidator.IsValidEmail(params.Email) {
 					errList = append(errList, apperr.ErrInvalidEmail)
 				}
 			},
 			OnPhone: func() {
-				if !phone.IsValid() {
+				phone, err := phonenumber.ParseAndValidate(assumablePhoneNumberFromRequest(r))
+				if err != nil {
 					errList = append(errList, apperr.ErrInvalidPhoneNumber)
+				} else {
+					params.PhoneNumber = phone
 				}
 			},
 		},
 		func() {
-			// no op
+			errList = append(errList, apperr.ErrUnsupportedLoginIdentityType)
 		},
 	)
-
-	if len(errList) != 0 {
-		return forgetPasswordParams{}, errList
-	}
-
-	params := forgetPasswordParams{
-		LoginIdentityType: *loginIdentityType,
-		PhoneNumber:       phone,
-		Email:             emailFormStr,
-	}
-
 	return params, errList
 }
 
@@ -966,23 +962,22 @@ func userProfile(authRepo auth.Repository) http.HandlerFunc {
 		}
 
 		type PublicAPI struct {
-			ID                int32  `json:"id"`
-			Email             string `json:"email,omitzero"`
-			CountryCode       string `json:"country_code,omitzero"`
-			Number            string `json:"number,omitzero"`
-			IsVerified        bool   `json:"is_verified,omitzero"`
-			LoginIdentityType string `json:"login_identity_type"`
-			OidcProvider      string `json:"oidc_provider,omitzero"`
+			ID                int32           `json:"id"`
+			Email             string          `json:"email,omitzero"`
+			Phone             *PhonePublicAPI `json:"phone,omitempty"`
+			IsVerified        bool            `json:"is_verified,omitzero"`
+			LoginIdentityType string          `json:"login_identity_type"`
+			OidcProvider      string          `json:"oidc_provider,omitzero"`
 		}
 
 		loginIdentitiesPublicApi := make([]PublicAPI, len(loginIdentities))
 
 		for i, lo := range loginIdentities {
+
 			loginIdentitiesPublicApi[i] = PublicAPI{
 				ID:                lo.ID,
 				Email:             lo.Email,
-				CountryCode:       lo.Phone.CountryCode,
-				Number:            lo.Phone.Number,
+				Phone:             NewPhonePublicAPI(lo.Phone),
 				IsVerified:        lo.IsVerified,
 				LoginIdentityType: lo.LoginIdentityType.String(),
 				OidcProvider:      lo.OidcProvider,

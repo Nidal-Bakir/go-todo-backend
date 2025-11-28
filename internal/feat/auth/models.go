@@ -13,7 +13,7 @@ import (
 	oauth "github.com/Nidal-Bakir/go-todo-backend/internal/feat/auth/oauth/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
-	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/phonenumber"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -205,7 +205,7 @@ type TempPasswordUser struct {
 	Fname             string
 	Lname             string
 	Email             string
-	Phone             phonenumber.PhoneNumber
+	Phone             *phonenumber.PhoneNumber
 	SentOTP           string
 	Password          string
 }
@@ -218,8 +218,7 @@ func (tu TempPasswordUser) ToMap() map[string]string {
 	m["f_name"] = tu.Fname
 	m["l_name"] = tu.Lname
 	m["email"] = tu.Email
-	m["phone_number"] = tu.Phone.Number
-	m["phone_country_code"] = tu.Phone.CountryCode
+	m["phone_number"] = tu.Phone.ToE164()
 	m["sent_otp"] = tu.SentOTP
 	m["password"] = tu.Password
 	return m
@@ -229,14 +228,17 @@ func (tu *TempPasswordUser) FromMap(m map[string]string) *TempPasswordUser {
 	tu.Id = uuid.MustParse(m["id"])
 	tu.Username = m["username"]
 	tu.LoginIdentityType = LoginIdentityType(m["login_identity_type"])
+	tu.LoginIdentityType.FoldOr(
+		LoginIdentityFoldActions{
+			OnEmail: func() { tu.Email = m["email"] },
+			OnPhone: func() { tu.Phone = phonenumber.MustParse(m["phone_number"]) },
+		},
+		func() {},
+	)
 	tu.Fname = m["f_name"]
 	tu.Lname = m["l_name"]
-	tu.Email = m["email"]
-	tu.Phone.Number = m["phone_number"]
-	tu.Phone.CountryCode = m["phone_country_code"]
 	tu.SentOTP = m["sent_otp"]
 	tu.Password = m["password"]
-
 	return tu
 }
 
@@ -246,7 +248,7 @@ func (tu TempPasswordUser) ValidateForStore() (ok bool) {
 	tu.LoginIdentityType.FoldOr(
 		LoginIdentityFoldActions{
 			OnEmail: func() { ok = ok && emailvalidator.IsValidEmail(tu.Email) },
-			OnPhone: func() { ok = ok && tu.Phone.IsValid() },
+			OnPhone: func() { ok = ok && tu.Phone.IsValidPhoneNumber() },
 		},
 		func() { ok = false },
 	)
@@ -368,7 +370,7 @@ func (f *ForgetPasswordTmpDataStore) FromMap(m map[string]string) *ForgetPasswor
 }
 
 type PasswordLoginAccessKey struct {
-	Phone             phonenumber.PhoneNumber
+	Phone             *phonenumber.PhoneNumber
 	Email             string
 	LoginIdentityType LoginIdentityType
 }
@@ -378,7 +380,7 @@ func (p PasswordLoginAccessKey) accessKeyStr() string {
 	p.LoginIdentityType.Fold(
 		LoginIdentityFoldActions{
 			OnEmail: func() { a = p.Email },
-			OnPhone: func() { a = p.Phone.ToAppStdForm() },
+			OnPhone: func() { a = p.Phone.ToE164() },
 		},
 	)
 	return a
@@ -404,7 +406,7 @@ type UpdateInstallationData struct {
 
 type PublicLoginOptionForProfile struct {
 	ID                int32
-	Phone             phonenumber.PhoneNumber
+	Phone             *phonenumber.PhoneNumber
 	Email             string
 	LoginIdentityType LoginIdentityType
 	IsVerified        bool

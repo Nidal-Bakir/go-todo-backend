@@ -14,6 +14,6 @@ func (p simpleSMSProvider) Send(ctx context.Context, target, content string) err
 	return nil
 }
 
-func newSMSProvider(_ string) Sender {
+func newSMSProvider(_ int) Sender {
 	return new(simpleSMSProvider)
 }

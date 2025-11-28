@@ -16,7 +16,7 @@ import (
 	dbutils "github.com/Nidal-Bakir/go-todo-backend/internal/utils/db_utils"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/emailvalidator"
 	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/password_hasher"
-	phonenumber "github.com/Nidal-Bakir/go-todo-backend/internal/utils/phone_number"
+	"github.com/Nidal-Bakir/go-todo-backend/internal/utils/phonenumber"
 	usernaemgen "github.com/Nidal-Bakir/username_r_gen/v2"
 	"github.com/google/uuid"
 
@@ -314,7 +314,7 @@ func generatePassworUserArgsForCreateUser(user *TempPasswordUser, passwordHasher
 	user.LoginIdentityType.Fold(
 		LoginIdentityFoldActions{
 			OnEmail: func() { email = user.Email },
-			OnPhone: func() { phone = user.Phone.ToAppStdForm() },
+			OnPhone: func() { phone = user.Phone.ToE164() },
 		},
 	)
 
@@ -635,11 +635,11 @@ func (repo repositoryImpl) GetAllLoginIdentitiesForUser(ctx context.Context, use
 		}
 
 		var email string
-		var phone phonenumber.PhoneNumber
+		var phone *phonenumber.PhoneNumber
 		identityType.Fold(
 			LoginIdentityFoldActions{
 				OnEmail: func() { email = v.PasswordEmail.String },
-				OnPhone: func() { phone, err = phonenumber.NewPhoneNumberFromStdForm(v.PasswordPhone.String) },
+				OnPhone: func() { phone, err = phonenumber.Parse(v.PasswordPhone.String) },
 				OnOcid:  func() { email = v.OidcDataEmail.String },
 			},
 		)

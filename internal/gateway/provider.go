@@ -9,7 +9,7 @@ type Sender interface {
 }
 
 type Provider interface {
-	NewSMSProvider(ctx context.Context, contryCode string) Sender
+	NewSMSProvider(ctx context.Context, contryCode int) Sender
 	NewEmailProvider(ctx context.Context) Sender
 }
 
@@ -20,7 +20,7 @@ func NewGatewaysProvider(ctx context.Context) Provider {
 type providerImpl struct {
 }
 
-func (p providerImpl) NewSMSProvider(ctx context.Context, contryCode string) Sender {
+func (p providerImpl) NewSMSProvider(ctx context.Context, contryCode int) Sender {
 	return newSMSProvider(contryCode)
 }
 

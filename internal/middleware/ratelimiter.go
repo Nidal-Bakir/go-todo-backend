@@ -12,12 +12,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratelimiter.Limiter) func(next http.Handler) http.HandlerFunc {
+func RateLimiterWithOptionalLimit(limitKeyFn func(r *http.Request) (key string, shouldRateLimit bool, err error), limiter ratelimiter.Limiter) func(next http.Handler) http.HandlerFunc {
 	return func(next http.Handler) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
-			key, err := limitKeyFn(r)
+			key, shouldRateLimit, err := limitKeyFn(r)
 			if err != nil {
 				zlog := zerolog.Ctx(ctx)
 				resutils.WriteError(ctx, w, r, http.StatusInternalServerError, err)
@@ -25,17 +25,28 @@ func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratel
 				return
 			}
 
-			allow, backoffDuration := limiter.Allow(ctx, key)
-
-			if !allow {
-				w.Header().Add("Retry-After", strconv.Itoa(int(math.Ceil(backoffDuration.Abs().Seconds()))))
-				// Request limit per ${config.TimeFrame}
-				w.Header().Add("X-RateLimit-Limit", fmt.Sprint(limiter.Config().PerTimeFrame))
-				resutils.WriteError(ctx, w, r, http.StatusTooManyRequests, apperr.ErrTooManyRequests)
-				return
+			if shouldRateLimit {
+				allow, backoffDuration := limiter.Allow(ctx, key)
+				if !allow {
+					w.Header().Add("Retry-After", strconv.Itoa(int(math.Ceil(backoffDuration.Abs().Seconds()))))
+					// Request limit per ${config.TimeFrame}
+					w.Header().Add("X-RateLimit-Limit", fmt.Sprint(limiter.Config().PerTimeFrame))
+					resutils.WriteError(ctx, w, r, http.StatusTooManyRequests, apperr.ErrTooManyRequests)
+					return
+				}
 			}
 
 			next.ServeHTTP(w, r)
 		}
 	}
+}
+
+func RateLimiter(limitKeyFn func(r *http.Request) (string, error), limiter ratelimiter.Limiter) func(next http.Handler) http.HandlerFunc {
+	return RateLimiterWithOptionalLimit(
+		func(r *http.Request) (string, bool, error) {
+			key, err := limitKeyFn(r)
+			return key, true, err
+		},
+		limiter,
+	)
 }

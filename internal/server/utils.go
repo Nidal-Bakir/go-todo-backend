@@ -98,3 +98,15 @@ func StripBearerToken(tokenWithBearer string) string {
 	token, _ := strings.CutPrefix(tokenWithBearer, "Bearer ")
 	return token
 }
+
+func assumablePhoneNumberFromRequest(r *http.Request) string {
+	sb := strings.Builder{}
+	countryCode := r.FormValue("country_code")
+	number := r.FormValue("phone_number")
+	if countryCode[0] != '+' {
+		sb.WriteRune('+')
+	}
+	sb.WriteString(countryCode)
+	sb.WriteString(number)
+	return sb.String()
+}
