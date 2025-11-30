@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE oauth_token (
   id SERIAL PRIMARY KEY NOT NULL,
-  oauth_integration_id INTEGER NOT NULL UNIQUE REFERENCES oauth_integration(id),
+  oauth_integration_id INTEGER NOT NULL UNIQUE REFERENCES oauth_integration(id) ON DELETE CASCADE,
   access_token VARCHAR(2048),
   refresh_token VARCHAR(2048),
   token_type VARCHAR(50) NOT NULL DEFAULT 'Bearer',

@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE guest_login_identity (
     id SERIAL PRIMARY KEY NOT NULL,
-    login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id),
+    login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id) ON DELETE CASCADE,
     device_id TEXT NOT NULL UNIQUE CHECK (char_length(device_id) > 0 AND char_length(device_id) <= 2048),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,

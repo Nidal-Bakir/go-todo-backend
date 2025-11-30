@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE oauth_connection (
   id SERIAL PRIMARY KEY NOT NULL,
-  provider_name TEXT NOT NULL REFERENCES oauth_provider(name),
+  provider_name TEXT NOT NULL REFERENCES oauth_provider(name) ON DELETE CASCADE,
   scopes TEXT[] NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW(),

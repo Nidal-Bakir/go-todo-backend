@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE oidc_data (
     id SERIAL PRIMARY KEY NOT NULL,
-    provider_name TEXT NOT NULL REFERENCES oauth_provider(name),
+    provider_name TEXT NOT NULL REFERENCES oauth_provider(name) ON DELETE CASCADE,
     sub TEXT NOT NULL,
     email VARCHAR(255),
     iss TEXT NOT NULL,

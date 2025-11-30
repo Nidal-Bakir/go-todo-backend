@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE login_identity (
     id SERIAL PRIMARY KEY NOT NULL,
-    user_id INTEGER NOT NULL REFERENCES users(id),
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     identity_type TEXT NOT NULL,
     CONSTRAINT chk_login_identity_type
         CHECK (identity_type IN ('email', 'phone', 'oidc', 'guest')),

@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE oidc_login_identity (
     id SERIAL PRIMARY KEY NOT NULL,
-    login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id),
+    login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id) ON DELETE CASCADE,
     oidc_data_id INTEGER NOT NULL UNIQUE REFERENCES oidc_data(id),
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,

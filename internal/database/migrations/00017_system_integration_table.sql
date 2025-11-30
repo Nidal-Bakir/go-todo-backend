@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE system_integration (
     id SERIAL PRIMARY KEY NOT NULL,
-    oauth_integration_id INTEGER NOT NULL UNIQUE REFERENCES oauth_integration(id),
+    oauth_integration_id INTEGER NOT NULL UNIQUE REFERENCES oauth_integration(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     deleted_at TIMESTAMPTZ

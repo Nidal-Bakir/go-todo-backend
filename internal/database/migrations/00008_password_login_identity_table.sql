@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE password_login_identity (
     id SERIAL PRIMARY KEY NOT NULL,
-    login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id),
+    login_identity_id INTEGER NOT NULL UNIQUE REFERENCES login_identity(id) ON DELETE CASCADE,
     email VARCHAR(255),
     phone VARCHAR(16), -- E.164 format
     hashed_pass VARCHAR(128) NOT NULL,

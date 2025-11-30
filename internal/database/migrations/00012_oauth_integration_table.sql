@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE oauth_integration (
     id SERIAL PRIMARY KEY NOT NULL,
-    oauth_connection_id INTEGER NOT NULL REFERENCES oauth_connection(id),
+    oauth_connection_id INTEGER NOT NULL REFERENCES oauth_connection(id) ON DELETE CASCADE,
     integration_type TEXT NOT NULL,
     CONSTRAINT chk_oauth_integration_type
         CHECK (integration_type IN ('user', 'system')),

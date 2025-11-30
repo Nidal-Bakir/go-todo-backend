@@ -14,8 +14,8 @@ CREATE TABLE role (
 );
 
 CREATE TABLE role_permission (
-    role_name VARCHAR(100) NOT NULL REFERENCES role(name),
-    permission_name VARCHAR(100) NOT NULL REFERENCES permission(name),
+    role_name VARCHAR(100) NOT NULL REFERENCES role(name) ON DELETE CASCADE,
+    permission_name VARCHAR(100) NOT NULL REFERENCES permission(name) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
     PRIMARY KEY (role_name, permission_name)
