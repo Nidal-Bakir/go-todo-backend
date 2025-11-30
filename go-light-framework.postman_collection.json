@@ -1,0 +1,676 @@
+{
+	"info": {
+		"_postman_id": "1eb350c5-fa9b-43a8-97aa-ad5df573d99c",
+		"name": "todo-go-app",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "31771779"
+	},
+	"item": [
+		{
+			"name": "auth",
+			"item": [
+				{
+					"name": "create installation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "{{url}}/{{ver}}/installation/create?notification_token=token_test&locale=en&device_manufacturer=apple&device_os=ios&timezone_offset_in_minutes=180&app_version=1.0.0&device_os_version=16&client_type=mobile",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"installation",
+								"create"
+							],
+							"query": [
+								{
+									"key": "notification_token",
+									"value": "token_test"
+								},
+								{
+									"key": "locale",
+									"value": "en"
+								},
+								{
+									"key": "device_manufacturer",
+									"value": "apple"
+								},
+								{
+									"key": "device_os",
+									"value": "ios"
+								},
+								{
+									"key": "timezone_offset_in_minutes",
+									"value": "180"
+								},
+								{
+									"key": "app_version",
+									"value": "1.0.0"
+								},
+								{
+									"key": "device_os_version",
+									"value": "16"
+								},
+								{
+									"key": "client_type",
+									"value": "mobile"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update installation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/installation/update?notification_token=test&app_version=1.0.0&timezone_offset_in_minutes=180&locale=en",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"installation",
+								"update"
+							],
+							"query": [
+								{
+									"key": "notification_token",
+									"value": "test"
+								},
+								{
+									"key": "app_version",
+									"value": "1.0.0"
+								},
+								{
+									"key": "timezone_offset_in_minutes",
+									"value": "180"
+								},
+								{
+									"key": "locale",
+									"value": "en"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create account",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/create-account?login_identity_type=phone&country_code=963&phone_number=966577043&password=123456789&f_name=nidal&l_name=bakir",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"create-account"
+							],
+							"query": [
+								{
+									"key": "login_identity_type",
+									"value": "phone"
+								},
+								{
+									"key": "email",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "country_code",
+									"value": "963"
+								},
+								{
+									"key": "phone_number",
+									"value": "966577043"
+								},
+								{
+									"key": "password",
+									"value": "123456789"
+								},
+								{
+									"key": "f_name",
+									"value": "nidal"
+								},
+								{
+									"key": "l_name",
+									"value": "bakir"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify account",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/verify-account?id=b83ef46f-223a-4ca4-9b18-dea8617e50bc&code=463416",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"verify-account"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "b83ef46f-223a-4ca4-9b18-dea8617e50bc"
+								},
+								{
+									"key": "code",
+									"value": "463416"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/login?login_identity_type=phone&country_code=963&phone_number=0966577043&password=123456789",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"login"
+							],
+							"query": [
+								{
+									"key": "login_identity_type",
+									"value": "phone"
+								},
+								{
+									"key": "email",
+									"value": "g@g.com",
+									"disabled": true
+								},
+								{
+									"key": "country_code",
+									"value": "963"
+								},
+								{
+									"key": "phone_number",
+									"value": "0966577043"
+								},
+								{
+									"key": "password",
+									"value": "123456789"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/logout",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"logout"
+							],
+							"query": [
+								{
+									"key": "terminate_all_other_sessions",
+									"value": "true",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "change password logged-in",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/change-password?old_password=2626789456&new_password=123456789",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"change-password"
+							],
+							"query": [
+								{
+									"key": "old_password",
+									"value": "2626789456"
+								},
+								{
+									"key": "new_password",
+									"value": "123456789"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "forget password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/forget-password?login_identity_type=email&email=g@g.com",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"forget-password"
+							],
+							"query": [
+								{
+									"key": "login_identity_type",
+									"value": "email"
+								},
+								{
+									"key": "email",
+									"value": "g@g.com"
+								},
+								{
+									"key": "country_code",
+									"value": "",
+									"disabled": true
+								},
+								{
+									"key": "phone_number",
+									"value": "",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "reset password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/reset-password?id=d1228aa4-cfb0-479f-a5f8-16b8d6d05b74&code=344591&new_password=2626789456",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"reset-password"
+							],
+							"query": [
+								{
+									"key": "id",
+									"value": "d1228aa4-cfb0-479f-a5f8-16b8d6d05b74"
+								},
+								{
+									"key": "code",
+									"value": "344591"
+								},
+								{
+									"key": "new_password",
+									"value": "2626789456"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "profile",
+			"item": [
+				{
+					"name": "me",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/auth/me",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"auth",
+								"me"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "todo",
+			"item": [
+				{
+					"name": "index",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/todo?per_page=1&page=0",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"todo"
+							],
+							"query": [
+								{
+									"key": "per_page",
+									"value": "1"
+								},
+								{
+									"key": "page",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "show todo",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/todo/2",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"todo",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete todo",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/todo/5",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"todo",
+								"5"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create todo",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/todo?title=hi&body=hi hi",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"todo"
+							],
+							"query": [
+								{
+									"key": "title",
+									"value": "hi"
+								},
+								{
+									"key": "body",
+									"value": "hi hi"
+								},
+								{
+									"key": "status",
+									"value": "pending",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update todo",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/todo/2",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"todo",
+								"2"
+							],
+							"query": [
+								{
+									"key": "title",
+									"value": "1",
+									"disabled": true
+								},
+								{
+									"key": "body",
+									"value": "2",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "done",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "settings",
+			"item": [
+				{
+					"name": "read setting",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/settings/gg",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"settings",
+								"gg"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "set setting",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "label",
+									"value": "gg",
+									"type": "text"
+								},
+								{
+									"key": "value",
+									"value": "gg_val",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{url}}/{{ver}}/settings",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"settings"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete setting",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/{{ver}}/settings/gg",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"{{ver}}",
+								"settings",
+								"gg"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					"pm.request.headers.add({",
+					"    key: 'Accept',",
+					"    value: 'application/json' ",
+					"})",
+					"",
+					"pm.request.headers.add({",
+					"    key: 'Accept-Language',",
+					"    value: pm.collectionVariables.get(\"lang\")",
+					"})",
+					"",
+					"pm.request.headers.add({",
+					"    key: 'A-Installation',",
+					"    value: pm.collectionVariables.get(\"installation\")",
+					"})",
+					"",
+					"pm.request.headers.add({",
+					"    key: 'A-Client-API-Token',",
+					"    value: pm.collectionVariables.get(\"A-Client-API-Token\")",
+					"})",
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "url",
+			"value": ""
+		},
+		{
+			"key": "ver",
+			"value": ""
+		},
+		{
+			"key": "lang",
+			"value": ""
+		},
+		{
+			"key": "installation",
+			"value": ""
+		},
+		{
+			"key": "A-Client-API-Token",
+			"value": ""
+		},
+		{
+			"key": "token",
+			"value": ""
+		}
+	]
+}
